@@ -392,9 +392,11 @@ async function main() {
   const home = await api('/api/home', { token: memberToken });
   ok('Home returns exactly one "what\'s next" focal point', home.status === 200
     && ('whatsNext' in home.body));
+  // A member can now put something on their own Lead's list — and nobody
+  // else's — so the compose sheet exists for them too.
   ok('Home reports capabilities so the client mirrors the server',
-    home.body?.capabilities?.canAssign === false,
-    'a Member must not be offered the Assigned tab');
+    home.body?.capabilities?.canAssign === true,
+    'a Member can assign to their own Lead');
 
   const directorHome = await api('/api/home', { token: directorToken });
   ok('A Director does get the assign capability',
@@ -423,15 +425,19 @@ async function main() {
   ok('Faculty Coordinator has full oversight',
     facultyHome.body?.capabilities?.canViewAudit === true);
 
-  // She directs the leadership, not individual members.
+  // She directs the leadership, not individual members. The club's officers
+  // hold posts rather than run teams, so there is no department to route
+  // through and she reaches them by name.
   const facultyTargets = await api('/api/users/assignable', { token: facultyToken });
-  // Everyone may take something on themselves, so she appears in her own list.
-  // Nobody else should.
+  const OFFICERS = ['president', 'vicePresident', 'secretaryGeneral'];
   const facultyOthers = facultyTargets.body.assignable
     .filter((m) => m.role !== 'facultyCoordinator');
-  ok('The Faculty Coordinator is offered no other individuals to assign to',
-    facultyOthers.length === 0,
+  ok('The Faculty Coordinator reaches the club officers by name',
+    facultyOthers.length > 0 && facultyOthers.every((m) => OFFICERS.includes(m.role)),
     facultyOthers.map((m) => `${m.name}:${m.role}`).join(', '));
+  ok('But never an individual member or Lead',
+    facultyOthers.every((m) => m.role !== 'clubMember' && m.role !== 'clubLead'),
+    'those go through the department');
   ok('But she is still offered departments',
     facultyTargets.body?.canAssignToDepartment === true
     && facultyTargets.body.departments.length >= 6,
@@ -1177,10 +1183,32 @@ async function main() {
       description: 'Two pairs of hands on Friday afternoon would do it.',
       skills: ['Design', 'Lifting things'],
       eventId,
+      neededBy: new Date(Date.now() + 3 * 864e5).toISOString(),
+      maxHelpers: 2,
     },
   });
   ok('Any member can ask for help', asked.status === 201, JSON.stringify(asked.body));
   const helpId = asked.body?.id;
+
+  // Both are required now: an ask with no deadline sits on the board for a
+  // week because nobody can tell whether it is tonight or next month.
+  const undated = await api('/api/help', {
+    method: 'POST', token: memberToken,
+    body: { title: `No deadline ${RUN}`, maxHelpers: 1 },
+  });
+  ok('An ask without a deadline is refused', undated.status === 400,
+    `got ${undated.status}`);
+
+  const crowded = await api('/api/help', {
+    method: 'POST', token: memberToken,
+    body: {
+      title: `Too many ${RUN}`,
+      neededBy: new Date(Date.now() + 864e5).toISOString(),
+      maxHelpers: 99,
+    },
+  });
+  ok('And one asking for ninety-nine people is refused', crowded.status === 400,
+    `got ${crowded.status}`);
 
   const helpFeed = await api('/api/help', { token: otherMemberToken });
   const raised = helpFeed.body.requests.find((r) => r.id === helpId);
@@ -1207,6 +1235,31 @@ async function main() {
     claimedHelp?.status === 'assigned' && claimedHelp.helpers.length === 1,
     `${claimedHelp?.status}, ${claimedHelp?.helpers?.length} helpers`);
   ok('The board says who is on it', claimedHelp?.helpers?.[0]?.note === 'Free after 2pm.');
+  ok('And how many places are left', claimedHelp?.spotsLeft === 1,
+    `spotsLeft ${claimedHelp?.spotsLeft}`);
+  ok('It carries the deadline it was asked for', Boolean(claimedHelp?.neededBy));
+
+  // Offering has to put it on the helper's own list, or "I can help" is a
+  // promise the app immediately forgets.
+  const helperWork = await api('/api/tasks?scope=mine', { token: otherMemberToken });
+  const fromHelp = (helperWork.body?.tasks ?? [])
+    .find((t) => t.title === `Help: ${asked.body.title ?? ''}`
+      || t.title.startsWith('Help: Need a hand with the stage backdrop'));
+  ok('Offering to help lands on the helper\'s own task list', Boolean(fromHelp),
+    (helperWork.body?.tasks ?? []).map((t) => t.title).join(' | '));
+  ok('Carrying the deadline the ask specified', Boolean(fromHelp?.dueDate));
+
+  // The cap actually stops at the number asked for.
+  const thirdPerson = await api(`/api/help/${helpId}/offer`, {
+    method: 'POST', token: leadToken,
+  });
+  ok('A second helper fits within the cap of two', thirdPerson.status === 200,
+    `got ${thirdPerson.status}`);
+  const fourthPerson = await api(`/api/help/${helpId}/offer`, {
+    method: 'POST', token: presidentToken,
+  });
+  ok('A third is turned away once the places are full',
+    fourthPerson.status === 409, `got ${fourthPerson.status}`);
 
   // An open ask lands on its department's workspace, which is how a Lead finds
   // out somebody on their team is stuck without anyone having to tell them.
@@ -1232,6 +1285,13 @@ async function main() {
   });
   ok('A helper can always step back out', steppedBack.status === 200,
     'offering to help must never be a trap');
+
+  // Stepping back must actually undo it, or the app keeps nagging somebody
+  // about work they withdrew from.
+  const afterStepBack = await api('/api/tasks?scope=mine', { token: otherMemberToken });
+  ok('And the task comes off their list with them',
+    !(afterStepBack.body?.tasks ?? []).some((t) => t.title.startsWith('Help: Need a hand with the stage backdrop')),
+    (afterStepBack.body?.tasks ?? []).map((t) => t.title).join(' | '));
 
   // ================================================= EVENT FINANCE (v3.1)
   console.log('\nevent finance');
@@ -1434,6 +1494,95 @@ async function main() {
   });
   ok('A supervisor can rename too', supervisorRenames.status === 200,
     `got ${supervisorRenames.status}`);
+
+  // ================================================== HIERARCHY (v4.1)
+  console.log('\nhierarchy');
+
+  // The club's officers hold posts rather than run teams, so there is no
+  // department to route through and they are reached by name.
+  const directorTargets = await api('/api/users/assignable', { token: directorToken });
+  const officerRoles = ['president', 'vicePresident', 'secretaryGeneral'];
+  ok('A Director can assign to the officers by name',
+    (directorTargets.body?.assignable ?? [])
+      .some((m) => officerRoles.includes(m.role)),
+    (directorTargets.body?.assignable ?? []).map((m) => m.role).join(','));
+  ok('And still addresses departments',
+    directorTargets.body?.canAssignToDepartment === true);
+
+  const directorToPresident = await api('/api/tasks', {
+    method: 'POST', token: directorToken,
+    body: { title: `Sign the sponsor letter ${RUN}`, assignedTo: logins[0].body.user.id },
+  });
+  // Not a member — that still goes through the department.
+  ok('But a Director still cannot hand work to a member by name',
+    directorToPresident.status === 403, `got ${directorToPresident.status}`);
+
+  const leadTargets = await api('/api/users/assignable', { token: leadToken });
+  ok('A Lead reaches the officers too',
+    (leadTargets.body?.assignable ?? []).some((m) => officerRoles.includes(m.role)),
+    (leadTargets.body?.assignable ?? []).map((m) => m.role).join(','));
+
+  // A member gets exactly one name: their own Lead. Needs somebody in the
+  // Lead's own department — the fixture's other members sit in Creative, which
+  // has no Lead, so they would correctly see nobody.
+  const teammate = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: `Teammate ${RUN}`, email: `teammate.${RUN}@gwd.club`,
+      phone: '9000000001', password: 'TeammatePass1', role: 'clubMember',
+      departmentId: leadDept.id,
+    },
+  });
+  await api(`/api/access/${(await api('/api/access/pending', { token: leadToken }))
+    .body.requests.find((r) => r.userId === teammate.body.user.id).id}/approve`, {
+    method: 'POST', token: leadToken,
+  });
+  const teammateLogin = await api('/api/auth/login', {
+    method: 'POST', body: { email: `teammate.${RUN}@gwd.club`, password: 'TeammatePass1' },
+  });
+
+  const memberTargets = await api('/api/users/assignable', {
+    token: teammateLogin.body.token,
+  });
+  const memberOthers = (memberTargets.body?.assignable ?? [])
+    .filter((m) => m.id !== teammate.body.user.id);
+  ok('A member can assign only to their own department Lead',
+    memberOthers.length > 0 && memberOthers.every((m) => m.role === 'clubLead'),
+    memberOthers.map((m) => `${m.name}:${m.role}`).join(', '));
+  ok('And never to the officers or another member',
+    memberOthers.every((m) => !officerRoles.includes(m.role) && m.role !== 'clubMember'));
+
+  // --- removing people ---------------------------------------------------
+  const memberRemovesSomeone = await api(`/api/users/${memberId}`, {
+    method: 'DELETE', token: teammateLogin.body.token,
+  });
+  ok('A member cannot remove anybody', memberRemovesSomeone.status === 403,
+    `got ${memberRemovesSomeone.status}`);
+
+  const presidentRemovesDirector = await api(`/api/users/${logins[0].body.user.id}`, {
+    method: 'DELETE', token: presidentToken,
+  });
+  ok('Nor can the President remove people', presidentRemovesDirector.status === 403,
+    `got ${presidentRemovesDirector.status}`);
+
+  const throwaway = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: `Removable ${RUN}`, email: `removable.${RUN}@gwd.club`,
+      phone: '9000000000', password: 'RemovablePass1', role: 'clubMember',
+      departmentId: creative.id,
+    },
+  });
+  const removed = await api(`/api/users/${throwaway.body.user.id}`, {
+    method: 'DELETE', token: directorToken,
+  });
+  ok('A Director can remove somebody from the club', removed.status === 200,
+    JSON.stringify(removed.body));
+
+  const gone = await api('/api/auth/login', {
+    method: 'POST', body: { email: `removable.${RUN}@gwd.club`, password: 'RemovablePass1' },
+  });
+  ok('And they can no longer sign in', gone.status === 401, `got ${gone.status}`);
 
   // ===================================================== SECURITY (v4.0)
   console.log('\nsecurity');

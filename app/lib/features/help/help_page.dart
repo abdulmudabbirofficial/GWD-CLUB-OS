@@ -296,12 +296,42 @@ class HelpCard extends StatelessWidget {
                     .copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
 
-          if (request.skills.isNotEmpty || request.eventName != null) ...[
+          if (request.skills.isNotEmpty
+              || request.eventName != null
+              || request.neededBy != null) ...[
             const SizedBox(height: GwdSpace.md),
             Wrap(
               spacing: 5,
               runSpacing: 5,
               children: [
+                // When it is wanted by, first — it is the thing that decides
+                // whether somebody scrolling past can actually help.
+                if (request.neededBy != null)
+                  GwdChip(
+                    label: request.whenNeeded,
+                    color: request.isLate
+                        ? GwdColors.critical
+                        : GwdColors.inkSecondaryOf(context),
+                    icon: Icons.schedule_rounded,
+                    dense: true,
+                  ),
+                // Only while places remain and somebody could still take one.
+                if (request.spotsLeft != null && request.spotsLeft! > 0 && request.isOpen)
+                  GwdChip(
+                    label: request.spotsLeft == 1
+                        ? '1 place left'
+                        : '${request.spotsLeft} places left',
+                    color: GwdColors.inkTertiaryOf(context),
+                    icon: Icons.group_add_outlined,
+                    dense: true,
+                  ),
+                if (request.isFull && request.isOpen)
+                  const GwdChip(
+                    label: 'Fully covered',
+                    color: GwdColors.success,
+                    icon: Icons.check_rounded,
+                    dense: true,
+                  ),
                 if (request.eventName != null)
                   GwdChip(
                     label: request.eventName!,

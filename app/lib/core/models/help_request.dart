@@ -82,6 +82,9 @@ class HelpRequest {
     this.departmentName,
     this.eventId,
     this.eventName,
+    this.neededBy,
+    this.maxHelpers,
+    this.spotsLeft,
   });
 
   final String id;
@@ -102,6 +105,38 @@ class HelpRequest {
 
   /// Have I already offered?
   final bool helping;
+
+  /// When it is needed by. Required on new asks — "sometime" is how a request
+  /// sits on the board for a week, because nobody reading it can tell whether
+  /// it is tonight or next month. Null only on asks raised before this existed.
+  final DateTime? neededBy;
+
+  /// How many people were asked for, and how many places are still going.
+  final int? maxHelpers;
+  final int? spotsLeft;
+
+  /// Full up — the number of people they asked for have offered.
+  bool get isFull => spotsLeft != null && spotsLeft! <= 0;
+
+  /// Past its deadline and still not sorted.
+  bool get isLate =>
+      neededBy != null && isOpen && neededBy!.isBefore(DateTime.now());
+
+  /// "in 3 hours", "tomorrow", "in 2 days" — how a person would say it.
+  String get whenNeeded {
+    final by = neededBy;
+    if (by == null) return '';
+    final diff = by.difference(DateTime.now());
+    if (diff.isNegative) {
+      final late = diff.abs();
+      if (late.inHours < 24) return 'was needed ${late.inHours}h ago';
+      return 'was needed ${late.inDays}d ago';
+    }
+    if (diff.inMinutes < 60) return 'needed in ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'needed in ${diff.inHours}h';
+    if (diff.inDays == 1) return 'needed tomorrow';
+    return 'needed in ${diff.inDays} days';
+  }
 
   factory HelpRequest.fromJson(Map<String, dynamic> json) => HelpRequest(
         id: json['id'] as String,
@@ -124,6 +159,9 @@ class HelpRequest {
             .toList(growable: false),
         mine: json['mine'] == true,
         helping: json['helping'] == true,
+        neededBy: DateTime.tryParse(json['neededBy']?.toString() ?? '')?.toLocal(),
+        maxHelpers: (json['maxHelpers'] as num?)?.toInt(),
+        spotsLeft: (json['spotsLeft'] as num?)?.toInt(),
       );
 
   bool get isOpen => status != HelpStatus.resolved;

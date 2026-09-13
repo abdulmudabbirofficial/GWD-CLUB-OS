@@ -231,7 +231,11 @@ class HomePage extends StatelessWidget {
             ),
             AppleStaggerItem(
               index: next(),
-              child: _QuickActions(caps: caps, canCreateEvents: store.canCreateEvents),
+              child: _QuickActions(
+                caps: caps,
+                canCreateEvents: store.canCreateEvents,
+                onOpenSchedule: () => _openSchedule(context),
+              ),
             ),
 
             // ---------- your week ----------
@@ -737,10 +741,121 @@ class _TodayStrip extends StatelessWidget {
 /// "I need help" is here for everyone, deliberately first for a plain Member:
 /// it is the one action in the app that anybody can take, and burying it is how
 /// the feature dies.
+/// One option in a "which of these did you mean?" sheet.
+class _SheetChoice extends StatelessWidget {
+  const _SheetChoice({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      haptic: HapticStrength.light,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: GwdSpace.xl, vertical: GwdSpace.md),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: GwdColors.sunkenOf(context),
+                borderRadius: BorderRadius.circular(GwdRadius.md),
+              ),
+              child: Icon(icon, size: 19, color: GwdColors.inkOf(context)),
+            ),
+            const SizedBox(width: GwdSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title,
+                      style: GwdType.headline
+                          .copyWith(color: GwdColors.inkOf(context))),
+                  Text(subtitle,
+                      style: GwdType.footnote
+                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: GwdColors.inkTertiaryOf(context)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _QuickActions extends StatelessWidget {
-  const _QuickActions({required this.caps, required this.canCreateEvents});
+  const _QuickActions({
+    required this.caps,
+    required this.canCreateEvents,
+    required this.onOpenSchedule,
+  });
   final Capabilities caps;
   final bool canCreateEvents;
+  final VoidCallback onOpenSchedule;
+
+  /// Add something, or go and look at what is already there.
+  ///
+  /// A sheet rather than opening one and hoping: both are reasonable things to
+  /// want from a tile labelled "Schedule", and guessing wrong sends somebody
+  /// into a form they have to back out of.
+  Future<void> _chooseScheduleAction(BuildContext context) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: GwdColors.surfaceOf(sheetContext),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHeader(title: 'Schedule'),
+              _SheetChoice(
+                icon: Icons.calendar_month_rounded,
+                title: 'View the schedule',
+                subtitle: 'Everything the club has coming up',
+                onTap: () => Navigator.of(sheetContext).pop('view'),
+              ),
+              _SheetChoice(
+                icon: Icons.add_rounded,
+                title: 'Add to the schedule',
+                subtitle: 'A meeting, a shoot, a rehearsal',
+                onTap: () => Navigator.of(sheetContext).pop('add'),
+              ),
+              const SizedBox(height: GwdSpace.lg),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!context.mounted || choice == null) return;
+    if (choice == 'view') {
+      onOpenSchedule();
+    } else {
+      await showScheduleEditor(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -765,13 +880,22 @@ class _QuickActions extends StatelessWidget {
         tint: GwdColors.success,
         onTap: () => showAskForHelpSheet(context),
       ),
-      if (caps.canEditSchedule)
-        _Action(
-          icon: Icons.event_available_outlined,
-          label: 'Schedule',
-          tint: GwdColors.info,
-          onTap: () => showScheduleEditor(context),
-        ),
+      // Shown to everybody. Reading the schedule is the commonest thing anyone
+      // wants from it, and gating the whole tile behind `canEditSchedule` meant
+      // a member had no way in at all — while for somebody who *can* edit, the
+      // tile did only the rarer of the two jobs.
+      _Action(
+        icon: Icons.event_available_outlined,
+        label: 'Schedule',
+        tint: GwdColors.info,
+        onTap: () {
+          if (!caps.canEditSchedule) {
+            onOpenSchedule();
+            return;
+          }
+          _chooseScheduleAction(context);
+        },
+      ),
       if (caps.canBroadcast)
         _Action(
           icon: Icons.campaign_outlined,

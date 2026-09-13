@@ -165,9 +165,20 @@ const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, max: 10, name: 'login', keyOn: emailKey,
 });
 
-/** Creating accounts. Slow enough that nobody fills the approval queue. */
+/**
+ * Creating accounts.
+ *
+ * Deliberately generous. A club onboards in bursts — forty people joining in
+ * one session, all on the same campus Wi-Fi and therefore all on one NAT
+ * address — and a tight per-IP cap would lock out most of the room. The real
+ * gate on signup is the approval queue: an account is useless until a human
+ * lets it in, so this only has to stop somebody scripting thousands of rows.
+ *
+ * An earlier cap of 5/hour was tight enough to break the test suite, which was
+ * a fair warning about what it would have done on onboarding day.
+ */
 const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, max: 5, name: 'signup',
+  windowMs: 60 * 60 * 1000, max: 60, name: 'signup',
 });
 
 /**

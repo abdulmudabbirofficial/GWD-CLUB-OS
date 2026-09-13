@@ -7,6 +7,7 @@ const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
 const {
   EVENT_STATUSES, canCreateEvent, canManageEvent, canManageEventDepartment,
+  ROLES, isDirector,
 } = require('../permissions');
 const { notify, audit } = require('../services/notify');
 
@@ -125,19 +126,33 @@ router.get('/', async (request, response, next) => {
 
     // Grouped the way the Events page reads them, so the client does not have
     // to re-derive "ongoing" from dates and statuses.
-    const now = new Date();
+    //
+    // Compared by **calendar day**, never by timestamp. An event's `date` is a
+    // day — the time of day lives separately in startTime/endTime — so it is
+    // stored at midnight. Comparing that against `new Date()` meant an event
+    // was "in the past" from one minute after midnight on the day it ran, and
+    // because a freshly created event is `planning` rather than `ongoing` or
+    // `approved`, it did not qualify as ongoing either. The result: an event
+    // vanished from Upcoming into Past on the very morning it was happening,
+    // which reads exactly like the app having deleted it.
+    const startOfDay = (value) => {
+      const d = new Date(value);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    };
+    const today = startOfDay(new Date());
+    const dayOf = (e) => startOfDay(e.date);
+
+    const isDone = (e) => e.status === 'completed';
     const isOngoing = (e) =>
-      e.status === 'ongoing'
-      || (e.status === 'approved' && new Date(e.date).toDateString() === now.toDateString());
+      !isDone(e) && (e.status === 'ongoing' || dayOf(e) === today);
 
     response.json({
-      upcoming: decorated.filter(
-        (e) => !isOngoing(e) && e.status !== 'completed' && new Date(e.date) >= now,
-      ),
+      // Strictly after today. Anything happening today is ongoing, not upcoming.
+      upcoming: decorated.filter((e) => !isDone(e) && !isOngoing(e) && dayOf(e) > today),
       ongoing: decorated.filter(isOngoing),
       completed: decorated
-        .filter((e) => e.status === 'completed'
-          || (e.status !== 'cancelled' && new Date(e.date) < now && !isOngoing(e)))
+        .filter((e) => isDone(e) || (!isOngoing(e) && dayOf(e) < today))
         .sort((a, b) => new Date(b.date) - new Date(a.date)),
       canCreate: canCreateEvent(request.user.role),
     });
@@ -787,14 +802,41 @@ router.delete('/:id', async (request, response, next) => {
     const id = oid(request.params.id, 'Event id');
     const event = await col(C.events).findOne({ _id: id });
     if (!event) fail('That event no longer exists.', 404);
-    if (!canManageEvent(request.user, event)) {
-      fail('Only the event lead and club leadership can remove this event.', 403);
+    // Cancelling an event throws away work a lot of people did, so it is not
+    // the event lead's call — Directors and the President only.
+    const actor = request.user;
+    const mayCancel = isDirector(actor.role)
+      || actor.role === ROLES.facultyCoordinator
+      || actor.role === ROLES.president;
+    if (!mayCancel) {
+      fail('Only a Club Director or the President can cancel an event.', 403);
     }
+
+    // `?purge=true` removes it outright. Only for an event already cancelled —
+    // so getting rid of one is always two deliberate steps, and a live event
+    // can never be deleted by a single mistaken tap.
+    const purge = request.query.purge === 'true';
+    if (purge) {
+      if (event.status !== 'cancelled') {
+        fail('Cancel the event first. Deleting outright would take its work with it.', 409);
+      }
+      await Promise.all([
+        col(C.events).deleteOne({ _id: id }),
+        col(C.eventResponsibilities).deleteMany({ eventId: id }),
+        // Event work is only reachable through the event, so it goes too.
+        col(C.tasks).deleteMany({ eventId: id }),
+        col(C.eventDocuments).deleteMany({ eventId: id }),
+        col(C.eventBills).deleteMany({ eventId: id }),
+      ]);
+      await audit(actor._id, 'event.delete', { eventId: String(id), name: event.name });
+      return response.json({ ok: true, deleted: true });
+    }
+
     // Cancel rather than delete: the tasks people did still happened, and the
     // paperwork may still be needed.
     await col(C.events).updateOne({ _id: id }, { $set: { status: 'cancelled', updatedAt: new Date() } });
-    await audit(request.user._id, 'event.cancel', { eventId: String(id), name: event.name });
-    response.json({ ok: true });
+    await audit(actor._id, 'event.cancel', { eventId: String(id), name: event.name });
+    return response.json({ ok: true, deleted: false });
   } catch (error) {
     next(error);
   }

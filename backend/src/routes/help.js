@@ -54,6 +54,13 @@ function serialise(request, { userName, deptName, actorId }) {
     createdByName: userName.get(String(request.createdBy)) ?? 'Member',
     createdAt: request.createdAt,
     resolvedAt: request.resolvedAt ?? null,
+    // When it is needed by, and how many people were asked for. Older rows
+    // predate both, so the client must cope with null rather than assume.
+    neededBy: request.neededBy ?? null,
+    maxHelpers: request.maxHelpers ?? null,
+    spotsLeft: request.maxHelpers
+      ? Math.max(0, request.maxHelpers - helpers.length)
+      : null,
     helpers: helpers.map((h) => ({
       id: String(h.userId),
       name: userName.get(String(h.userId)) ?? 'Member',
@@ -111,6 +118,24 @@ router.post('/', async (request, response, next) => {
     const title = typeof request.body.title === 'string' ? request.body.title.trim() : '';
     if (title.length < 4) fail('Say in a line what you need a hand with.');
 
+    // When it is needed by. Required, because "sometime" is how an ask sits on
+    // the board for a week — somebody reading it cannot tell whether it is
+    // tonight or next month, so they scroll past.
+    const neededBy = new Date(request.body.neededBy);
+    if (Number.isNaN(neededBy.getTime())) {
+      fail('Say when you need this by.');
+    }
+    if (neededBy.getTime() < Date.now() - 60 * 60 * 1000) {
+      fail('That time has already passed.');
+    }
+
+    // How many people would actually help. Beyond that the ask stops accepting
+    // offers, so nine people do not turn up to carry one table.
+    const maxHelpers = Number(request.body.maxHelpers ?? 1);
+    if (!Number.isInteger(maxHelpers) || maxHelpers < 1 || maxHelpers > 20) {
+      fail('Ask for between 1 and 20 people.');
+    }
+
     const eventId = maybeOid(request.body.eventId);
     let eventName = null;
     if (eventId) {
@@ -134,6 +159,8 @@ router.post('/', async (request, response, next) => {
       eventName,
       createdBy: request.user._id,
       createdAt: new Date(),
+      neededBy,
+      maxHelpers,
       helpers: [],
       resolvedAt: null,
     };
@@ -172,19 +199,56 @@ router.post('/:id/offer', async (request, response, next) => {
       fail('You are already on this one.');
     }
 
+    // Stop at the number they asked for, so nine people do not turn up to
+    // carry one table.
+    const cap = Number(help.maxHelpers ?? 0);
+    if (cap > 0 && (help.helpers ?? []).length >= cap) {
+      fail(`They only needed ${cap} ${cap === 1 ? 'person' : 'people'}, and that is covered.`, 409);
+    }
+
+    const now = new Date();
     await col(C.helpRequests).updateOne({ _id: id }, {
       $push: {
         helpers: {
           userId: request.user._id,
           note: typeof request.body.note === 'string' ? request.body.note.trim().slice(0, 300) : '',
-          at: new Date(),
+          at: now,
         },
       },
       $set: { status: help.status === 'open' ? 'assigned' : help.status },
     });
 
+    // Offering to help puts it on your own list.
+    //
+    // Without this, saying "I can help" was a promise the app immediately
+    // forgot: it appeared nowhere in the helper's work, nowhere on their
+    // calendar, and nothing reminded them. A task is how the rest of the app
+    // already represents "something you owe by a date", so it becomes one —
+    // carrying the ask's deadline, and pointing back at it.
+    const task = {
+      title: `Help: ${help.title}`,
+      description: help.description || 'You offered to help with this.',
+      assignedBy: help.createdBy,
+      assignedTo: request.user._id,
+      departmentId: request.user.departmentId ?? help.departmentId ?? null,
+      eventId: help.eventId ?? null,
+      helpId: id,
+      status: 'pending',
+      dueDate: help.neededBy ?? null,
+      points: 1,
+      priority: 'normal',
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+    };
+    await col(C.tasks).insertOne(task);
+
     await notify(help.createdBy, 'helpOffered', {
       helpTitle: help.title, byName: request.user.name, helpId: String(id),
+    });
+    // The helper gets one too, so the new item on their list is not a surprise.
+    await notify(request.user._id, 'helpJoined', {
+      helpTitle: help.title, helpId: String(id),
     });
     await audit(request.user._id, 'help.offer', { helpId: String(id) });
     response.json({ ok: true });
@@ -208,6 +272,18 @@ router.delete('/:id/offer', async (request, response, next) => {
         status: remaining.length === 0 && help.status !== 'resolved' ? 'open' : help.status,
       },
     });
+
+    // Take the task back off their list. Stepping back has to actually undo
+    // the offer, or the app keeps nagging somebody about work they withdrew
+    // from — which teaches people never to offer in the first place. Only an
+    // untouched one: if they already started it, that is real work and theirs
+    // to close.
+    await col(C.tasks).deleteMany({
+      helpId: id,
+      assignedTo: request.user._id,
+      status: 'pending',
+    });
+
     response.json({ ok: true });
   } catch (error) {
     next(error);

@@ -12,6 +12,7 @@ const {
   canManageDepartments, ROLES, isDirector, isSupervisor,
   canAwardPoints, canViewMemberDetail, SUPERVISOR_ROLES,
   canAssignToDepartment, TASK_POINT_VALUES, canRenameMember, isRole,
+  canRemoveMember,
 } = require('../permissions');
 const { notify, audit } = require('../services/notify');
 
@@ -578,6 +579,56 @@ router.post('/:id/reset-password', async (request, response, next) => {
       message: `Give this to ${target.name}. They will be asked to choose their own `
         + 'password when they sign in. It is not shown again.',
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Remove somebody from the club.
+ *
+ * Directors only — this is the one action that can take the President out, so
+ * it must not be something the President can do to a Director in return.
+ *
+ * Their work is not deleted with them. Tasks they were carrying go back to the
+ * department's triage pile, and tasks they handed out keep their history by
+ * moving to the actor. Deleting the work too would erase what the club did,
+ * which is a much bigger loss than the account.
+ */
+router.delete('/:id', async (request, response, next) => {
+  try {
+    const actor = request.user;
+    const id = oid(request.params.id, 'User id');
+    const target = await col(C.users).findOne({ _id: id });
+    if (!target) fail('Member not found.', 404);
+
+    if (!canRemoveMember(actor, target)) {
+      fail(
+        isDirector(actor.role)
+          ? 'Directors and the Faculty Coordinator cannot be removed from here.'
+          : 'Only a Club Director can remove somebody from the club.',
+        403,
+      );
+    }
+
+    // A department must never be left pointing at somebody who is gone.
+    await col(C.departments).updateMany({ leadUserId: id }, { $set: { leadUserId: null } });
+
+    // Work in flight survives the person.
+    await col(C.tasks).updateMany({ assignedTo: id }, { $set: { assignedTo: null } });
+    await col(C.tasks).updateMany({ assignedBy: id }, { $set: { assignedBy: actor._id } });
+
+    // Things addressed to them personally have nowhere left to go.
+    await col(C.accessRequests).deleteMany({ userId: id });
+    await col(C.notifications).deleteMany({ userId: id });
+    await col(C.taskRequests).deleteMany({ $or: [{ toUserId: id }, { fromUserId: id }] });
+
+    await col(C.users).deleteOne({ _id: id });
+
+    await audit(actor._id, 'user.remove', {
+      userId: String(id), name: target.name, email: target.email, role: target.role,
+    });
+    response.json({ ok: true, removed: { id: String(id), name: target.name } });
   } catch (error) {
     next(error);
   }

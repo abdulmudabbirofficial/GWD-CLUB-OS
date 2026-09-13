@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
+import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
 
 /// Task detail.
@@ -116,7 +117,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     }
 
     final isOwner = task.assignedTo == session.me?.id;
-    final isAssigner = task.assignedBy == session.me?.id;
+    // Mirrors the server: whoever set it, oversight, the President, or the Lead
+    // of the department it sits in. Showing it only to `assignedBy` meant a
+    // Director looking at somebody else's task saw no delete, even though the
+    // server would have allowed it.
+    final role = session.me?.role;
+    final isAssigner = task.assignedBy == session.me?.id
+        || role == ClubRole.clubDirector
+        || role == ClubRole.facultyCoordinator
+        || role == ClubRole.president
+        || (role == ClubRole.clubLead
+            && task.departmentId != null
+            && task.departmentId == session.me?.departmentId);
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     return Scaffold(

@@ -399,6 +399,9 @@ class ClubStore extends ChangeNotifier {
   Future<void> loadTasks() async {
     final json = await _api.get('/api/tasks');
     tasks = listFrom(json, 'tasks', ClubTask.fromJson);
+    // Wholesale replacements do not go through _upsertTask, so the widget is
+    // refreshed here too.
+    unawaited(_pushToWidget());
   }
 
   Future<void> loadDepartments() async {
@@ -588,6 +591,10 @@ class ClubStore extends ChangeNotifier {
     await _api.delete('/api/tasks/$id');
     tasks = tasks.where((t) => t.id != id).toList();
     notifyListeners();
+    // A removal is not an upsert, so it needs its own nudge — otherwise the
+    // widget keeps counting a task that no longer exists.
+    unawaited(_pushToWidget());
+    unawaited(loadSchedule()); // it may have been carrying a deadline
   }
 
   Future<List<TaskComment>> taskComments(String taskId) async {
@@ -1365,6 +1372,8 @@ class ClubStore extends ChangeNotifier {
 
   Future<void> askForHelp({
     required String title,
+    required DateTime neededBy,
+    required int maxHelpers,
     String description = '',
     List<String> skills = const [],
     String? departmentId,
@@ -1374,6 +1383,8 @@ class ClubStore extends ChangeNotifier {
       'title': title,
       'description': description,
       'skills': skills,
+      'neededBy': neededBy.toUtc().toIso8601String(),
+      'maxHelpers': maxHelpers,
       if (departmentId != null) 'departmentId': departmentId,
       if (eventId != null) 'eventId': eventId,
     });
@@ -1381,15 +1392,20 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Offering puts the ask on your own task list, with the deadline it carried,
+  /// so the work has to be reloaded too — otherwise the new item does not show
+  /// until something else happens to refresh it.
   Future<void> offerHelp(String id, {String note = ''}) async {
     await _api.post('/api/help/$id/offer', {'note': note});
-    await loadHelp();
+    await Future.wait([loadHelp(), loadTasks(), loadSchedule(), _loadHome()]);
     notifyListeners();
   }
 
+  /// Stepping back takes the task off your list with it, so the same surfaces
+  /// need refreshing as when you offered.
   Future<void> withdrawOffer(String id) async {
     await _api.delete('/api/help/$id/offer');
-    await loadHelp();
+    await Future.wait([loadHelp(), loadTasks(), loadSchedule(), _loadHome()]);
     notifyListeners();
   }
 
@@ -1415,6 +1431,12 @@ class ClubStore extends ChangeNotifier {
       next.insert(0, task);
     }
     tasks = next;
+    // Every single-task change funnels through here, so this is the one place
+    // that cannot be forgotten. The widget used to refresh only on a full
+    // reload, on a status change, and on one socket event — so being *given* a
+    // task, or picking one up by offering help, left the home screen showing a
+    // stale count until something else happened to reload everything.
+    unawaited(_pushToWidget());
   }
 
   void _onLiveEvent(LiveEvent event) {

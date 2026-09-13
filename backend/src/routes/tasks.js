@@ -461,8 +461,17 @@ router.delete('/:id', async (request, response, next) => {
     const id = oid(request.params.id, 'Task id');
     const task = await col(C.tasks).findOne({ _id: id });
     if (!task) fail('Task not found.', 404);
-    if (String(task.assignedBy) !== String(request.user._id) && !isSupervisor(request.user.role)) {
-      fail('Only the person who assigned this task can remove it.', 403);
+    // Who can withdraw a task: whoever set it, the club's oversight, the
+    // President, and the Lead of the department it sits in — a Lead owns their
+    // department's board, including tidying something off it that leadership
+    // sent and then changed their mind about.
+    const actor = request.user;
+    const mayDelete = String(task.assignedBy) === String(actor._id)
+      || isSupervisor(actor.role)
+      || actor.role === ROLES.president
+      || canDistributeDepartmentTask(actor, task.departmentId);
+    if (!mayDelete) {
+      fail('Only the person who set this task, its department Lead, or club leadership can remove it.', 403);
     }
     await col(C.tasks).deleteOne({ _id: id });
     // Take the conversation with it. Comments are addressed by task id and

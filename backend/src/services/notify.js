@@ -191,6 +191,27 @@ const COPY = {
     title: 'Sorted',
     body: `"${p.helpTitle ?? 'Your request'}" was marked resolved.`,
   }),
+  // Confirms to the helper that offering put something on their own list, so
+  // the new task is not a surprise they find later.
+  helpJoined: (p) => ({
+    title: 'Added to your work',
+    body: `You offered to help with "${p.helpTitle ?? 'a request'}". `
+      + 'It is on your task list with the deadline they asked for.',
+  }),
+
+  // --- people ---------------------------------------------------------------
+  memberRemoved: (p) => ({
+    title: 'Membership ended',
+    body: `${p.byName ?? 'A Director'} removed your account from ${p.clubName ?? 'the club'}.`,
+  }),
+  departmentCreated: (p) => ({
+    title: 'New department',
+    body: `${p.byName ?? 'Leadership'} added ${p.departmentName ?? 'a department'}.`,
+  }),
+  eventCancelled: (p) => ({
+    title: 'Event cancelled',
+    body: `"${p.eventName ?? 'An event'}" was cancelled by ${p.byName ?? 'leadership'}.`,
+  }),
 };
 
 function render(type, payload) {

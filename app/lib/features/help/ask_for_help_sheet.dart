@@ -35,6 +35,27 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
   bool _busy = false;
   String? _error;
 
+  /// When it is needed by, and how many people would actually help.
+  ///
+  /// Both required. An ask with no deadline sits on the board for a week
+  /// because nobody reading it can tell whether it is tonight or next month,
+  /// and without a number nine people turn up to carry one table.
+  ///
+  /// Offered as durations rather than a date picker: at 11pm nobody wants a
+  /// calendar, they want "tomorrow". Defaults to tomorrow and one person,
+  /// which is the commonest answer by a distance.
+  Duration _within = const Duration(days: 1);
+  int _maxHelpers = 1;
+
+  static const _windows = <(String, Duration)>[
+    ('1 hour', Duration(hours: 1)),
+    ('3 hours', Duration(hours: 3)),
+    ('Today', Duration(hours: 8)),
+    ('Tomorrow', Duration(days: 1)),
+    ('3 days', Duration(days: 3)),
+    ('A week', Duration(days: 7)),
+  ];
+
   /// Not a taxonomy — just the things clubs actually need a spare pair of hands
   /// for. Tapping one saves typing; nobody is forced to pick.
   static const _common = [
@@ -72,6 +93,8 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
         description: _description.text.trim(),
         skills: _skills.toList(),
         eventId: _eventId,
+        neededBy: DateTime.now().add(_within),
+        maxHelpers: _maxHelpers,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -132,6 +155,49 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                       ),
                       const SizedBox(height: GwdSpace.lg),
 
+                      Text('WHEN DO YOU NEED IT',
+                          style: GwdType.eyebrow
+                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      const SizedBox(height: GwdSpace.sm),
+                      Wrap(
+                        spacing: GwdSpace.sm,
+                        runSpacing: GwdSpace.sm,
+                        children: [
+                          for (final (label, window) in _windows)
+                            _Tag(
+                              label: label,
+                              selected: _within == window,
+                              onTap: () => setState(() => _within = window),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: GwdSpace.lg),
+                      Text('HOW MANY PEOPLE',
+                          style: GwdType.eyebrow
+                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      const SizedBox(height: GwdSpace.sm),
+                      Wrap(
+                        spacing: GwdSpace.sm,
+                        runSpacing: GwdSpace.sm,
+                        children: [
+                          for (final n in const [1, 2, 3, 4, 5, 8])
+                            _Tag(
+                              label: n == 1 ? '1 person' : '$n people',
+                              selected: _maxHelpers == n,
+                              onTap: () => setState(() => _maxHelpers = n),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: GwdSpace.xs),
+                      Text(
+                        'The ask stops taking offers once that many people are on it.',
+                        style: GwdType.caption.copyWith(
+                            letterSpacing: 0,
+                            color: GwdColors.inkTertiaryOf(context)),
+                      ),
+
+                      const SizedBox(height: GwdSpace.lg),
                       Text('WHAT WOULD HELP',
                           style: GwdType.eyebrow
                               .copyWith(color: GwdColors.inkTertiaryOf(context))),

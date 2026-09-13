@@ -41,7 +41,8 @@ const RANK = {
 
 /** Singleton or near-singleton roles, and their hard caps. */
 const ROLE_CAPS = {
-  clubDirector: 2,
+  // Three. The club runs with a CMO, a CEO and one more seat at that level.
+  clubDirector: 3,
   facultyCoordinator: 1,
   president: 1,
   vicePresident: 1,
@@ -117,8 +118,23 @@ function canRenameMember(actor, target) {
  *                        ▼                                          ▼
  *              assign to their own member                   do it themselves
  *
- * Anything sideways or upward is a **request**, not an assignment — see
- * REQUEST_TARGETS. A Lead cannot reach into another department's members.
+ * Two things sit outside that shape, both deliberate:
+ *
+ * **The executive tier can be assigned to by name.** Directors, the Faculty
+ * Coordinator and Leads can hand work straight to the President, VP or
+ * Secretary General. There is no department to route through — those three are
+ * the club's officers, not a team — so the two-step rule has nothing to bite
+ * on. A Lead assigning upward looks odd next to the rest of this, but "the
+ * sponsor letter needs the President's signature" is a task, not a favour, and
+ * making it a request meant it could simply be declined into silence.
+ *
+ * **A member can assign to their own Lead.** Same reasoning in the other
+ * direction: a member who finds something only the Lead can do should be able
+ * to put it on the Lead's list rather than hope it gets noticed. Their own
+ * Lead only — never another department's, and never anybody else.
+ *
+ * Everything else sideways is still a **request** — see REQUEST_TARGETS — and a
+ * Lead still cannot reach into another department's members.
  */
 const DEPARTMENT_ASSIGNERS = new Set([
   ROLES.clubDirector,
@@ -132,22 +148,35 @@ const DEPARTMENT_ASSIGNERS = new Set([
 const canAssignToDepartment = (role) => DEPARTMENT_ASSIGNERS.has(role);
 
 /**
+ * The club's officers. They hold posts rather than run teams, so there is no
+ * department to address work to them through.
+ */
+const EXECUTIVE_TIER = [
+  ROLES.president,
+  ROLES.vicePresident,
+  ROLES.secretaryGeneral,
+];
+
+/**
  * Who may this role hand a task *to*, by name?
  *
- * `'ownDepartment'`  → members of the actor's own department
- * a list of roles    → exactly those roles, club-wide
+ * `'ownDepartment'` → members of the actor's own department, plus the officers
+ * `'ownLead'`       → the actor's own department Lead, and nobody else
+ * a list of roles   → exactly those roles, club-wide
  *
- * Deliberately empty for the leadership tier: they go through the department.
+ * The leadership tier still reaches *departments* through
+ * `canAssignToDepartment`; this is only the by-name path.
  * Self-assignment is always allowed and is handled in `canAssignTo`.
  */
 const ASSIGN_TARGETS = {
-  clubDirector: [],
-  facultyCoordinator: [],
-  president: [],
-  vicePresident: [],
-  secretaryGeneral: [],
+  clubDirector: EXECUTIVE_TIER,
+  facultyCoordinator: EXECUTIVE_TIER,
+  // The officers address departments, and each other.
+  president: [ROLES.vicePresident, ROLES.secretaryGeneral],
+  vicePresident: [ROLES.secretaryGeneral],
+  secretaryGeneral: [ROLES.vicePresident],
   clubLead: 'ownDepartment',
-  clubMember: [],
+  clubMember: 'ownLead',
 };
 
 /**
@@ -167,7 +196,10 @@ const REQUEST_TARGETS = {
     ROLES.vicePresident,
     ROLES.secretaryGeneral,
   ],
-  clubMember: [],
+  // A member can also *ask* their own Lead rather than assigning outright —
+  // "could you look at this?" is a different thing from "this is yours", and
+  // both are reasonable for somebody reaching their own Lead.
+  clubMember: 'ownLead',
 };
 
 const isRole = (role) => ALL_ROLES.includes(role);
@@ -182,23 +214,35 @@ function canAssign(role) {
   if (canAssignToDepartment(role)) return true;
   const targets = ASSIGN_TARGETS[role];
   return targets === 'ownDepartment'
+    || targets === 'ownLead'
     || (Array.isArray(targets) && targets.length > 0);
 }
+
+/** Same department, and both actually in one. */
+const sameDepartment = (a, b) =>
+  Boolean(a?.departmentId) && String(a.departmentId) === String(b?.departmentId);
 
 /** May `actor` assign a task to `target`, by name? Both are user documents. */
 function canAssignTo(actor, target) {
   if (!actor || !target) return false;
   if (String(actor._id) === String(target._id)) return true; // always yourself
+
   const rule = ASSIGN_TARGETS[actor.role];
+
   if (rule === 'ownDepartment') {
     // A Lead owns their department's members — and only members. Reaching into
-    // another department is a request, never an assignment.
-    return (
-      target.role === ROLES.clubMember &&
-      target.departmentId &&
-      String(target.departmentId) === String(actor.departmentId)
-    );
+    // another department is a request, never an assignment. They may also hand
+    // work to the club's officers, who have no department to route through.
+    if (EXECUTIVE_TIER.includes(target.role)) return true;
+    return target.role === ROLES.clubMember && sameDepartment(target, actor);
   }
+
+  if (rule === 'ownLead') {
+    // A member reaches exactly one person by name: the Lead of their own
+    // department. Not another department's Lead, not the officers.
+    return target.role === ROLES.clubLead && sameDepartment(target, actor);
+  }
+
   return Array.isArray(rule) && rule.includes(target.role);
 }
 
@@ -235,6 +279,9 @@ function canRequestTo(actor, target) {
   if (String(actor._id) === String(target._id)) return false;
   const rule = REQUEST_TARGETS[actor.role];
   if (rule === 'any') return true;
+  if (rule === 'ownLead') {
+    return target.role === ROLES.clubLead && sameDepartment(target, actor);
+  }
   return Array.isArray(rule) && rule.includes(target.role);
 }
 
@@ -363,11 +410,33 @@ const canEditSchedule = (role) => canCreateScheduleEntry(role);
  */
 const canBroadcast = (role) => role !== ROLES.clubMember;
 
-/** Department admin — President and Directors only. */
+/**
+ * Department admin — create, rename, assign a Lead, retire.
+ *
+ * The Vice President is included: they run operations day to day, and needing
+ * the President for "add a Logistics department" is the kind of bottleneck that
+ * gets worked around with a spreadsheet instead.
+ */
 function canManageDepartments(role) {
   return role === ROLES.clubDirector
     || role === ROLES.facultyCoordinator
-    || role === ROLES.president;
+    || role === ROLES.president
+    || role === ROLES.vicePresident;
+}
+
+/**
+ * Remove a person from the club entirely.
+ *
+ * Directors only, and deliberately so: this is the one action that can take the
+ * President out, and it must not be something the President can do to a
+ * Director in return. A Director cannot remove another Director either — that
+ * is a conversation, not a button.
+ */
+function canRemoveMember(actor, target) {
+  if (!actor || !target) return false;
+  if (String(actor._id) === String(target._id)) return false; // never yourself
+  if (!isDirector(actor.role)) return false;
+  return !isDirector(target.role) && target.role !== ROLES.facultyCoordinator;
 }
 
 /** Audit log and club-wide analytics. */
@@ -677,6 +746,7 @@ module.exports = {
   canEditSchedule,
   canBroadcast,
   canManageDepartments,
+  canRemoveMember,
   canViewAudit,
   approvalRouteFor,
   canApproveAccess,
