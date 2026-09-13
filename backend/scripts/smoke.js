@@ -1552,6 +1552,71 @@ async function main() {
   ok('And never to the officers or another member',
     memberOthers.every((m) => !officerRoles.includes(m.role) && m.role !== 'clubMember'));
 
+  // --- asking another department -----------------------------------------
+  // "Technical needs Production on the stage rig" is how cross-department work
+  // is described, so the ask is addressed to the department, not to whichever
+  // person over there happens to be free.
+  // A department can only be asked if it has a Lead to receive the ask, and in
+  // this fixture only leadDept has one — which is the asker's own. Give
+  // Creative a Lead so there is somebody on the other side.
+  const creativeLeadSignup = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: `Creative Lead ${RUN}`, email: `creativelead.${RUN}@gwd.club`,
+      phone: '9000000002', password: 'CreativeLeadPass1', role: 'clubMember',
+      departmentId: creative.id,
+    },
+  });
+  const creativePending = await api('/api/access/pending', { token: presidentToken });
+  const creativeRow = creativePending.body.requests
+    .find((r) => r.userId === creativeLeadSignup.body.user.id);
+  if (creativeRow) {
+    await api(`/api/access/${creativeRow.id}/approve`, { method: 'POST', token: directorToken });
+  }
+  // PUT, and it promotes them to Lead itself — no separate role change needed.
+  const creativeLeadSet = await api(`/api/departments/${creative.id}/lead`, {
+    method: 'PUT', token: presidentToken,
+    body: { userId: creativeLeadSignup.body.user.id },
+  });
+  ok('Creative gets a Lead so there is somebody to ask',
+    creativeLeadSet.status === 200, JSON.stringify(creativeLeadSet.body));
+
+  const leadOptions = await api('/api/users/assignable', { token: leadToken });
+  ok('A Lead is offered other departments to ask',
+    (leadOptions.body?.requestableDepartments ?? []).length > 0,
+    `${leadOptions.body?.requestableDepartments?.length} offered`);
+  ok('But never their own',
+    (leadOptions.body?.requestableDepartments ?? [])
+      .every((d) => d.id !== leadDept.id));
+
+  const askTarget = (leadOptions.body?.requestableDepartments ?? [])[0];
+  const crossRequest = await api('/api/task-requests', {
+    method: 'POST', token: leadToken,
+    body: {
+      toDepartmentId: askTarget.id,
+      title: `Stage rig support ${RUN}`,
+      description: 'Two people for the load-in.',
+      dueDate: new Date(Date.now() + 4 * 864e5).toISOString(),
+    },
+  });
+  ok('A Lead can ask another department for a hand',
+    crossRequest.status === 201, JSON.stringify(crossRequest.body));
+  ok('The ask records which department is asking',
+    Boolean(crossRequest.body?.request?.fromDepartmentName),
+    String(crossRequest.body?.request?.fromDepartmentName));
+
+  const ownDepartment = await api('/api/task-requests', {
+    method: 'POST', token: leadToken,
+    body: { toDepartmentId: leadDept.id, title: `Own dept ${RUN}` },
+  });
+  ok('Asking your own department is refused - assign it instead',
+    ownDepartment.status === 400, `got ${ownDepartment.status}`);
+
+  const inbox = await api('/api/task-requests?direction=incoming', {
+    token: presidentToken,
+  });
+  ok('A department ask reaches a real inbox', inbox.status === 200);
+
   // --- removing people ---------------------------------------------------
   const memberRemovesSomeone = await api(`/api/users/${memberId}`, {
     method: 'DELETE', token: teammateLogin.body.token,

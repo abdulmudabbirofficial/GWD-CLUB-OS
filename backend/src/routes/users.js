@@ -68,9 +68,15 @@ router.get('/assignable', async (request, response, next) => {
       });
     }
 
+    // A Lead needs the department list too — not to assign into, but to ask.
+    // "Technical needs Production on the stage rig" is how the work is
+    // actually described, and making them find the right person over there
+    // first is the same friction the two-step assignment rule exists to avoid.
+    const wantsDepartments = toDepartment || actor.role === ROLES.clubLead;
+
     const [candidates, departments] = await Promise.all([
       col(C.users).find({ approvalStatus: 'approved' }).sort({ name: 1 }).toArray(),
-      toDepartment
+      wantsDepartments
         ? col(C.departments).find({ active: { $ne: false } }).sort({ name: 1 }).toArray()
         : Promise.resolve([]),
     ]);
@@ -93,6 +99,19 @@ router.get('/assignable', async (request, response, next) => {
         leadName: leadNames.get(String(d._id)) ?? null,
       })),
       canAssignToDepartment: toDepartment,
+      // Departments a Lead may *ask* — everyone else's, never their own, and
+      // only those with a Lead to receive it.
+      requestableDepartments: actor.role === ROLES.clubLead
+        ? departments
+          .filter((d) => String(d._id) !== String(actor.departmentId ?? '')
+            && Boolean(d.leadUserId))
+          .map((d) => ({
+            id: String(d._id),
+            name: d.name,
+            colorSeed: d.colorSeed ?? null,
+            leadName: leadNames.get(String(d._id)) ?? null,
+          }))
+        : [],
       pointValues: TASK_POINT_VALUES,
     });
   } catch (error) {

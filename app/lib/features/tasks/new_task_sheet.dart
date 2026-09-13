@@ -86,10 +86,17 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   /// True when this person sends work to departments rather than to people.
   bool get _toDepartment => _targets.canAssignToDepartment && !_requestMode;
 
+  /// In request mode a Lead can address another **department** instead of a
+  /// person — "Technical needs Production on the stage rig". The ask lands on
+  /// that department's Lead, who decides whether to take it or pass it on.
+  bool get _requestingDepartment =>
+      _requestMode && _selectedDepartment != null;
+
   bool get _canSubmit {
     if (_busy || _title.text.trim().length < 2) return false;
     if (_toDepartment) return _selectedDepartment != null;
-    return _selectedPeople.isNotEmpty;
+    // Either a department or a person will do.
+    return _selectedPeople.isNotEmpty || _selectedDepartment != null;
   }
 
   Future<void> _submit() async {
@@ -101,7 +108,15 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
     final store = AppScope.readStore(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      if (_requestMode) {
+      if (_requestingDepartment) {
+        // Addressed to a department; it lands on that department's Lead.
+        await store.sendTaskRequest(
+          toDepartmentId: _selectedDepartment,
+          title: _title.text.trim(),
+          description: _description.text.trim(),
+          dueDate: _due,
+        );
+      } else if (_requestMode) {
         // A request goes to one person at a time — it is a conversation, not a
         // broadcast.
         for (final id in _selectedPeople) {
@@ -227,22 +242,54 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                           selected: _selectedDepartment,
                           onChanged: (id) => setState(() => _selectedDepartment = id),
                         )
-                      else
-                        _PeoplePicker(
-                          people: people,
-                          selected: _selectedPeople,
-                          requestMode: _requestMode,
-                          onToggle: (id) => setState(() {
-                            if (_requestMode) {
-                              // One at a time: a request is a conversation.
-                              _selectedPeople
-                                ..clear()
-                                ..add(id);
-                            } else if (!_selectedPeople.remove(id)) {
-                              _selectedPeople.add(id);
-                            }
-                          }),
-                        ),
+                      else ...[
+                        // A Lead asking across the club picks a department
+                        // first — that is the unit the work is described in.
+                        // Picking one clears any person, and vice versa: an ask
+                        // goes to one place.
+                        if (_requestMode &&
+                            _targets.requestableDepartments.isNotEmpty) ...[
+                          Text('ASK A DEPARTMENT',
+                              style: GwdType.eyebrow.copyWith(
+                                  color: GwdColors.inkTertiaryOf(context))),
+                          const SizedBox(height: GwdSpace.sm),
+                          _DepartmentPicker(
+                            departments: _targets.requestableDepartments,
+                            selected: _selectedDepartment,
+                            onChanged: (id) => setState(() {
+                              _selectedDepartment =
+                                  _selectedDepartment == id ? null : id;
+                              _selectedPeople.clear();
+                            }),
+                          ),
+                          if (people.isNotEmpty) ...[
+                            const SizedBox(height: GwdSpace.lg),
+                            Text('OR ASK A PERSON',
+                                style: GwdType.eyebrow.copyWith(
+                                    color: GwdColors.inkTertiaryOf(context))),
+                            const SizedBox(height: GwdSpace.sm),
+                          ],
+                        ],
+                        if (!_requestMode ||
+                            _targets.requestableDepartments.isEmpty ||
+                            people.isNotEmpty)
+                          _PeoplePicker(
+                            people: people,
+                            selected: _selectedPeople,
+                            requestMode: _requestMode,
+                            onToggle: (id) => setState(() {
+                              _selectedDepartment = null;
+                              if (_requestMode) {
+                                // One at a time: a request is a conversation.
+                                _selectedPeople
+                                  ..clear()
+                                  ..add(id);
+                              } else if (!_selectedPeople.remove(id)) {
+                                _selectedPeople.add(id);
+                              }
+                            }),
+                          ),
+                      ],
 
                       const SizedBox(height: GwdSpace.lg),
                       if (!_requestMode) ...[

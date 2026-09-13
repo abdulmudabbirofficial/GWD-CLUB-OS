@@ -215,7 +215,7 @@ class _ProfileSheet extends StatelessWidget {
             const SizedBox(height: GwdSpace.xl),
             Center(
               child: Text(
-                'GWD Club OS · v4.0.0',
+                'GWD Club OS · v4.1.0',
                 style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context)),
               ),
             ),

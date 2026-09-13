@@ -17,6 +17,7 @@ class TaskRequest {
     this.description = '',
     this.dueDate,
     this.createdAt,
+    this.fromDepartmentName,
   });
 
   final String id;
@@ -30,8 +31,18 @@ class TaskRequest {
   final DateTime? dueDate;
   final DateTime? createdAt;
 
+  /// Which department is asking. Null for the executive tier, who have none,
+  /// and on requests raised before this was recorded.
+  final String? fromDepartmentName;
+
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
+
+  /// "Anvitha · Marketing" — a name alone is often not enough to place
+  /// somebody from another department.
+  String get fromLabel => fromDepartmentName == null
+      ? fromName
+      : '$fromName · $fromDepartmentName';
 
   factory TaskRequest.fromJson(Map<String, dynamic> json) => TaskRequest(
         id: json['id'] as String,
@@ -48,6 +59,7 @@ class TaskRequest {
         createdAt: json['createdAt'] == null
             ? null
             : DateTime.tryParse(json['createdAt'].toString())?.toLocal(),
+        fromDepartmentName: json['fromDepartmentName'] as String?,
       );
 }
 

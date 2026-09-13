@@ -59,6 +59,7 @@ class AssignmentTargets {
     required this.departments,
     required this.canAssignToDepartment,
     required this.pointValues,
+    this.requestableDepartments = const [],
   });
 
   final List<Member> assignable;
@@ -66,6 +67,12 @@ class AssignmentTargets {
   final List<AssignableDepartment> departments;
   final bool canAssignToDepartment;
   final List<int> pointValues;
+
+  /// Departments a Lead may **ask** for a hand — everyone else's, never their
+  /// own. "Technical needs Production on the stage rig" is how the work is
+  /// described, so the ask is addressed to the department rather than to
+  /// whichever person over there happens to be free.
+  final List<AssignableDepartment> requestableDepartments;
 
   static const empty = AssignmentTargets(
     assignable: [],
@@ -633,6 +640,8 @@ class ClubStore extends ChangeNotifier {
       assignable: listFrom(json, 'assignable', Member.fromJson),
       requestable: listFrom(json, 'requestable', Member.fromJson),
       departments: listFrom(json, 'departments', AssignableDepartment.fromJson),
+      requestableDepartments:
+          listFrom(json, 'requestableDepartments', AssignableDepartment.fromJson),
       canAssignToDepartment: json['canAssignToDepartment'] == true,
       pointValues: ((json['pointValues'] as List?) ?? const [1, 3, 5])
           .map((e) => (e as num).toInt())
@@ -671,14 +680,26 @@ class ClubStore extends ChangeNotifier {
     incoming = listFrom(json, 'tasks', ClubTask.fromJson);
   }
 
+  /// Ask somebody to take something on.
+  ///
+  /// Exactly one of [toUserId] or [toDepartmentId]. A department request lands
+  /// on that department's Lead — which is how the work is actually described
+  /// ("Technical needs Production on the stage rig"), and saves the asker
+  /// working out which person over there is free.
   Future<void> sendTaskRequest({
-    required String toUserId,
+    String? toUserId,
+    String? toDepartmentId,
     required String title,
     String description = '',
     DateTime? dueDate,
   }) async {
+    assert(
+      (toUserId == null) != (toDepartmentId == null),
+      'A request goes to one person or one department, never both or neither.',
+    );
     await _api.post('/api/task-requests', {
-      'toUserId': toUserId,
+      if (toUserId != null) 'toUserId': toUserId,
+      if (toDepartmentId != null) 'toDepartmentId': toDepartmentId,
       'title': title,
       'description': description,
       if (dueDate != null) 'dueDate': dueDate.toUtc().toIso8601String(),
@@ -687,9 +708,12 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Accepting turns the request into a real task, so the work, the deadline
+  /// lane on the schedule and Home all have to catch up — not just the request
+  /// list.
   Future<void> respondToRequest(String id, {required bool accept}) async {
     await _api.post('/api/task-requests/$id/${accept ? 'accept' : 'decline'}');
-    await Future.wait([loadRequests(), loadTasks()]);
+    await Future.wait([loadRequests(), loadTasks(), loadSchedule(), _loadHome()]);
     notifyListeners();
   }
 
