@@ -72,6 +72,15 @@ app.get('/api/health', async (request, response) => {
     mongo,
     changeStreams: live,
     push: fcm.state,
+    // Whether the website actually shipped with this deploy. The web build is
+    // optional and allowed to fail without taking the API down, so this is the
+    // difference between "the site is missing" and "the whole deploy is stale"
+    // — two things that look identical from outside and have opposite fixes.
+    web: require('node:fs').existsSync(path.join(webBuild, 'index.html'))
+      ? 'served' : 'missing',
+    // The commit this process is running, when Render provides it. Without it,
+    // a failed deploy and a successful one are indistinguishable from here.
+    commit: (process.env.RENDER_GIT_COMMIT ?? '').slice(0, 7) || null,
     serverTime: new Date().toISOString(),
   });
 });
