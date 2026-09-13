@@ -39,7 +39,31 @@ const router = express.Router();
  * what, which is the whole point of paperwork.
  */
 
-fs.mkdirSync(config.uploadDir, { recursive: true });
+/**
+ * The upload directory, created at boot.
+ *
+ * Deliberately not fatal. This runs at require time, so an unwritable path —
+ * `UPLOAD_DIR` pointing at a disk mount that does not exist on the free plan is
+ * the obvious way to get one — would otherwise take the entire API down before
+ * it served a single request, with a stack trace about `mkdir` rather than
+ * about configuration.
+ *
+ * A club that cannot attach a poster can still assign work, run events and
+ * track what things cost. Losing all of that because of a storage path is the
+ * wrong trade, so this says exactly what is wrong and lets the rest boot.
+ */
+let uploadsReady = true;
+try {
+  fs.mkdirSync(config.uploadDir, { recursive: true });
+} catch (error) {
+  uploadsReady = false;
+  console.error(
+    `\n  File uploads are DISABLED: cannot use ${config.uploadDir}\n`
+    + `  ${error.message}\n`
+    + '  Set UPLOAD_DIR to a writable path, or attach a disk and mount it there.\n'
+    + '  Everything else — tasks, events, finance amounts — still works.\n',
+  );
+}
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -63,6 +87,23 @@ const oid = (value, name) => {
 };
 
 const KINDS = new Set(['approval', 'file']);
+
+/**
+ * Refuse file uploads clearly when storage is unavailable.
+ *
+ * Without this, multer would try to write into a directory that does not exist
+ * and the member would see a 500 with no idea why. A document can still be
+ * filed as a *link* when storage is down, and the message says so.
+ */
+function requireUploads(request, response, next) {
+  if (!uploadsReady && request.is('multipart/form-data')) {
+    // `fail` throws; Express routes a synchronous throw from middleware to the
+    // error handler, same as every other refusal in this codebase.
+    fail('File storage is not available on this server right now. '
+      + 'You can still add the document as a link.', 503);
+  }
+  return next();
+}
 
 /** Best-effort cleanup when validation rejects a request after multer wrote. */
 async function discard(file) {
@@ -152,6 +193,7 @@ router.get('/events/:eventId/documents', async (request, response, next) => {
  */
 router.post(
   '/events/:eventId/documents',
+  requireUploads,
   upload.single('file'),
   async (request, response, next) => {
     try {
@@ -254,7 +296,7 @@ router.post(
  * a decision applies to the paper that was actually read, not to whatever ends
  * up under the same title later.
  */
-router.post('/documents/:id/versions', upload.single('file'), async (request, response, next) => {
+router.post('/documents/:id/versions', requireUploads, upload.single('file'), async (request, response, next) => {
   try {
     const id = oid(request.params.id, 'Document id');
     const document = await col(C.eventDocuments).findOne({ _id: id });

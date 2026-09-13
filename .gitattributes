@@ -1,0 +1,39 @@
+# Line endings.
+#
+# This repo is developed on Windows and deployed on Linux. Git's autocrlf would
+# otherwise check shell scripts out with CRLF, and Linux then rejects the
+# shebang itself:
+#
+#     ./render-build.sh: /usr/bin/env: bad interpreter: No such file or directory
+#
+# which reads as a missing interpreter rather than an invisible carriage
+# return. Anything executed on the server is pinned to LF.
+
+*           text=auto
+
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+
+# Windows-only tooling stays CRLF so it opens cleanly in Notepad and friends.
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Binary assets — never touch these.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.apk       binary
+*.aab       binary
+*.jar       binary
+*.keystore  binary
+*.jks       binary
