@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget metadata.
+
+  updatePeriodMillis is 0 on purpose: Android's own polling floor is 30 minutes,
+  which would make the widget feel stale. The app pushes an update through the
+  home_widget bridge whenever task data actually changes, which is both fresher
+  and cheaper on battery than periodic polling.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="70dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/gwd_club_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

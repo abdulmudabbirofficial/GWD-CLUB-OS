@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 9+ blocks cleartext HTTP by default, which would stop this build
+  reaching the development server over the LAN.
+
+  Cleartext is permitted here because the test APK talks to a plain-HTTP dev
+  server whose LAN address is assigned by DHCP and therefore cannot be listed
+  ahead of time. Android's network-security config matches hostnames, not CIDR
+  ranges, so there is no way to scope this to "the local subnet" — it is all or
+  nothing, and a pinned IP would break the moment the router hands out a
+  different one.
+
+  BEFORE SHIPPING TO REAL USERS: put the backend behind HTTPS, set
+  cleartextTrafficPermitted="false" below, and delete the loopback exceptions.
+  At that point the app talks only to a TLS endpoint and this file stops
+  mattering.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

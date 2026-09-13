@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget layout.
+
+  Deliberately quiet: one big number, one line of context. A launcher widget is
+  glanced at, not read, so it carries a single fact and the next action — the
+  same "one focal point" rule the Home screen follows.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+
+    <TextView
+        android:id="@+id/widget_brand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="GWD CLUB"
+        android:textColor="#DC2626"
+        android:textSize="9sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.12" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="bottom"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/widget_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textColor="#0B0B0F"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:includeFontPadding="false" />
+
+        <TextView
+            android:id="@+id/widget_count_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="tasks pending"
+            android:textColor="#5C5C66"
+            android:textSize="12sp"
+            android:layout_marginStart="6dp"
+            android:layout_marginBottom="4dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_next"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Nothing due. You're clear."
+        android:textColor="#5C5C66"
+        android:textSize="11sp"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+</LinearLayout>

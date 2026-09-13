@@ -1,0 +1,48 @@
+name: gwd_club_os
+description: GWD Club OS — club management for GWD Global. Android, iOS and Web from one codebase.
+publish_to: "none"
+version: 4.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking + live sync
+  http: ^1.2.2
+  socket_io_client: ^2.0.3+1
+
+  # Local persistence: session token and the offline-first cache
+  shared_preferences: ^2.3.2
+
+  # Native home-screen widgets (Section 7). Bridges shared data to Android
+  # Glance/RemoteViews and iOS WidgetKit — Flutter cannot draw launcher
+  # widgets itself.
+  home_widget: ^0.6.0
+
+  intl: ^0.19.0
+  url_launcher: ^6.3.2
+
+  # Official event paperwork has to come off the phone somehow: permission
+  # letters arrive as a PDF in WhatsApp or a photo of a signed page.
+  file_picker: ^12.3.0
+
+  # Documents are served from an authenticated route, so they cannot simply be
+  # handed to the browser as a URL — the token travels as a header. These two
+  # let the app fetch the bytes itself, cache them, and hand the file to
+  # whatever the phone already uses to read a PDF.
+  path_provider: ^2.1.5
+  open_filex: ^4.5.0
+  fl_chart: ^1.2.0
+  circular_clip_route: ^0.2.0+3
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
