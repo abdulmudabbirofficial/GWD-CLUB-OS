@@ -1716,6 +1716,58 @@ async function main() {
   const withNew = await api('/api/auth/me', { token: changedNow.body.token });
   ok('The replacement works', withNew.status === 200, `got ${withNew.status}`);
 
+  // --- privilege escalation ----------------------------------------------
+  // The Vice President can manage departments, which must NOT extend to
+  // editing roles — sharing one gate would have let them promote themselves.
+  const vpSignup = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: `Escalation VP ${RUN}`, email: `escvp.${RUN}@gwd.club`,
+      phone: '9000000003', password: 'EscalationPass1', role: 'vicePresident',
+    },
+  });
+  let vpToken = null;
+  if (vpSignup.body?.user?.id) {
+    const vpRow = (await api('/api/access/pending', { token: directorToken }))
+      .body.requests.find((r) => r.userId === vpSignup.body.user.id);
+    if (vpRow) await api(`/api/access/${vpRow.id}/approve`, { method: 'POST', token: directorToken });
+    vpToken = (await api('/api/auth/login', {
+      method: 'POST', body: { email: `escvp.${RUN}@gwd.club`, password: 'EscalationPass1' },
+    })).body?.token;
+  }
+
+  if (vpToken) {
+    const vpPromotesSelf = await api(`/api/users/${vpSignup.body.user.id}/role`, {
+      method: 'PATCH', token: vpToken, body: { role: 'president' },
+    });
+    ok('A Vice President cannot edit roles at all',
+      vpPromotesSelf.status === 403, `got ${vpPromotesSelf.status}`);
+
+    const vpMakesDept = await api('/api/departments', {
+      method: 'POST', token: vpToken, body: { name: `VP dept ${RUN}` },
+    });
+    ok('But can still create a department', vpMakesDept.status === 201,
+      `got ${vpMakesDept.status}`);
+  }
+
+  const presidentPromotesSelf = await api(`/api/users/${logins[0].body.user.id}/role`, {
+    method: 'PATCH', token: presidentToken, body: { role: 'clubDirector' },
+  });
+  ok('Nobody can appoint a Director except a Director',
+    presidentPromotesSelf.status === 403, `got ${presidentPromotesSelf.status}`);
+
+  const bogusRole = await api(`/api/users/${memberId}/role`, {
+    method: 'PATCH', token: presidentToken, body: { role: 'superAdmin' },
+  });
+  ok('An invented role is refused rather than written',
+    bogusRole.status === 400, `got ${bogusRole.status}`);
+
+  const secondPresident = await api(`/api/users/${memberId}/role`, {
+    method: 'PATCH', token: presidentToken, body: { role: 'president' },
+  });
+  ok('And the club cannot end up with two Presidents',
+    secondPresident.status === 409, `got ${secondPresident.status}`);
+
   // Security headers.
   const headed = await fetch(`${BASE}/api/health`);
   ok('Responses carry nosniff', headed.headers.get('x-content-type-options') === 'nosniff');

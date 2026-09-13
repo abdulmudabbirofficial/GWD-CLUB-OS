@@ -425,6 +425,20 @@ function canManageDepartments(role) {
 }
 
 /**
+ * Change somebody's role or move them between departments.
+ *
+ * Deliberately **not** `canManageDepartments`, which now includes the Vice
+ * President so they can create and retire departments. Sharing one gate meant
+ * a VP could also edit roles — including their own, to President. Appointing
+ * people is a narrower power than reorganising the club's structure.
+ */
+function canChangeRole(role) {
+  return role === ROLES.clubDirector
+    || role === ROLES.facultyCoordinator
+    || role === ROLES.president;
+}
+
+/**
  * Remove a person from the club entirely.
  *
  * Directors only, and deliberately so: this is the one action that can take the
@@ -746,6 +760,7 @@ module.exports = {
   canEditSchedule,
   canBroadcast,
   canManageDepartments,
+  canChangeRole,
   canRemoveMember,
   canViewAudit,
   approvalRouteFor,

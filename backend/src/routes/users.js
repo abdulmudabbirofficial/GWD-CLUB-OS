@@ -12,7 +12,7 @@ const {
   canManageDepartments, ROLES, isDirector, isSupervisor,
   canAwardPoints, canViewMemberDetail, SUPERVISOR_ROLES,
   canAssignToDepartment, TASK_POINT_VALUES, canRenameMember, isRole,
-  canRemoveMember,
+  canRemoveMember, canChangeRole, ROLE_CAPS,
 } = require('../permissions');
 const { notify, audit } = require('../services/notify');
 
@@ -659,19 +659,45 @@ router.delete('/:id', async (request, response, next) => {
  */
 router.patch('/:id/role', async (request, response, next) => {
   try {
-    if (!canManageDepartments(request.user.role)) {
+    if (!canChangeRole(request.user.role)) {
       fail('Only the President and Club Directors can change roles.', 403);
     }
     const id = oid(request.params.id, 'User id');
     const target = await col(C.users).findOne({ _id: id });
     if (!target) fail('Member not found.', 404);
 
+    // Nobody promotes themselves. Even a Director changing their own role is
+    // a step nobody should be able to take alone.
+    if (String(id) === String(request.user._id)) {
+      fail('You cannot change your own role. Ask another Director.', 403);
+    }
+
     const update = {};
     if (request.body.role) {
+      // Validated against the known roles. An unchecked value would write an
+      // arbitrary string into the role field, which matches no permission rule
+      // and silently strands the account.
+      if (!isRole(request.body.role)) fail('That is not a role.');
+
       // Only a Director can appoint into the supervisor tier — otherwise the
       // President could promote themselves above their own oversight.
       if (isSupervisor(request.body.role) && !isDirector(request.user.role)) {
         fail('Only a Club Director can appoint a Director or Faculty Coordinator.', 403);
+      }
+
+      // The singleton posts stay singleton. Without this the club could end up
+      // with three Presidents, and the approval chain has no idea which one to
+      // route to.
+      const cap = ROLE_CAPS[request.body.role];
+      if (cap && request.body.role !== target.role) {
+        const held = await col(C.users).countDocuments({
+          role: request.body.role,
+          approvalStatus: { $in: ['approved', 'pending'] },
+          _id: { $ne: id },
+        });
+        if (held >= cap) {
+          fail(`There are already ${cap} ${request.body.role} account(s). Remove one first.`, 409);
+        }
       }
       update.role = request.body.role;
     }
