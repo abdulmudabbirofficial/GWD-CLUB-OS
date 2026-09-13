@@ -99,18 +99,26 @@ directory.
 
 ## 4. Point the phone app at it
 
+Render appends a random suffix when the service name is taken, so the real URL
+is usually **not** `https://gwd-club-os.onrender.com`. Take the one the
+dashboard shows — e.g. `https://gwd-club-os-abrw.onrender.com` — and go back and
+correct `CLIENT_ORIGIN` to match it.
+
 The APK has its address compiled in, so it needs rebuilding once:
 
 ```powershell
-.\scripts\build-apk.ps1 -Ip <your-service>.onrender.com
+.\scripts\build-apk.ps1 -BaseUrl https://gwd-club-os-abrw.onrender.com
 ```
 
-If the script insists on an IP, build by hand:
+Use `-BaseUrl`, not `-Ip`. `-Ip` is for a server on the LAN and produces
+`http://host:4000` — wrong scheme and a port Render does not serve.
+
+By hand, if you prefer:
 
 ```powershell
 cd app
 flutter build apk --release --split-per-abi `
-  --dart-define=GWD_API_BASE=https://<your-service>.onrender.com
+  --dart-define=GWD_API_BASE=https://gwd-club-os-abrw.onrender.com
 ```
 
 Note **`https`**. Once the backend is behind Render's TLS you can also tighten

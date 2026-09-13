@@ -4,8 +4,8 @@
 
 .DESCRIPTION
   `GWD_API_BASE` is a dart-define, so it is fixed at build time. Whenever the
-  laptop's IP changes — a different Wi-Fi, a phone hotspot handing out a new
-  DHCP lease — every installed APK stops reaching the backend and looks broken.
+  laptop's IP changes  -  a different Wi-Fi, a phone hotspot handing out a new
+  DHCP lease  -  every installed APK stops reaching the backend and looks broken.
 
   This script removes the step where that is forgotten: it reads the live IPv4
   address off the active adapter, bakes it in, and prints what it used.
@@ -18,6 +18,17 @@
   Override the detected address. Useful when the machine has several adapters
   up and the wrong one wins, or when building for a fixed server.
 
+.PARAMETER BaseUrl
+  A complete base URL, for when the backend is not on the LAN at all  -  a Render
+  deployment, say. Takes precedence over -Ip and is used verbatim, so it carries
+  its own scheme and port:
+
+      .\scripts\build-apk.ps1 -BaseUrl https://gwd-club-os-abrw.onrender.com
+
+  Prefer this over -Ip for anything hosted. A hosted APK built with -Ip would
+  get `http://host:4000`, which is wrong twice: the wrong scheme, and a port the
+  host does not serve.
+
 .PARAMETER Universal
   Also build the fat APK that runs on any CPU. Slower and ~60 MB; the arm64
   split is under 25 MB and covers essentially every phone from the last decade.
@@ -29,6 +40,7 @@
 [CmdletBinding()]
 param(
     [string]$Ip,
+    [string]$BaseUrl,
     [switch]$Universal
 )
 
@@ -68,14 +80,29 @@ function Get-LanAddress {
     throw 'No usable IPv4 address found. Pass -Ip explicitly.'
 }
 
-if (-not $Ip) { $Ip = Get-LanAddress }
-$base = "http://${Ip}:4000"
+if ($BaseUrl) {
+    # A hosted backend. Used exactly as given  -  it already carries its scheme
+    # and port, and inventing `:4000` on the end would break it.
+    $base = $BaseUrl.TrimEnd('/')
+    if ($base -notmatch '^https?://') {
+        throw "-BaseUrl must start with http:// or https://  -  got '$BaseUrl'."
+    }
+    $hosted = $true
+} else {
+    if (-not $Ip) { $Ip = Get-LanAddress }
+    $base = "http://${Ip}:4000"
+    $hosted = $false
+}
 
 $network = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name
 Write-Host ''
 Write-Host ('=' * 64)
 Write-Host "  Baking in  $base"
-if ($network) { Write-Host "  Network    $network" }
+if ($hosted) {
+    Write-Host '  Target     hosted backend'
+} elseif ($network) {
+    Write-Host "  Network    $network"
+}
 Write-Host ('=' * 64)
 Write-Host ''
 
@@ -83,12 +110,27 @@ Write-Host ''
 # Catching this now is worth it: otherwise the APK is built, installed, and the
 # failure shows up as a sign-in error on somebody else's phone.
 try {
-    $health = Invoke-RestMethod -Uri "$base/api/health" -TimeoutSec 5
-    Write-Host "  Backend responding on that address (mongo: $($health.mongo), live: $($health.changeStreams))" -ForegroundColor Green
+    # A hosted instance on a free plan may be asleep; waking it takes up to a
+    # minute, which is far longer than a LAN server ever needs.
+    $timeout = if ($hosted) { 90 } else { 5 }
+    $health = Invoke-RestMethod -Uri "$base/api/health" -TimeoutSec $timeout
+    Write-Host "  Backend responding (mongo: $($health.mongo), live sync: $($health.changeStreams))" -ForegroundColor Green
+
+    # Live sync being off is not a build failure, but shipping an APK against a
+    # backend whose Change Streams are dead means every screen goes stale and
+    # nobody knows why.
+    if (-not $health.changeStreams) {
+        Write-Warning 'changeStreams is FALSE  -  the database is not a replica set.'
+        Write-Warning 'The app will work but nothing will update live.'
+    }
 } catch {
     Write-Warning "Nothing answered at $base/api/health."
-    Write-Warning 'Start it with:  cd backend; npm start'
-    Write-Warning 'Building anyway — the address is still correct once it is running.'
+    if ($hosted) {
+        Write-Warning 'If this is a free hosted instance it may still be waking  -  try again.'
+    } else {
+        Write-Warning 'Start it with:  .\scripts\start-server.ps1'
+    }
+    Write-Warning 'Building anyway  -  the address is still correct once it is running.'
 }
 Write-Host ''
 
@@ -97,12 +139,12 @@ Write-Host ''
 # sit at 0% CPU forever with no error (CLAUDE.md).
 Push-Location $appDir
 try {
-    Write-Host '  Building split-per-ABI…' -ForegroundColor Cyan
+    Write-Host '  Building split-per-ABI...' -ForegroundColor Cyan
     flutter build apk --release --split-per-abi "--dart-define=GWD_API_BASE=$base"
     if ($LASTEXITCODE -ne 0) { throw 'Split build failed.' }
 
     if ($Universal) {
-        Write-Host '  Building universal…' -ForegroundColor Cyan
+        Write-Host '  Building universal...' -ForegroundColor Cyan
         flutter build apk --release "--dart-define=GWD_API_BASE=$base"
         if ($LASTEXITCODE -ne 0) { throw 'Universal build failed.' }
     }
@@ -121,8 +163,8 @@ if ($Universal) {
 
 # Record what was baked in, so `start-server.ps1` can tell the difference
 # between "the server is down" and "the server moved and every installed APK is
-# now pointing at the wrong address" — which look identical from the phone.
-Set-Content -Path (Join-Path $projectRoot '.last-build-ip') -Value $Ip -Encoding ascii
+# now pointing at the wrong address"  -  which look identical from the phone.
+Set-Content -Path (Join-Path $projectRoot '.last-build-ip') -Value $base -Encoding ascii
 
 Write-Host ''
 Write-Host ('=' * 64)

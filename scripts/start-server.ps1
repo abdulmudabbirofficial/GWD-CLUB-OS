@@ -5,7 +5,7 @@
 
 .DESCRIPTION
   Neither process survives a reboot or a long sleep, and when they are down the
-  app reports "can't sign in" — which looks like a broken app rather than a
+  app reports "can't sign in"  -  which looks like a broken app rather than a
   stopped server. This is the one command that puts it all back.
 
   It also compares the machine's current LAN address against the one baked into
@@ -121,8 +121,17 @@ $stampFile = Join-Path $projectRoot '.last-build-ip'
 $network = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1)
 if (Test-Path $stampFile) {
     $baked = (Get-Content $stampFile -Raw).Trim()
-    if ($baked -eq $ip) {
+    # Older stamps held a bare IP; newer ones hold the whole base URL, because
+    # a build can now target a hosted backend rather than this laptop.
+    if ($baked -notmatch '^https?://') { $baked = "http://${baked}:4000" }
+
+    if ($baked -eq $base) {
         Write-Host "  [4/4] Address    matches the last APK build" -ForegroundColor Green
+    } elseif ($baked -notmatch [regex]::Escape($ip)) {
+        # The last APK points somewhere else entirely - a hosted deployment,
+        # most likely. That is not a mismatch to fix; this server is simply not
+        # the one those phones are talking to.
+        Write-Host "  [4/4] Address    last APK targets $baked (not this machine)" -ForegroundColor DarkGray
     } else {
         Write-Host "  [4/4] Address    CHANGED since the last APK build" -ForegroundColor Yellow
     }
@@ -137,9 +146,9 @@ Write-Host "  Phone / app should point at   $base"
 if ($network) { Write-Host "  Network                       $($network.Name)  [$($network.NetworkCategory)]" }
 Write-Host ('=' * 64)
 
-if ($baked -and $baked -ne $ip) {
+if ($baked -and $baked -ne $base -and $baked -match [regex]::Escape($ip)) {
     Write-Host ''
-    Write-Warning "Installed APKs were built for http://${baked}:$apiPort and will not reach this server."
+    Write-Warning "Installed APKs were built for $baked and will not reach this server."
     Write-Warning 'Fix without rebuilding: on the sign-in screen, open the server-address'
     Write-Warning "override and enter  $base"
 }

@@ -24,13 +24,46 @@ const readline = require('node:readline');
 const config = require('../src/config');
 const db = require('../src/db');
 
+/**
+ * Is this a database somewhere other than this machine?
+ *
+ * `mongodb+srv://` is always a hosted cluster, and any host that is not
+ * loopback is somebody's server. Either way it is not the throwaway local
+ * instance this script was written for.
+ */
+function isRemote(uri) {
+  if (/^mongodb\+srv:\/\//i.test(uri)) return true;
+  const hosts = uri.replace(/^mongodb:\/\//i, '').split('/')[0].split('@').pop();
+  return !/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i.test(hosts.split(',')[0]);
+}
+
 async function main() {
   const confirmed = process.argv.includes('--yes');
+  const remote = isRemote(config.mongoUri);
 
   console.log('');
   console.log('  This deletes EVERY account, department, task, event and file');
   console.log(`  in "${config.mongoDb}" at ${config.mongoUri.replace(/\/\/[^@]*@/, '//')}`);
   console.log('');
+
+  // A remote cluster is the club's real data, shared with the live site. The
+  // local database is disposable; this one is not, and `--yes` alone must not
+  // be enough to destroy it. Typing the database name is no protection here
+  // either — it is `gwd_club_os` in both places.
+  if (remote && !process.argv.includes('--i-know-this-is-live')) {
+    console.log('  REFUSING: that is not a local database.');
+    console.log('');
+    console.log('  It is the cluster the deployed site uses, so this would wipe the');
+    console.log('  club\'s real accounts, work and events — not test data.');
+    console.log('');
+    console.log('  If you genuinely mean it:');
+    console.log('    node scripts/reset.js --yes --i-know-this-is-live');
+    console.log('');
+    console.log('  To reset your local database instead, point MONGODB_URI back at');
+    console.log('  mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true');
+    console.log('');
+    process.exit(1);
+  }
 
   if (!confirmed) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });

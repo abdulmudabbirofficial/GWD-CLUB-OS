@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   `smoke.js` creates accounts, departments, tasks and events. That is fine on an
-  empty dev database and wrong once the club is actually using the app — the
+  empty dev database and wrong once the club is actually using the app  -  the
   test's throwaway members turn up in the real member directory and never leave.
 
   So this starts a *second* API on its own port against its own database, runs
@@ -66,7 +66,7 @@ try {
     $code = $LASTEXITCODE
 
     # The daily reminder sweep has no route in front of it, so it is tested
-    # directly rather than over HTTP — same throwaway database, same cleanup.
+    # directly rather than over HTTP  -  same throwaway database, same cleanup.
     if ($code -eq 0) {
         & node (Join-Path $backend 'scripts\test-reminders.js')
         $code = $LASTEXITCODE
