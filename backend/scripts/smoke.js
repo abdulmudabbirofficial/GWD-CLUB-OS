@@ -1552,6 +1552,37 @@ async function main() {
   ok('And never to the officers or another member',
     memberOthers.every((m) => !officerRoles.includes(m.role) && m.role !== 'clubMember'));
 
+  // --- "what did I hand out?" ---------------------------------------------
+  const handedOutView = await api('/api/users/my-overview', { token: presidentToken });
+  ok('Leadership can see what they handed out', handedOutView.status === 200,
+    JSON.stringify(handedOutView.body).slice(0, 160));
+  ok('With totals that add up',
+    (handedOutView.body?.totals?.assigned ?? 0)
+      >= (handedOutView.body?.totals?.completed ?? 0)
+    && (handedOutView.body?.totals?.assigned ?? 0) > 0,
+    JSON.stringify(handedOutView.body?.totals));
+  ok('And a row per person it landed on',
+    Array.isArray(handedOutView.body?.people),
+    `${handedOutView.body?.people?.length} people`);
+  ok('Work still awaiting hand-out is counted apart from anyone being slow',
+    typeof handedOutView.body?.totals?.awaitingHandout === 'number');
+
+  // Scoped to the caller: a member who has handed out nothing sees nothing,
+  // rather than the whole club's work.
+  // A fresh token: memberToken was minted before this account's password was
+  // reset in the passwords section, and that revokes it by design.
+  const freshMemberForOverview = await api('/api/auth/login', {
+    method: 'POST', body: { email: members[1].email, password: 'MemberPass123' },
+  });
+  const memberOverview = await api('/api/users/my-overview', {
+    token: freshMemberForOverview.body.token,
+  });
+  ok('A member sees only their own, which is usually empty',
+    memberOverview.status === 200
+    && (memberOverview.body?.totals?.assigned ?? 0)
+       <= (handedOutView.body?.totals?.assigned ?? 0),
+    JSON.stringify(memberOverview.body?.totals));
+
   // --- asking another department -----------------------------------------
   // "Technical needs Production on the stage rig" is how cross-department work
   // is described, so the ask is addressed to the department, not to whichever

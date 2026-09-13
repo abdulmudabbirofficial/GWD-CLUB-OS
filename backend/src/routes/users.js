@@ -248,6 +248,99 @@ router.get('/leaderboard', async (request, response, next) => {
  * where the club is stretched is exactly the context members are usually
  * missing. Ordered alphabetically, never by performance.
  */
+/**
+ * "What did I hand out, and who has done it?"
+ *
+ * The question a Director or a Lead opens the app to answer, and one the app
+ * previously made them reconstruct: open each person, read their list, keep a
+ * tally in their head. So most people did not bother, and work quietly went
+ * unchased.
+ *
+ * Scoped to the actor. A Lead sees what they handed out; a Director sees what
+ * they did. It is not a surveillance screen over the whole club — the
+ * department overview already answers that, in aggregate.
+ */
+router.get('/my-overview', async (request, response, next) => {
+  try {
+    const actor = request.user;
+    const now = new Date();
+
+    const mine = await col(C.tasks).find(
+      { assignedBy: actor._id, status: { $ne: 'cancelled' } },
+      {
+        projection: {
+          assignedTo: 1, departmentId: 1, status: 1, dueDate: 1,
+          points: 1, title: 1, updatedAt: 1,
+        },
+      },
+    ).toArray();
+
+    const isDone = (t) => t.status === 'completed';
+    const isOverdue = (t) => !isDone(t) && t.dueDate && new Date(t.dueDate) < now;
+
+    // Per person. Work still sitting in a department's triage pile has no
+    // assignee yet and is counted separately — it is not somebody being slow,
+    // it is a Lead who has not passed it on.
+    const byPerson = new Map();
+    let awaitingHandout = 0;
+    for (const task of mine) {
+      if (!task.assignedTo) { awaitingHandout += 1; continue; }
+      const key = String(task.assignedTo);
+      const row = byPerson.get(key)
+        ?? { assigned: 0, completed: 0, overdue: 0, lastActivity: null };
+      row.assigned += 1;
+      if (isDone(task)) row.completed += 1;
+      if (isOverdue(task)) row.overdue += 1;
+      if (task.updatedAt && (!row.lastActivity || task.updatedAt > row.lastActivity)) {
+        row.lastActivity = task.updatedAt;
+      }
+      byPerson.set(key, row);
+    }
+
+    const ids = [...byPerson.keys()].filter((id) => ObjectId.isValid(id))
+      .map((id) => new ObjectId(id));
+    const [people, departments] = await Promise.all([
+      col(C.users).find({ _id: { $in: ids } },
+        { projection: { name: 1, role: 1, departmentId: 1, avatarColor: 1 } }).toArray(),
+      col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
+    ]);
+    const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
+
+    const rows = people.map((p) => {
+      const row = byPerson.get(String(p._id));
+      return {
+        id: String(p._id),
+        name: p.name,
+        role: p.role,
+        departmentName: p.departmentId ? deptName.get(String(p.departmentId)) ?? null : null,
+        avatarColor: p.avatarColor ?? null,
+        assigned: row.assigned,
+        completed: row.completed,
+        open: row.assigned - row.completed,
+        overdue: row.overdue,
+        lastActivity: row.lastActivity,
+      };
+    })
+      // Most outstanding work first, then most overdue. This screen exists to
+      // show who needs chasing, so the answer belongs at the top — unlike
+      // recognition, which is deliberately never ordered by performance.
+      .sort((a, b) => (b.open - a.open) || (b.overdue - a.overdue) || a.name.localeCompare(b.name));
+
+    response.json({
+      totals: {
+        assigned: mine.length,
+        completed: mine.filter(isDone).length,
+        open: mine.filter((t) => !isDone(t)).length,
+        overdue: mine.filter(isOverdue).length,
+        awaitingHandout,
+      },
+      people: rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/department-overview', async (request, response, next) => {
   try {
     const [departments, stats] = await Promise.all([

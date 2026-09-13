@@ -12,6 +12,7 @@ import '../departments/departments_page.dart';
 import '../directory/directory_page.dart';
 import '../help/help_page.dart';
 import '../leaderboard/leaderboard_page.dart';
+import '../leaderboard/my_overview_page.dart';
 import '../profile/profile_sheet.dart';
 import '../schedule/schedule_page.dart';
 import 'structure_page.dart';
@@ -132,6 +133,20 @@ class MorePage extends StatelessWidget {
                   title: 'Recognition',
                   subtitle: 'Everyone’s progress, and points given by hand',
                   onTap: () => _push(context, const LeaderboardPage()),
+                ),
+              ),
+            // Only for people who actually give work out. For everyone else
+            // the answer is always "nothing", and a tile that is always empty
+            // is a tile that teaches people to stop looking.
+            if (caps.canAssign)
+              AppleStaggerItem(
+                index: next(),
+                child: _Tile(
+                  icon: Icons.outbox_outlined,
+                  tint: GwdColors.info,
+                  title: 'What I handed out',
+                  subtitle: 'How your assigned work is going, without opening each person',
+                  onTap: () => _push(context, const MyOverviewPage()),
                 ),
               ),
             if (store.pendingApprovals.isNotEmpty)

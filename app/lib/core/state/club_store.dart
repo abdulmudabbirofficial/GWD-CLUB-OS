@@ -832,6 +832,29 @@ class ClubStore extends ChangeNotifier {
     return json['message'] as String?;
   }
 
+  /// "What did I hand out, and who has done it?" — scoped to the caller.
+  Future<Map<String, dynamic>> myOverview() => _api.get('/api/users/my-overview');
+
+  /// Remove somebody from the club. Directors only; the server is the
+  /// authority and refuses anyone else.
+  ///
+  /// Their work is not deleted with them — the server returns tasks they
+  /// carried to the triage pile — so everything that could have changed is
+  /// reloaded rather than just the member list.
+  Future<void> removeMember(String userId) async {
+    await _api.delete('/api/users/$userId');
+    await Future.wait([
+      loadMembers(),
+      loadDepartments(),
+      loadTasks(),
+      loadIncoming(),
+      loadLeaderboard(),
+      _loadHome(),
+    ]);
+    notifyListeners();
+  }
+
+
   // ----------------------------------------------------------- member stats
   Future<Map<String, dynamic>> memberStats(String userId) =>
       _api.get('/api/users/$userId/stats');
@@ -1154,9 +1177,17 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> cancelEvent(String id) async {
-    await _api.delete('/api/events/$id');
-    await loadEvents();
+  /// Cancel an event, or remove a cancelled one outright.
+  ///
+  /// Two steps by design: cancelling keeps the work and the paperwork, and only
+  /// something already cancelled can be purged. A live event can never be
+  /// destroyed by one mistaken tap.
+  ///
+  /// Cancelling takes its tasks and deadlines with it, so the work list, the
+  /// schedule and Home all have to catch up — not just the event list.
+  Future<void> cancelEvent(String id, {bool purge = false}) async {
+    await _api.delete('/api/events/$id${purge ? '?purge=true' : ''}');
+    await Future.wait([loadEvents(), loadTasks(), loadSchedule(), _loadHome()]);
     notifyListeners();
   }
 

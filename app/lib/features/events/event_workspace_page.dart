@@ -6,6 +6,7 @@ import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
+import '../../core/models/club_role.dart';
 import '../../core/models/club_event.dart';
 import '../../core/state/club_store.dart';
 import 'event_board_tab.dart';
@@ -302,12 +303,149 @@ Future<void> _showStatusSheet(
                       context, store, messenger, eventId, event, status);
                 },
               ),
+
+            // Cancelling throws away work a lot of people did, so it sits
+            // apart from the ordinary status moves and is Directors and the
+            // President only. The server enforces that; this only decides
+            // whether to offer it.
+            if (_mayCancel(AppScope.sessionOf(sheetContext).me?.role)) ...[
+              Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(sheetContext)),
+              if (event.status != EventStatus.cancelled)
+                ListTile(
+                  leading: const Icon(Icons.event_busy_outlined,
+                      color: GwdColors.critical, size: 20),
+                  title: Text('Cancel this event',
+                      style: GwdType.body.copyWith(color: GwdColors.critical)),
+                  subtitle: Text('The work and paperwork are kept',
+                      style: GwdType.footnote
+                          .copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await _confirmCancel(context, store, messenger, eventId, event);
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.delete_forever_outlined,
+                      color: GwdColors.critical, size: 20),
+                  title: Text('Delete permanently',
+                      style: GwdType.body.copyWith(color: GwdColors.critical)),
+                  subtitle: Text('Removes its tasks, documents and bills too',
+                      style: GwdType.footnote
+                          .copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await _confirmPurge(context, store, messenger, eventId, event);
+                  },
+                ),
+            ],
             const SizedBox(height: GwdSpace.md),
           ],
         ),
       ),
     ),
   );
+}
+
+/// Cancelling is not the event lead's call — it discards work a lot of people
+/// did. Mirrors the server, which is the authority.
+bool _mayCancel(ClubRole? role) =>
+    role == ClubRole.clubDirector
+    || role == ClubRole.facultyCoordinator
+    || role == ClubRole.president;
+
+Future<void> _confirmCancel(
+  BuildContext context,
+  ClubStore store,
+  ScaffoldMessengerState messenger,
+  String eventId,
+  ClubEvent event,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: GwdColors.surfaceOf(dialogContext),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
+      title: Text('Cancel ${event.name}?',
+          style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
+      content: Text(
+        'Everyone on it is told. Its tasks, documents and expenses are kept, so '
+        'nothing anybody already did is lost — and you can delete it outright '
+        'afterwards if you want it gone.',
+        style: GwdType.callout
+            .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text('Keep it',
+              style: GwdType.callout
+                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text('Cancel the event',
+              style: GwdType.callout.copyWith(
+                  color: GwdColors.critical, fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    await store.cancelEvent(eventId);
+    messenger.showSnackBar(SnackBar(content: Text('${event.name} was cancelled.')));
+  } catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('$error')));
+  }
+}
+
+/// Only reachable on an already-cancelled event, so removing one is always two
+/// deliberate steps.
+Future<void> _confirmPurge(
+  BuildContext context,
+  ClubStore store,
+  ScaffoldMessengerState messenger,
+  String eventId,
+  ClubEvent event,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: GwdColors.surfaceOf(dialogContext),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
+      title: Text('Delete ${event.name} for good?',
+          style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
+      content: Text(
+        'This also removes its tasks, its documents and its expense records. '
+        'It cannot be undone.',
+        style: GwdType.callout
+            .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text('Keep the record',
+              style: GwdType.callout
+                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text('Delete',
+              style: GwdType.callout.copyWith(
+                  color: GwdColors.critical, fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    await store.cancelEvent(eventId, purge: true);
+    if (context.mounted) Navigator.of(context).pop();
+    messenger.showSnackBar(SnackBar(content: Text('${event.name} was deleted.')));
+  } catch (error) {
+    messenger.showSnackBar(SnackBar(content: Text('$error')));
+  }
 }
 
 /// Applies a status change, and handles the one case that needs a conversation:

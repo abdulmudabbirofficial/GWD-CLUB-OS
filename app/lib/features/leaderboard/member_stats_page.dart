@@ -88,6 +88,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
   @override
   Widget build(BuildContext context) {
     final store = AppScope.storeOf(context);
+    final session = AppScope.sessionOf(context);
     final member = _full ?? widget.member ?? store.memberById(widget.userId);
 
     // Opened by id, and neither the server nor the store has the person yet.
@@ -441,6 +442,23 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                           onPressed: () => _resetPassword(member),
                         ),
                       ],
+
+                      // Removing somebody is a Director's call alone — it is
+                      // the one action that can take the President out. Kept at
+                      // the very bottom, quiet, and two confirmations deep.
+                      if (session.me?.role == ClubRole.clubDirector
+                          && member.id != session.me?.id
+                          && member.role != ClubRole.clubDirector
+                          && member.role != ClubRole.facultyCoordinator) ...[
+                        const SizedBox(height: GwdSpace.md),
+                        SecondaryButton(
+                          label: 'Remove from the club',
+                          icon: Icons.person_remove_outlined,
+                          expand: true,
+                          destructive: true,
+                          onPressed: () => _confirmRemove(member),
+                        ),
+                      ],
                     ],
                   ],
                 ),
@@ -548,6 +566,89 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       await store.renameMember(member.id, name);
       if (mounted) await _load();
       messenger.showSnackBar(SnackBar(content: Text('Named $name.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
+
+  /// Remove somebody from the club.
+  ///
+  /// Asks them to type the person's first name. A plain "are you sure?" on an
+  /// irreversible action that removes a human being from the club is too easy
+  /// to tap through — typing the name is a moment's pause that costs nothing
+  /// when you mean it.
+  Future<void> _confirmRemove(Member member) async {
+    final store = AppScope.readStore(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final expected = member.firstName;
+    final typed = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final matches = typed.text.trim().toLowerCase() == expected.toLowerCase();
+          return AlertDialog(
+            backgroundColor: GwdColors.surfaceOf(dialogContext),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(GwdRadius.xl)),
+            title: Text('Remove ${member.displayName}?',
+                style: GwdType.title3
+                    .copyWith(color: GwdColors.inkOf(dialogContext))),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'They lose access immediately and cannot sign in again.\n\n'
+                  'Their work is kept: anything they were carrying goes back to '
+                  'their department to be handed out again.',
+                  style: GwdType.callout
+                      .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+                ),
+                const SizedBox(height: GwdSpace.lg),
+                GwdField(
+                  label: 'Type "$expected" to confirm',
+                  controller: typed,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text('Keep them',
+                    style: GwdType.callout.copyWith(
+                        color: GwdColors.inkSecondaryOf(dialogContext))),
+              ),
+              TextButton(
+                onPressed:
+                    matches ? () => Navigator.of(dialogContext).pop(true) : null,
+                child: Text('Remove',
+                    style: GwdType.callout.copyWith(
+                      color: matches
+                          ? GwdColors.critical
+                          : GwdColors.inkTertiaryOf(dialogContext),
+                      fontWeight: FontWeight.w700,
+                    )),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    typed.dispose();
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await store.removeMember(member.id);
+      navigator.pop();
+      messenger.showSnackBar(
+        SnackBar(content: Text('${member.displayName} was removed from the club.')),
+      );
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('$error')));
     }
