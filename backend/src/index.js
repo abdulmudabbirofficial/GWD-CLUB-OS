@@ -106,6 +106,9 @@ app.use('/api', require('./routes/documents'));
 // Mounted at /api for the same reason as documents: a bill is addressed both
 // under its event and on its own.
 app.use('/api', require('./routes/finance'));
+// Meetings are a domain of their own, not a schedule category: they carry an
+// invitee list and an attendance record, which a calendar row cannot.
+app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/help', require('./routes/help'));
 app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/notifications', require('./routes/notifications'));

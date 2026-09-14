@@ -15,6 +15,9 @@ const {
   canRemoveMember, canChangeRole, ROLE_CAPS,
 } = require('../permissions');
 const { notify, audit } = require('../services/notify');
+// Attendance is derived from the meetings collection, so the one implementation
+// lives with the meetings and every caller shares it.
+const { attendanceFor } = require('./meetings');
 
 const router = express.Router();
 router.use(authenticate, requireApproved);
@@ -477,8 +480,14 @@ router.get('/:id/stats', async (request, response, next) => {
     // Who assigns this person work, and what they have handed out themselves.
     const assignedByThem = await col(C.tasks).countDocuments({ assignedBy: id });
 
+    // Derived from the meetings themselves, never a counter kept on the user —
+    // a stored tally becomes a second source of truth the first time a meeting
+    // is edited, and then nobody can tell which number is right.
+    const attendance = await attendanceFor(id);
+
     response.json({
       user: publicUser(user),
+      attendance,
       department: department
         ? {
             id: String(department._id),

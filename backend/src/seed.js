@@ -73,42 +73,23 @@ async function upsertPerson({ name, email, password }, role) {
 }
 
 /**
- * The club's six departments, as given.
+ * The two departments a fresh database starts with.
  *
- * Still managed data, not a fixture — President and Directors rename, add and
- * deactivate them at runtime, which is exactly what v1's hardcoded enum made
- * impossible. This is only what a fresh database starts with.
+ * Still managed data, not a fixture — the President, VP and Directors add,
+ * rename and retire departments at runtime, which is exactly what v1's
+ * hardcoded Dart enum made impossible. This is only the starting point, and a
+ * database that already has departments is left alone.
  */
 const STARTING_DEPARTMENTS = [
   {
-    name: 'Marketing & Social Media',
-    description: 'Campaigns, reels, registrations and campus reach.',
-    leadEmail: 'lead.marketing@gwd.club',
-  },
-  {
-    name: 'Event Management',
-    description: 'Venue, run-of-show, logistics and volunteers.',
-    leadEmail: 'lead.events@gwd.club',
-  },
-  {
-    name: 'Technical',
+    name: 'Tech',
     description: 'Sound, lighting, projection, streaming and registration systems.',
-    leadEmail: 'lead.technical@gwd.club',
+    leadEmail: 'lead.tech@gwd.club',
   },
   {
-    name: 'Creative',
-    description: 'Design identity, posters, stage graphics and branding.',
-    leadEmail: 'lead.creative@gwd.club',
-  },
-  {
-    name: 'Cinematography',
-    description: 'Teasers, event coverage, photography and aftermovies.',
-    leadEmail: 'lead.cinematography@gwd.club',
-  },
-  {
-    name: 'PR & HR',
-    description: 'Sponsors, guest speakers, hospitality, recruitment and people.',
-    leadEmail: 'lead.pr@gwd.club',
+    name: 'Production',
+    description: 'Stage, rigging, LED walls, equipment and on-the-day production.',
+    leadEmail: 'lead.production@gwd.club',
   },
 ];
 

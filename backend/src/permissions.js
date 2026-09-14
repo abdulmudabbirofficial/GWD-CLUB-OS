@@ -425,6 +425,36 @@ function canManageDepartments(role) {
 }
 
 /**
+ * Who may call an official meeting?
+ *
+ * The executive tier and department Leads. A general member cannot summon
+ * people — a meeting is an instruction to be somewhere at a time, and an app
+ * where anyone can put a compulsory entry in forty calendars stops being
+ * trusted very quickly. A member who needs to gather people asks their Lead,
+ * or raises it as a help request.
+ */
+const canScheduleMeeting = (role) =>
+  role === ROLES.clubDirector
+  || role === ROLES.facultyCoordinator
+  || role === ROLES.president
+  || role === ROLES.vicePresident
+  || role === ROLES.secretaryGeneral
+  || role === ROLES.clubLead;
+
+/**
+ * Who may record who actually turned up?
+ *
+ * Whoever called the meeting, plus the executive tier. Attendance feeds the
+ * figures on people's profiles, so it is not something any attendee can edit
+ * about themselves — marking your own attendance is not attendance.
+ */
+function canMarkAttendance(actor, meeting) {
+  if (!actor || !meeting) return false;
+  if (String(meeting.createdBy) === String(actor._id)) return true;
+  return isSupervisor(actor.role) || rankOf(actor.role) >= RANK.secretaryGeneral;
+}
+
+/**
  * Change somebody's role or move them between departments.
  *
  * Deliberately **not** `canManageDepartments`, which now includes the Vice
@@ -762,6 +792,8 @@ module.exports = {
   canManageDepartments,
   canChangeRole,
   canRemoveMember,
+  canScheduleMeeting,
+  canMarkAttendance,
   canViewAudit,
   approvalRouteFor,
   canApproveAccess,

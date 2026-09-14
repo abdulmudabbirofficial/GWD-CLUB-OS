@@ -54,6 +54,20 @@ const C = {
   eventDocuments: 'eventDocuments',
   helpRequests: 'helpRequests',
 
+  /**
+   * Meetings, with their invitee list and attendance on the same document.
+   *
+   * Distinct from `calendarEvents`, where "Meeting" is only a category — a
+   * schedule row is a date and a title, and cannot say who was asked, who
+   * turned up, or what anybody's attendance record is.
+   *
+   * Participants are a **snapshot** taken when the meeting is created, not a
+   * live department query. If somebody leaves Marketing next week, the record
+   * of who was invited to last week's Marketing meeting must not change
+   * underneath it — attendance history that rewrites itself is worthless.
+   */
+  meetings: 'meetings',
+
   // What an event cost, and whether the person who paid has been repaid.
   // A record and an approval trail — it never moves money, and deliberately
   // stores no bank details.
@@ -118,6 +132,13 @@ async function ensureIndexes() {
     d.collection(C.eventDocuments).createIndex({ eventId: 1, kind: 1 }),
     // Event work is the hot path on the Kanban board.
     d.collection(C.tasks).createIndex({ eventId: 1, status: 1 }),
+
+    // Meetings are read two ways: "what is coming up" and "what was this
+    // person invited to", the second being how every attendance figure in the
+    // app is derived.
+    d.collection(C.meetings).createIndex({ date: -1 }),
+    d.collection(C.meetings).createIndex({ 'participants.userId': 1, date: -1 }),
+    d.collection(C.meetings).createIndex({ status: 1, date: -1 }),
 
     d.collection(C.helpRequests).createIndex({ status: 1, createdAt: -1 }),
     d.collection(C.helpRequests).createIndex({ departmentId: 1 }),

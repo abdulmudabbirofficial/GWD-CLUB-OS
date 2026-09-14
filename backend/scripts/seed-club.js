@@ -4,8 +4,8 @@
  * Seed the real GWD Global roster, plus some work to look at.
  *
  * Separate from `src/seed.js`, which only creates the roots of trust and the
- * six empty departments a fresh database needs to function. This one puts
- * actual people in, with their actual names and posts.
+ * starting departments a fresh database needs to function. This one puts actual
+ * people in, with their actual names and posts.
  *
  * Idempotent and additive. Everybody is matched on email:
  *   - an account that does not exist is created with a fresh password
@@ -47,6 +47,10 @@ const REPLACE_PLACEHOLDERS = process.argv.includes('--replace-placeholders');
 const PLACEHOLDER_EMAILS = [
   'director1@gwd.club', 'director2@gwd.club',
   'faculty@gwd.club', 'president@gwd.club',
+  // Current seed.
+  'lead.tech@gwd.club', 'lead.production@gwd.club',
+  // Retired from earlier versions, listed so an older database can still be
+  // tidied up by the same command.
   'lead.marketing@gwd.club', 'lead.events@gwd.club', 'lead.technical@gwd.club',
   'lead.creative@gwd.club', 'lead.cinematography@gwd.club', 'lead.pr@gwd.club',
 ];
@@ -72,13 +76,17 @@ function avatarColorFor(seed) {
  *
  * `post` is the club's own wording, kept for the printout so the handover sheet
  * reads the way the club talks. The app derives what it shows from `role` plus
- * the department — "Anvitha / Marketing & Social Media Lead".
+ * the department — "Dikshit / Tech Lead".
  */
 const ROSTER = [
   // --- oversight -------------------------------------------------------
-  // Two Directors is the hard cap (ROLE_CAPS), and the CMO and CEO are it.
+  // Three Director seats, which is the cap in ROLE_CAPS.
   { post: 'GWD Global CMO', name: 'Mohammed Abdul Mudabbir', email: 'cmo@gwd.global', role: ROLES.clubDirector },
   { post: 'GWD Global CEO', name: 'Mohd Abdul Rahman Pasha', email: 'ceo@gwd.global', role: ROLES.clubDirector },
+  // The third seat is real — a role in the permission system with its own
+  // account, not a placeholder in the UI. Rename it once the club decides who
+  // holds it; the post is what matters, not the label.
+  { post: 'Club Director', name: 'Club Director Three', email: 'director3@gwd.global', role: ROLES.clubDirector },
 
   // --- the executive tier ----------------------------------------------
   { post: 'President', name: 'Aldrin Paul', email: 'president@gwd.global', role: ROLES.president },
@@ -86,15 +94,10 @@ const ROSTER = [
   { post: 'General Secretary', name: 'Sravya', email: 'gensec@gwd.global', role: ROLES.secretaryGeneral },
 
   // --- department Leads -------------------------------------------------
-  { post: 'Marketing Lead', name: 'Anvitha', email: 'marketing@gwd.global', role: ROLES.clubLead, department: 'Marketing & Social Media' },
-  { post: 'PR & Corporate Lead', name: 'Tuba Azeem', email: 'pr@gwd.global', role: ROLES.clubLead, department: 'PR & HR' },
-  { post: 'Event Management Lead', name: 'Bhavya', email: 'events@gwd.global', role: ROLES.clubLead, department: 'Event Management' },
-  { post: 'Creative Lead', name: 'Nishta', email: 'creative@gwd.global', role: ROLES.clubLead, department: 'Creative' },
-  { post: 'Production & Tech Lead', name: 'Mohd Abdul Rahman Pasha (Temp)', email: 'production@gwd.global', role: ROLES.clubLead, department: 'Technical' },
-  { post: 'Cinematographer Lead', name: 'Burhan', email: 'cinema@gwd.global', role: ROLES.clubLead, department: 'Cinematography' },
-
-  // --- members -----------------------------------------------------------
-  { post: 'Club Member', name: 'Rhea Sen', email: 'member@gwd.global', role: ROLES.clubMember, department: 'Marketing & Social Media' },
+  // Two departments to start with; the rest are created in the app by the
+  // President, VP or a Director rather than being seeded.
+  { post: 'Production Lead', name: 'Rehman', email: 'production@gwd.global', role: ROLES.clubLead, department: 'Production' },
+  { post: 'Tech Lead', name: 'Dikshit', email: 'tech@gwd.global', role: ROLES.clubLead, department: 'Tech' },
 ];
 
 async function departmentsByName() {
@@ -281,8 +284,8 @@ async function seedDemo() {
       startTime: '09:30', endTime: '17:30',
       venue: 'Main Auditorium',
       status: 'planning',
-      organizing: 'Event Management',
-      supporting: ['Marketing & Social Media', 'PR & HR', 'Technical', 'Creative', 'Cinematography'],
+      organizing: 'Production',
+      supporting: ['Tech'],
       speakerName: 'Industry CXO panel',
     },
     {
@@ -293,8 +296,8 @@ async function seedDemo() {
       startTime: '10:00', endTime: '16:00',
       venue: 'Seminar Hall 2',
       status: 'planning',
-      organizing: 'Creative',
-      supporting: ['Marketing & Social Media', 'Technical'],
+      organizing: 'Tech',
+      supporting: ['Production'],
     },
   ];
 
@@ -349,24 +352,15 @@ async function seedDemo() {
   // A spread of statuses and point values on purpose: the recognition charts
   // and the "still open" reminder only say anything with a mix.
   const taskSpecs = [
-    ['Marketing & Social Media', 'Launch the registration funnel', 'Landing page, form and the tracking link.', 'completed', 5, -6],
-    // Finished, so the club's one general member is not sitting on zero points
-    // while every Lead has some - which would read as her doing nothing.
-    ['Marketing & Social Media', 'Poster drive across departments', 'Print run and campus placement.', 'completed', 3, -2],
+    ['Tech', 'Livestream and sound test', 'Full dry run a day before.', 'completed', 5, -4],
+    ['Tech', 'Registration desk systems', 'Two laptops, scanner, offline fallback.', 'inProgress', 3, 5],
     // Deliberately past its due date and still open, so the daily reminder
     // sweep and the overdue styling both have something real to show.
-    ['Marketing & Social Media', 'Daily countdown reels', 'Fourteen days of short-form posts.', 'inProgress', 3, -1],
-    ['PR & HR', 'Sponsor MoU with two firms', 'Draft, circulate and get signatures.', 'inProgress', 5, 6],
-    ['PR & HR', 'Confirm CXO panel availability', 'Lock three speakers and share bios.', 'completed', 5, -3],
-    ['Event Management', 'Master run-of-show', 'Minute-by-minute for the whole day.', 'inProgress', 5, 5],
-    ['Event Management', 'Auditorium booking and clearance', 'Dean sign-off and the venue form.', 'completed', 3, -8],
-    ['Event Management', 'Volunteer roster', 'Twenty volunteers across four shifts.', 'pending', 3, 10],
-    ['Technical', 'LED wall and stage rig', 'Vendor quote, load-in plan, power check.', 'inProgress', 5, 7],
-    ['Technical', 'Livestream and sound test', 'Full dry run a day before.', 'pending', 5, 19],
-    ['Creative', 'Visual identity and standees', 'Logo lockup, standee artwork, badges.', 'completed', 5, -4],
-    ['Creative', 'Social asset pack', 'Templates for every department.', 'inProgress', 3, 3],
-    ['Cinematography', '4K teaser', 'Thirty seconds, cut to the theme track.', 'pending', 5, 12],
-    ['Cinematography', 'Highlight reel plan', 'Shot list and camera positions.', 'pending', 1, 14],
+    ['Tech', 'Projection and lighting cues', 'Cue sheet agreed with the stage team.', 'inProgress', 3, -1],
+    ['Tech', 'Wi-Fi and power plan', 'Load check for the whole auditorium.', 'pending', 1, 12],
+    ['Production', 'LED wall and stage rig', 'Vendor quote, load-in plan, power check.', 'completed', 5, -6],
+    ['Production', 'Stage layout and backdrop', 'Dimensions, standee positions, safe walkways.', 'inProgress', 5, 4],
+    ['Production', 'Equipment checklist', 'Everything in, everything back.', 'pending', 3, 9],
   ];
 
   let taskCount = 0;
@@ -376,10 +370,9 @@ async function seedDemo() {
     if (await col(C.tasks).findOne({ title })) continue;
 
     const deptLead = lead(deptName);
-    // Members do the small stuff; the Lead carries the rest. Marketing has an
-    // actual member, so some of its work lands on her.
-    const assignee = (deptName === 'Marketing & Social Media' && member && points <= 3)
-      ? member : deptLead;
+    // Everything lands on the department Lead: the starting roster has no
+    // general members yet, and they join through the app rather than a seed.
+    const assignee = deptLead;
 
     const now = new Date();
     await col(C.tasks).insertOne({
@@ -404,7 +397,7 @@ async function seedDemo() {
   // One department task nobody has handed out yet, so a Lead's triage pile and
   // the "waiting to be handed out" badge are not empty.
   if (!(await col(C.tasks).findOne({ title: 'Recruiter booth layout' }))) {
-    const d = departments.get('Event Management');
+    const d = departments.get('Production');
     if (d) {
       const now = new Date();
       await col(C.tasks).insertOne({

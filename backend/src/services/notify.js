@@ -208,6 +208,20 @@ const COPY = {
     title: 'New department',
     body: `${p.byName ?? 'Leadership'} added ${p.departmentName ?? 'a department'}.`,
   }),
+  // --- meetings --------------------------------------------------------------
+  meetingInvited: (p) => ({
+    title: 'You are wanted at a meeting',
+    body: `${p.byName ?? 'Leadership'} called "${p.meetingTitle ?? 'a meeting'}".`,
+  }),
+  meetingMoved: (p) => ({
+    title: 'A meeting moved',
+    body: `"${p.meetingTitle ?? 'A meeting'}" was rescheduled by ${p.byName ?? 'the organiser'}.`,
+  }),
+  meetingCancelled: (p) => ({
+    title: 'Meeting cancelled',
+    body: `"${p.meetingTitle ?? 'A meeting'}" is off.`,
+  }),
+
   eventCancelled: (p) => ({
     title: 'Event cancelled',
     body: `"${p.eventName ?? 'An event'}" was cancelled by ${p.byName ?? 'leadership'}.`,

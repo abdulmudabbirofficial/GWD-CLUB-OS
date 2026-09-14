@@ -101,11 +101,16 @@ async function main() {
   // ------------------------------------------------------------ departments
   console.log('\ndepartments');
   const pub = await api('/api/departments/public');
-  ok('Departments are listable before signup', pub.status === 200 && pub.body.departments.length >= 6,
+  ok('Departments are listable before signup',
+    pub.status === 200 && pub.body.departments.length >= 2,
     `got ${pub.body?.departments?.length}`);
-  const creative = pub.body.departments.find((d) => d.name === 'Creative');
-  const prDept = pub.body.departments.find((d) => d.name === 'PR & HR');
-  ok('The club\'s six departments are seeded', Boolean(creative && prDept),
+
+  // The seed starts with Tech and Production; everything else is created in
+  // the app. The suite names them rather than assuming a count, so adding or
+  // retiring a starting department does not silently break unrelated tests.
+  const creative = pub.body.departments.find((d) => d.name === 'Tech');
+  const prDept = pub.body.departments.find((d) => d.name === 'Production');
+  ok('The starting departments are seeded', Boolean(creative && prDept),
     pub.body?.departments?.map((d) => d.name).join(', '));
 
   const newDept = await api('/api/departments', {
@@ -438,9 +443,10 @@ async function main() {
   ok('But never an individual member or Lead',
     facultyOthers.every((m) => m.role !== 'clubMember' && m.role !== 'clubLead'),
     'those go through the department');
+  // At least the two the seed creates, plus whatever this run has added.
   ok('But she is still offered departments',
     facultyTargets.body?.canAssignToDepartment === true
-    && facultyTargets.body.departments.length >= 6,
+    && facultyTargets.body.departments.length >= 2,
     `${facultyTargets.body?.departments?.length} departments`);
   ok('Each one names the Lead who would receive it',
     facultyTargets.body.departments.every((d) => 'leadName' in d));
