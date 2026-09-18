@@ -1053,19 +1053,30 @@ void main() {
       );
     }
 
-    test('a meeting earlier today is still today, not past', () {
+    test('any hour of today is still today, not past', () {
       // The bug this pins down made events vanish on the morning they ran:
       // comparing a stored timestamp against `now` rather than comparing
       // calendar days. A 10am meeting is still today's meeting at 2pm.
-      final earlierToday = DateTime.now().subtract(const Duration(hours: 5));
-      final meeting = at(earlierToday);
-      expect(meeting.isToday, isTrue);
-      expect(meeting.isPast, isFalse);
+      //
+      // The hours are pinned to today's date rather than offset from `now`.
+      // Subtracting five hours was the obvious way to write "earlier today"
+      // and it was wrong: run the suite at 03:00 and it lands on yesterday,
+      // so the test failed for reasons that had nothing to do with the code.
+      final now = DateTime.now();
+      for (final hour in [0, 1, 9, 13, 23]) {
+        final meeting = at(DateTime(now.year, now.month, now.day, hour, 30));
+        expect(meeting.isToday, isTrue, reason: '${hour}:30 today');
+        expect(meeting.isPast, isFalse, reason: '${hour}:30 today');
+      }
     });
 
     test('yesterday is past, tomorrow is neither', () {
-      expect(at(DateTime.now().subtract(const Duration(days: 1))).isPast, isTrue);
-      final tomorrow = at(DateTime.now().add(const Duration(days: 1)));
+      // Midday on the neighbouring days, for the same reason: a whole-day
+      // offset from `now` is safe, but anchoring the hour keeps it obvious.
+      final now = DateTime.now();
+      final midday = DateTime(now.year, now.month, now.day, 12);
+      expect(at(midday.subtract(const Duration(days: 1))).isPast, isTrue);
+      final tomorrow = at(midday.add(const Duration(days: 1)));
       expect(tomorrow.isPast, isFalse);
       expect(tomorrow.isToday, isFalse);
     });

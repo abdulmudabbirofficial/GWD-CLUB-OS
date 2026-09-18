@@ -805,6 +805,33 @@ $env:PATH="$root\flutter\bin;$root\jdk\bin;$root\git\cmd;$env:PATH"
   steady trickle. `waitQueueTimeoutMS` is the important one: a saturated pool
   fails in four seconds with something the client can retry, instead of hanging
   until the user decides the app is broken.
+- **bcrypt was taking the whole server down under a sign-in burst.** A measured
+  100-person simultaneous sign-in sat at **28s p50 and dropped 16 requests**,
+  and while it churned, all fifteen change streams timed out checking a
+  connection out of the Mongo pool — so a login storm knocked *live sync*
+  offline for the entire club. The cause is that `bcryptjs` is the pure-JS
+  build: one cost-12 comparison is ~435ms of blocking JavaScript on the single
+  thread Node has, while eleven other cores sit idle. Hashing now runs on a
+  worker pool (`src/password-pool.js`), which keeps the event loop free. The
+  cost factor is deliberately unchanged — that number is the security property,
+  and the problem was scheduling, not strength.
+- **The API saturates at ~280 requests/second**, and past that it queues
+  linearly. Measured on this laptop with `scripts/load-test.js`:
+
+  | opening the app | screen load p95 |
+  |---|---|
+  | 1 person | 204 ms |
+  | 25 at once | 1.9 s |
+  | 50 at once | 2.9 s |
+  | 100 at once | 5.6 s |
+
+  `ClubStore.loadAll` is 15 requests, so 100 people arriving together is 1500
+  requests in one instant. That is the *synthetic* worst case: a real club
+  trickles in over half a minute, which is ~50 req/s and leaves screen loads
+  near the 204ms figure. Worth knowing before optimising anything — it is not
+  the database (the indexes are complete and the collections are tiny), it is
+  one Node thread doing JSON. Re-run it with
+  `node scripts/seed-load-users.js --users 100` then `node scripts/load-test.js`.
 - **Anything the app must fetch on load has to be in `ClubStore.loadAll`.**
   `loadIncoming` existed, was called from two write paths, and was missing from
   `loadAll` — so a Lead's triage pile was empty until they assigned something.

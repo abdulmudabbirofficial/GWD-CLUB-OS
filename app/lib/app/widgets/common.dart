@@ -13,6 +13,7 @@ class Avatar extends StatelessWidget {
     required this.tint,
     this.size = 40,
     this.selected = false,
+    this.heroId,
   });
 
   final String initials;
@@ -20,8 +21,41 @@ class Avatar extends StatelessWidget {
   final double size;
   final bool selected;
 
+  /// Give the same person's avatar the same [heroId] on a list row and on the
+  /// page that row opens, and it flies between the two instead of the row
+  /// disappearing and a new circle appearing somewhere else.
+  ///
+  /// It carries a real meaning, not just polish: the thing that grows into the
+  /// header is visibly *the row you touched*, so nobody has to check whose
+  /// profile they landed on. Opt-in by id, because a Hero only works when
+  /// exactly one widget on each screen claims a tag — two rows for the same
+  /// person on one screen would throw.
+  final Object? heroId;
+
   @override
   Widget build(BuildContext context) {
+    final circle = _circle(context);
+    if (heroId == null) return circle;
+    return Hero(
+      tag: heroId!,
+      // The default flight rebuilds the child against the destination's
+      // constraints, which makes a 40pt circle briefly assume the 62pt size
+      // and snap. Flying a fixed-size copy keeps the arc smooth.
+      flightShuttleBuilder: (context, animation, direction, from, to) {
+        final fromSize = (from.widget as Hero).child;
+        final toSize = (to.widget as Hero).child;
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) => direction == HeroFlightDirection.push
+              ? (animation.value < 0.5 ? fromSize : toSize)
+              : (animation.value < 0.5 ? toSize : fromSize),
+        );
+      },
+      child: circle,
+    );
+  }
+
+  Widget _circle(BuildContext context) {
     return AnimatedContainer(
       duration: AppleDuration.fast,
       curve: AppleCurves.standard,

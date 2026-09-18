@@ -151,7 +151,12 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                     FluidReveal(
                       child: Row(
                         children: [
-                          Avatar(initials: member.initials, tint: member.tint, size: 62),
+                          Avatar(
+                            initials: member.initials,
+                            tint: member.tint,
+                            size: 62,
+                            heroId: 'member-${member.id}',
+                          ),
                           const SizedBox(width: GwdSpace.lg),
                           Expanded(
                             child: Column(

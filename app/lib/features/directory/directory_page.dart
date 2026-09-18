@@ -383,7 +383,12 @@ class MemberRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Avatar(initials: member.initials, tint: member.tint, size: 40),
+          Avatar(
+            initials: member.initials,
+            tint: member.tint,
+            size: 40,
+            heroId: 'member-${member.id}',
+          ),
           const SizedBox(width: GwdSpace.md),
           Expanded(
             child: Column(

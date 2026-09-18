@@ -1,14 +1,22 @@
 'use strict';
 
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const config = require('./config');
 const { col, C } = require('./db');
 const { rankOf, RANK } = require('./permissions');
 
-const hashPassword = (plain) => bcrypt.hash(plain, 12);
-const verifyPassword = (plain, hash) => bcrypt.compare(plain, hash);
+// bcrypt runs on a worker pool, not on the event loop. `bcryptjs` is the
+// pure-JS build: one cost-12 comparison is ~435ms of blocking JavaScript, and
+// a measured 100-person sign-in burst took 28s at p50, dropped 16 requests and
+// starved the Mongo pool badly enough to knock every change stream offline.
+// See src/password-pool.js. The cost factor is deliberately unchanged.
+const pool = require('./password-pool');
+
+const BCRYPT_COST = 12;
+
+const hashPassword = (plain) => pool.hashPassword(plain, BCRYPT_COST);
+const verifyPassword = (plain, hash) => pool.verifyPassword(plain, hash);
 
 /**
  * `pwd` stamps which password this token was issued against.
