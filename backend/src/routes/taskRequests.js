@@ -180,11 +180,13 @@ router.post('/:id/accept', async (request, response, next) => {
       updatedAt: now,
       completedAt: null,
     };
-    await col(C.tasks).insertOne(task);
+    const created = await col(C.tasks).insertOne(task);
+    task._id = created.insertedId;
     await col(C.taskRequests).updateOne({ _id: id }, { $set: { status: 'accepted', decidedAt: now } });
 
     await notify(taskRequest.fromUserId, 'taskRequestAccepted', {
       taskTitle: taskRequest.title, byName: request.user.name,
+      taskId: String(task._id),
     });
     await audit(request.user._id, 'taskRequest.accept', { requestId: String(id) });
 
@@ -210,6 +212,7 @@ router.post('/:id/decline', async (request, response, next) => {
     );
     await notify(taskRequest.fromUserId, 'taskRequestDeclined', {
       taskTitle: taskRequest.title, byName: request.user.name,
+      requestId: String(id),
     });
     response.json({ ok: true });
   } catch (error) {

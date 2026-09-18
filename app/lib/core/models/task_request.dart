@@ -40,9 +40,7 @@ class TaskRequest {
 
   /// "Anvitha · Marketing" — a name alone is often not enough to place
   /// somebody from another department.
-  String get fromLabel => fromDepartmentName == null
-      ? fromName
-      : '$fromName · $fromDepartmentName';
+  String get fromLabel => fromDepartmentName == null ? fromName : '$fromName · $fromDepartmentName';
 
   factory TaskRequest.fromJson(Map<String, dynamic> json) => TaskRequest(
         id: json['id'] as String,
@@ -108,7 +106,8 @@ class AccessRequest {
       status: json['status'] as String? ?? 'pending',
       departmentId: json['departmentId'] as String?,
       departmentName: json['departmentName'] as String?,
-      applicantName: applicant?['name'] as String? ?? json['applicantName'] as String? ?? 'New member',
+      applicantName:
+          applicant?['name'] as String? ?? json['applicantName'] as String? ?? 'New member',
       applicantEmail: applicant?['email'] as String? ?? '',
       applicantPhone: applicant?['phone'] as String? ?? '',
       applicantColor: applicant?['avatarColor'] as String?,

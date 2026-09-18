@@ -46,3 +46,47 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+  # Two faces, each doing a job the other cannot.
+  #
+  # Bundled, never fetched at runtime: this app is used on college Wi-Fi and on
+  # a laptop hotspot, and a typeface that arrives over the network is a typeface
+  # that is missing exactly when the room is full. It also keeps the web build
+  # clear of the CSP, which blocks third-party font hosts by design.
+  #
+  # Both are variable fonts, so one file covers every weight - smaller than the
+  # four static cuts it replaces, and the `wght` axis is set per style in
+  # GwdType rather than being approximated.
+  fonts:
+    # One variable file per family, declared once per weight.
+    #
+    # The repetition is deliberate and is how Flutter drives a variable axis:
+    # a variable font declared without `weight` is treated as a single 400
+    # face, and asking for w700 gets *synthetic* bold — a smeared fake — rather
+    # than the real cut. Declaring the weights maps each one onto the `wght`
+    # axis, which also means plain `fontWeight` keeps working at the 50-odd
+    # call sites that override it, instead of silently doing nothing.
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+          weight: 300
+        - asset: assets/fonts/Inter.ttf
+          weight: 400
+        - asset: assets/fonts/Inter.ttf
+          weight: 500
+        - asset: assets/fonts/Inter.ttf
+          weight: 600
+        - asset: assets/fonts/Inter.ttf
+          weight: 700
+        - asset: assets/fonts/Inter.ttf
+          weight: 800
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceGrotesk.ttf
+          weight: 500
+        - asset: assets/fonts/SpaceGrotesk.ttf
+          weight: 600
+        - asset: assets/fonts/SpaceGrotesk.ttf
+          weight: 700

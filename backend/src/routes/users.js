@@ -736,6 +736,9 @@ router.delete('/:id', async (request, response, next) => {
     await col(C.departments).updateMany({ leadUserId: id }, { $set: { leadUserId: null } });
 
     // Work in flight survives the person.
+    const returning = await col(C.tasks).countDocuments({
+      assignedTo: id, status: { $nin: ['completed', 'cancelled'] },
+    });
     await col(C.tasks).updateMany({ assignedTo: id }, { $set: { assignedTo: null } });
     await col(C.tasks).updateMany({ assignedBy: id }, { $set: { assignedBy: actor._id } });
 
@@ -749,6 +752,31 @@ router.delete('/:id', async (request, response, next) => {
     await audit(actor._id, 'user.remove', {
       userId: String(id), name: target.name, email: target.email, role: target.role,
     });
+
+    // Somebody has to be told their work came back.
+    //
+    // The removed person is not notified - their account and their
+    // notifications are deleted in this same request, so there is nowhere to
+    // deliver it. But their open tasks have just gone back to `assignedTo:
+    // null`, which is the exact state the brief warns about: work addressed to
+    // a department with nobody watching it. Their Lead gets the message, or the
+    // President when the department has no Lead (including the case where the
+    // person removed *was* the Lead, cleared two lines above).
+    if (returning > 0 && target.departmentId) {
+      const department = await col(C.departments).findOne({ _id: target.departmentId });
+      const recipient = department?.leadUserId
+        ?? (await col(C.users).findOne(
+          { role: ROLES.president, approvalStatus: 'approved' }, { projection: { _id: 1 } },
+        ))?._id;
+      if (recipient && String(recipient) !== String(actor._id)) {
+        await notify(recipient, 'workReturnedToDepartment', {
+          count: returning,
+          personName: target.name,
+          departmentName: department?.name ?? 'your department',
+        });
+      }
+    }
+
     response.json({ ok: true, removed: { id: String(id), name: target.name } });
   } catch (error) {
     next(error);

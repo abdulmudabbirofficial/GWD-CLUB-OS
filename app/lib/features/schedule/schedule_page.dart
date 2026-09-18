@@ -12,10 +12,34 @@ import '../tasks/task_detail_page.dart';
 import 'schedule_editor.dart';
 import 'schedule_entry_page.dart';
 
-const _months = ['January', 'February', 'March', 'April', 'May', 'June',
-                 'July', 'August', 'September', 'October', 'November', 'December'];
-const _monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _months = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+];
+const _monthsShort = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec'
+];
 const _weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const _weekdaysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -102,9 +126,7 @@ class _SchedulePageState extends State<SchedulePage> {
 
     // How much is actually mine, for the toggle's own label. A switch that
     // cannot say what it would show is a switch people press once.
-    final mineCount = all
-        .where((e) => e.isMine(meId) && (!e.isPast || e.isToday))
-        .length;
+    final mineCount = all.where((e) => e.isMine(meId) && (!e.isPast || e.isToday)).length;
 
     final grouped = <DateTime, List<ScheduleEntry>>{};
     for (final entry in visible) {
@@ -146,7 +168,6 @@ class _SchedulePageState extends State<SchedulePage> {
                   ),
                 ),
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: GwdSpace.md, bottom: GwdSpace.md),
@@ -158,13 +179,11 @@ class _SchedulePageState extends State<SchedulePage> {
                     gutter: layout.gutter,
                     selected: _focusDay,
                     entries: store.schedule,
-                    onSelect: (day) => setState(
-                        () => _focusDay = _focusDay == day ? null : day),
+                    onSelect: (day) => setState(() => _focusDay = _focusDay == day ? null : day),
                     onScroll: () => setState(() {}),
                   ),
                 ),
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: layout.gutter),
@@ -175,9 +194,7 @@ class _SchedulePageState extends State<SchedulePage> {
                   ),
                 ),
               ),
-
               const SliverToBoxAdapter(child: SizedBox(height: GwdSpace.md)),
-
               SliverToBoxAdapter(
                 child: _CategoryBar(
                   gutter: layout.gutter,
@@ -187,9 +204,7 @@ class _SchedulePageState extends State<SchedulePage> {
                   onChanged: (id) => setState(() => _categoryId = id),
                 ),
               ),
-
               const SliverToBoxAdapter(child: SizedBox(height: GwdSpace.lg)),
-
               if (store.loading && !store.hasLoadedOnce)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -204,9 +219,7 @@ class _SchedulePageState extends State<SchedulePage> {
                     category: store.categoryById(_categoryId),
                     focusDay: _focusDay,
                     canAdd: store.capabilities.canCreateScheduleEntry,
-                    onClear: _focusDay != null
-                        ? () => setState(() => _focusDay = null)
-                        : null,
+                    onClear: _focusDay != null ? () => setState(() => _focusDay = null) : null,
                   ),
                 )
               else
@@ -263,9 +276,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final counts = <String, int>{};
     for (final entry in all) {
       if (entry.isPast && !entry.isToday) continue;
-      final key = entry.isDeadline
-          ? ScheduleCategory.deadlineId
-          : (entry.categoryId ?? '');
+      final key = entry.isDeadline ? ScheduleCategory.deadlineId : (entry.categoryId ?? '');
       counts[key] = (counts[key] ?? 0) + 1;
     }
     return counts;
@@ -351,9 +362,7 @@ class _Segment extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GwdType.footnote.copyWith(
-              color: selected
-                  ? GwdColors.inkOf(context)
-                  : GwdColors.inkTertiaryOf(context),
+              color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
@@ -373,9 +382,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final showToday = focusDay != null
-        || month.month != now.month
-        || month.year != now.year;
+    final showToday = focusDay != null || month.month != now.month || month.year != now.year;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -385,8 +392,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Schedule',
-                  style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+              Text('Schedule', style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
               const SizedBox(height: 2),
               // The month follows the rail rather than sitting fixed, so it is
               // always telling the truth about what you are looking at.
@@ -395,8 +401,7 @@ class _Header extends StatelessWidget {
                 child: Text(
                   '${_months[month.month - 1]} ${month.year}',
                   key: ValueKey('${month.year}-${month.month}'),
-                  style: GwdType.callout
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ),
             ],
@@ -411,8 +416,7 @@ class _Header extends StatelessWidget {
               haptic: HapticStrength.selection,
               onTap: onToday,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: GwdSpace.md, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: 7),
                 decoration: BoxDecoration(
                   color: GwdColors.surfaceOf(context),
                   borderRadius: BorderRadius.circular(GwdRadius.pill),
@@ -424,8 +428,8 @@ class _Header extends StatelessWidget {
                     const Icon(Icons.today_outlined, size: 13, color: GwdColors.primaryRed),
                     const SizedBox(width: 5),
                     Text('Today',
-                        style: GwdType.footnote.copyWith(
-                            color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
+                        style: GwdType.footnote
+                            .copyWith(color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ),
@@ -510,9 +514,8 @@ class _DateRail extends StatelessWidget {
                         duration: AppleDuration.fast,
                         curve: AppleCurves.standard,
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? GwdColors.inkOf(context)
-                              : GwdColors.surfaceOf(context),
+                          color:
+                              isSelected ? GwdColors.inkOf(context) : GwdColors.surfaceOf(context),
                           borderRadius: BorderRadius.circular(GwdRadius.md),
                           border: Border.all(
                             color: isToday && !isSelected
@@ -526,8 +529,7 @@ class _DateRail extends StatelessWidget {
                           children: [
                             Text(
                               _weekdays[day.weekday - 1],
-                              style: GwdType.caption.copyWith(
-                                fontSize: 8,
+                              style: GwdType.micro.copyWith(
                                 color: isSelected
                                     ? GwdColors.surfaceOf(context).withValues(alpha: 0.7)
                                     : GwdColors.inkTertiaryOf(context),
@@ -548,8 +550,7 @@ class _DateRail extends StatelessWidget {
                             if (isFirstOfMonth)
                               Text(
                                 _monthsShort[day.month - 1].toUpperCase(),
-                                style: GwdType.caption.copyWith(
-                                  fontSize: 7.5,
+                                style: GwdType.micro.copyWith(
                                   color: isSelected
                                       ? GwdColors.surfaceOf(context)
                                       : GwdColors.primaryRed,
@@ -612,14 +613,17 @@ class _CategoryBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: gutter),
         children: [
-          _chip(context, null, 'All', null,
-              counts.values.fold(0, (a, b) => a + b), GwdColors.inkOf(context)),
+          _chip(context, null, 'All', null, counts.values.fold(0, (a, b) => a + b),
+              GwdColors.inkOf(context)),
           for (final category in categories)
-            _chip(context, category.id, category.name, category.iconData,
-                counts[category.id] ?? 0, category.tint),
+            _chip(context, category.id, category.name, category.iconData, counts[category.id] ?? 0,
+                category.tint),
           // The derived lane sits alongside the real ones because to a member
           // it is just another thing on the calendar.
-          _chip(context, ScheduleCategory.deadlineId, 'Deadlines',
+          _chip(
+              context,
+              ScheduleCategory.deadlineId,
+              'Deadlines',
               ScheduleCategory.deadline.iconData,
               counts[ScheduleCategory.deadlineId] ?? 0,
               ScheduleCategory.deadline.tint),
@@ -628,8 +632,8 @@ class _CategoryBar extends StatelessWidget {
     );
   }
 
-  Widget _chip(BuildContext context, String? id, String label, IconData? icon,
-      int count, Color tint) {
+  Widget _chip(
+      BuildContext context, String? id, String label, IconData? icon, int count, Color tint) {
     final isSelected = selected == id;
     return Padding(
       padding: const EdgeInsets.only(right: GwdSpace.sm),
@@ -643,16 +647,14 @@ class _CategoryBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected ? tint : GwdColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(GwdRadius.pill),
-            border: Border.all(
-                color: isSelected ? tint : GwdColors.hairlineOf(context)),
+            border: Border.all(color: isSelected ? tint : GwdColors.hairlineOf(context)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
                 Icon(icon,
-                    size: 13,
-                    color: isSelected ? Colors.white : GwdColors.inkSecondaryOf(context)),
+                    size: 13, color: isSelected ? Colors.white : GwdColors.inkSecondaryOf(context)),
                 const SizedBox(width: 5),
               ],
               Text(
@@ -779,8 +781,7 @@ class _EntryRow extends StatelessWidget {
                         _context(entry),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.footnote
-                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                       ),
                     ),
                   ],
@@ -797,8 +798,7 @@ class _EntryRow extends StatelessWidget {
             ),
           ],
           const SizedBox(width: GwdSpace.sm),
-          Icon(Icons.chevron_right_rounded,
-              size: 18, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -868,8 +868,7 @@ class _EmptySchedule extends StatelessWidget {
                     ? 'Add something and the whole club sees it instantly.'
                     : 'When the club schedules something, it shows up here.',
                 textAlign: TextAlign.center,
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
               ),
               if (onClear != null) ...[
                 const SizedBox(height: GwdSpace.xl),

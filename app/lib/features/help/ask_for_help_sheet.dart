@@ -119,8 +119,7 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -134,8 +133,7 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                   subtitle: 'Your department sees it first. Anyone in the club can offer.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -154,10 +152,8 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                         hint: 'When, where, and what it involves.',
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Text('WHEN DO YOU NEED IT',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       Wrap(
                         spacing: GwdSpace.sm,
@@ -171,11 +167,9 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                             ),
                         ],
                       ),
-
                       const SizedBox(height: GwdSpace.lg),
                       Text('HOW MANY PEOPLE',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       Wrap(
                         spacing: GwdSpace.sm,
@@ -192,15 +186,12 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                       const SizedBox(height: GwdSpace.xs),
                       Text(
                         'The ask stops taking offers once that many people are on it.',
-                        style: GwdType.caption.copyWith(
-                            letterSpacing: 0,
-                            color: GwdColors.inkTertiaryOf(context)),
+                        style: GwdType.caption
+                            .copyWith(letterSpacing: 0, color: GwdColors.inkTertiaryOf(context)),
                       ),
-
                       const SizedBox(height: GwdSpace.lg),
                       Text('WHAT WOULD HELP',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       Wrap(
                         spacing: GwdSpace.sm,
@@ -216,12 +207,11 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                             ),
                         ],
                       ),
-
                       if (events.isNotEmpty) ...[
                         const SizedBox(height: GwdSpace.lg),
                         Text('IS THIS FOR AN EVENT?',
-                            style: GwdType.eyebrow.copyWith(
-                                color: GwdColors.inkTertiaryOf(context))),
+                            style:
+                                GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                         const SizedBox(height: GwdSpace.sm),
                         Wrap(
                           spacing: GwdSpace.sm,
@@ -231,13 +221,12 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                               _Tag(
                                 label: event.name,
                                 selected: _eventId == event.id,
-                                onTap: () => setState(() =>
-                                    _eventId = _eventId == event.id ? null : event.id),
+                                onTap: () => setState(
+                                    () => _eventId = _eventId == event.id ? null : event.id),
                               ),
                           ],
                         ),
                       ],
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -247,8 +236,7 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
                         label: 'Ask',
                         icon: Icons.pan_tool_alt_outlined,
                         busy: _busy,
-                        onPressed:
-                            _title.text.trim().length >= 4 ? _submit : null,
+                        onPressed: _title.text.trim().length >= 4 ? _submit : null,
                       ),
                     ],
                   ),
@@ -276,8 +264,7 @@ class _Tag extends StatelessWidget {
       haptic: HapticStrength.selection,
       child: AnimatedContainer(
         duration: AppleDuration.fast,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.sm),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm),
         decoration: BoxDecoration(
           color: selected ? GwdColors.primaryRed : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.sm),

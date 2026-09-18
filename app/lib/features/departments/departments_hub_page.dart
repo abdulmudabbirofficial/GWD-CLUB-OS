@@ -36,107 +36,110 @@ class DepartmentsHubPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadDepartments(),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: GwdSpace.lg),
-                child: AppleStaggerItem(
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadDepartments(),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: GwdSpace.lg),
+                  child: AppleStaggerItem(
+                    index: next(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Departments',
+                            style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+                        const SizedBox(height: 2),
+                        Text(
+                          departments.length == 1
+                              ? 'One department'
+                              : '${departments.length} departments, ${store.members.length} people',
+                          style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // The club at a glance, before any one department. Everyone sees
+              // it — aggregate numbers about a department give away nothing about
+              // any individual, and knowing where the club is stretched is
+              // exactly the context members usually lack.
+              if (store.departmentProgress.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
                   index: next(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Departments',
-                          style: GwdType.largeTitle
-                              .copyWith(color: GwdColors.inkOf(context))),
-                      const SizedBox(height: 2),
-                      Text(
-                        departments.length == 1
-                            ? 'One department'
-                            : '${departments.length} departments, ${store.members.length} people',
-                        style: GwdType.callout
-                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  child: const SectionHeader(
+                    title: 'The club right now',
+                    subtitle: 'Given against finished, across every department',
+                  ),
+                ),
+                AppleStaggerItem(
+                  index: next(),
+                  child: _ClubTotals(rows: store.departmentProgress),
+                ),
+              ],
+
+              if (mine.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: const SectionHeader(title: 'Yours'),
+                ),
+                for (final d in mine)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                      child: _DepartmentTile(
+                        department: d,
+                        isMine: true,
+                        onTap: () => _open(context, d),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // The club at a glance, before any one department. Everyone sees
-            // it — aggregate numbers about a department give away nothing about
-            // any individual, and knowing where the club is stretched is
-            // exactly the context members usually lack.
-            if (store.departmentProgress.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: const SectionHeader(
-                  title: 'The club right now',
-                  subtitle: 'Given against finished, across every department',
-                ),
-              ),
-              AppleStaggerItem(
-                index: next(),
-                child: _ClubTotals(rows: store.departmentProgress),
-              ),
-            ],
-
-            if (mine.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: const SectionHeader(title: 'Yours'),
-              ),
-              for (final d in mine)
-                AppleStaggerItem(
-                  index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                    child: _DepartmentTile(
-                      department: d,
-                      isMine: true,
-                      onTap: () => _open(context, d),
                     ),
                   ),
-                ),
-            ],
+              ],
 
-            if (others.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xl),
-              AppleStaggerItem(
-                index: next(),
-                child: SectionHeader(
-                  title: mine.isEmpty ? 'The club' : 'Everyone else',
-                  subtitle: 'How each part of the club is getting on',
-                ),
-              ),
-              for (final d in others)
+              if (others.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xl),
                 AppleStaggerItem(
                   index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                    child: _DepartmentTile(
-                      department: d,
-                      isMine: false,
-                      onTap: () => _open(context, d),
-                    ),
+                  child: SectionHeader(
+                    title: mine.isEmpty ? 'The club' : 'Everyone else',
+                    subtitle: 'How each part of the club is getting on',
                   ),
                 ),
-            ],
+                for (final d in others)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                      child: _DepartmentTile(
+                        department: d,
+                        isMine: false,
+                        onTap: () => _open(context, d),
+                      ),
+                    ),
+                  ),
+              ],
 
-            if (departments.isEmpty)
-              const EmptyState(
-                icon: Icons.workspaces_outline,
-                title: 'No departments yet',
-                message: 'The President sets these up, and everything else hangs off them.',
-              ),
-          ],
+              if (departments.isEmpty)
+                const EmptyState(
+                  icon: Icons.workspaces_outline,
+                  title: 'No departments yet',
+                  message: 'The President sets these up, and everything else hangs off them.',
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -180,8 +183,7 @@ class _ClubTotals extends StatelessWidget {
                 child: AnimatedCounter(
                   value: rate,
                   suffix: '%',
-                  style: GwdType.numeric
-                      .copyWith(fontSize: 17, color: GwdColors.inkOf(context)),
+                  style: GwdType.numeric.copyWith(fontSize: 17, color: GwdColors.inkOf(context)),
                 ),
               ),
               const SizedBox(width: GwdSpace.lg),
@@ -191,16 +193,12 @@ class _ClubTotals extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      assigned == 0
-                          ? 'No work handed out yet'
-                          : '$completed of $assigned finished',
-                      style:
-                          GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
+                      assigned == 0 ? 'No work handed out yet' : '$completed of $assigned finished',
+                      style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                     ),
                     const SizedBox(height: 2),
                     Text('Across ${rows.length} departments',
-                        style: GwdType.footnote.copyWith(
-                            color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     if (waiting > 0) ...[
                       const SizedBox(height: GwdSpace.sm),
                       GwdChip(
@@ -217,7 +215,6 @@ class _ClubTotals extends StatelessWidget {
               ),
             ],
           ),
-
           if (rows.any((r) => r.assigned > 0)) ...[
             const SizedBox(height: GwdSpace.lg),
             Divider(height: 1, color: GwdColors.hairlineOf(context)),
@@ -232,8 +229,7 @@ class _ClubTotals extends StatelessWidget {
                       child: Text(row.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GwdType.footnote
-                              .copyWith(color: GwdColors.inkOf(context))),
+                          style: GwdType.footnote.copyWith(color: GwdColors.inkOf(context))),
                     ),
                     const SizedBox(width: GwdSpace.sm),
                     Expanded(
@@ -243,16 +239,12 @@ class _ClubTotals extends StatelessWidget {
                           duration: AppleDuration.deliberate,
                           curve: AppleCurves.enter,
                           tween: Tween(
-                              begin: 0,
-                              end: row.assigned == 0
-                                  ? 0
-                                  : row.completed / row.assigned),
+                              begin: 0, end: row.assigned == 0 ? 0 : row.completed / row.assigned),
                           builder: (context, value, _) => LinearProgressIndicator(
                             value: value,
                             minHeight: 6,
                             backgroundColor: GwdColors.sunkenOf(context),
-                            valueColor: AlwaysStoppedAnimation(
-                                GwdColors.inkSecondaryOf(context)),
+                            valueColor: AlwaysStoppedAnimation(GwdColors.inkSecondaryOf(context)),
                           ),
                         ),
                       ),
@@ -261,12 +253,11 @@ class _ClubTotals extends StatelessWidget {
                     SizedBox(
                       width: 52,
                       child: Text(
-                        row.assigned == 0
-                            ? 'none'
-                            : '${row.completed}/${row.assigned}',
+                        row.assigned == 0 ? 'none' : '${row.completed}/${row.assigned}',
                         textAlign: TextAlign.right,
-                        style: GwdType.footnote.merge(GwdType.numeric).copyWith(
-                            color: GwdColors.inkTertiaryOf(context)),
+                        style: GwdType.footnote
+                            .merge(GwdType.numeric)
+                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
                       ),
                     ),
                   ],
@@ -315,8 +306,7 @@ class _DepartmentTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(GwdRadius.md),
                 ),
                 child: Text(department.initials,
-                    style: GwdType.caption
-                        .copyWith(color: tint, fontSize: 13, letterSpacing: 0)),
+                    style: GwdType.caption.copyWith(color: tint, fontSize: 13, letterSpacing: 0)),
               ),
               const SizedBox(width: GwdSpace.md),
               Expanded(
@@ -325,8 +315,7 @@ class _DepartmentTile extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(department.name,
-                        style: GwdType.title3
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
                     const SizedBox(height: 1),
                     Text(
                       [
@@ -337,17 +326,14 @@ class _DepartmentTile extends StatelessWidget {
                       ].join('  ·  '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  size: 18, color: GwdColors.inkTertiaryOf(context)),
+              Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
             ],
           ),
-
           if (department.assigned > 0) ...[
             const SizedBox(height: GwdSpace.lg),
             ClipRRect(
@@ -374,16 +360,13 @@ class _DepartmentTile extends StatelessWidget {
                 _ => '$remaining of ${department.assigned} still to go',
               },
               style: GwdType.footnote.copyWith(
-                color: remaining == 0
-                    ? GwdColors.success
-                    : GwdColors.inkSecondaryOf(context),
+                color: remaining == 0 ? GwdColors.success : GwdColors.inkSecondaryOf(context),
               ),
             ),
           ] else ...[
             const SizedBox(height: GwdSpace.md),
             Text('Nothing on their plate right now',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
         ],
       ),

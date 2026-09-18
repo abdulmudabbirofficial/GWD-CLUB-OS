@@ -84,7 +84,6 @@ class _EventDocumentsTabState extends State<EventDocumentsTab> {
                 : null,
           ),
         ),
-
         if (docs.approvals.isEmpty)
           AppleStaggerItem(
             index: next(),
@@ -109,7 +108,6 @@ class _EventDocumentsTabState extends State<EventDocumentsTab> {
                 ),
               ),
             ),
-
         const SizedBox(height: GwdSpace.xxl),
         AppleStaggerItem(
           index: next(),
@@ -127,7 +125,6 @@ class _EventDocumentsTabState extends State<EventDocumentsTab> {
                 : null,
           ),
         ),
-
         if (docs.files.isEmpty)
           AppleStaggerItem(
             index: next(),
@@ -170,8 +167,8 @@ class _AddButton extends StatelessWidget {
               const Icon(Icons.add_rounded, size: 13, color: GwdColors.primaryRed),
               const SizedBox(width: 3),
               Text('Add',
-                  style: GwdType.caption.copyWith(
-                      fontSize: 10, color: GwdColors.primaryRed, letterSpacing: 0.2)),
+                  style: GwdType.caption
+                      .copyWith(fontSize: 10, color: GwdColors.primaryRed, letterSpacing: 0.2)),
             ],
           ),
         ),
@@ -197,8 +194,7 @@ class _QuietEmpty extends StatelessWidget {
             const SizedBox(width: GwdSpace.md),
             Expanded(
               child: Text(message,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
             ),
           ],
         ),
@@ -226,9 +222,8 @@ class _ApprovalCard extends StatelessWidget {
 
     return SurfaceCard(
       padding: const EdgeInsets.all(GwdSpace.lg),
-      borderColor: status == DocumentStatus.pending
-          ? GwdColors.warning.withValues(alpha: 0.35)
-          : null,
+      borderColor:
+          status == DocumentStatus.pending ? GwdColors.warning.withValues(alpha: 0.35) : null,
       onTap: () => _open(context, document),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,8 +250,7 @@ class _ApprovalCard extends StatelessWidget {
                     Text(document.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.headline
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                     const SizedBox(height: 3),
                     Row(
                       children: [
@@ -281,7 +275,6 @@ class _ApprovalCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: GwdSpace.md),
           Text(
             status == DocumentStatus.approved && document.decidedByName != null
@@ -289,16 +282,13 @@ class _ApprovalCard extends StatelessWidget {
                 : status == DocumentStatus.rejected && document.decidedByName != null
                     ? 'Sent back by ${document.decidedByName}'
                     : 'Filed by ${document.createdByName}',
-            style:
-                GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
+            style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
           ),
           if (document.decisionNote.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text('“${document.decisionNote}”',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
-
           if (canDecide && status == DocumentStatus.pending) ...[
             const SizedBox(height: GwdSpace.lg),
             Row(
@@ -323,12 +313,10 @@ class _ApprovalCard extends StatelessWidget {
               ],
             ),
           ],
-
           if (document.history.length > 1) ...[
             const SizedBox(height: GwdSpace.md),
             _VersionHistory(eventId: eventId, document: document),
           ],
-
           if (canReplace) ...[
             const SizedBox(height: GwdSpace.md),
             PressableScale(
@@ -345,8 +333,7 @@ class _ApprovalCard extends StatelessWidget {
                       size: 14, color: GwdColors.inkTertiaryOf(context)),
                   const SizedBox(width: 5),
                   Text('File a new version',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
@@ -388,8 +375,7 @@ class _DecisionButton extends StatelessWidget {
               Icon(icon, size: 15, color: tint),
               const SizedBox(width: 6),
               Text(label,
-                  style: GwdType.callout
-                      .copyWith(color: tint, fontWeight: FontWeight.w600)),
+                  style: GwdType.callout.copyWith(color: tint, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -410,8 +396,7 @@ Future<void> _decide(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: GwdColors.surfaceOf(dialogContext),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
       title: Text(
         approved ? 'Approve this document?' : 'Send it back?',
         style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext)),
@@ -425,8 +410,7 @@ Future<void> _decide(
                 ? 'This records that you, by name, signed off “${document.title}”. '
                     'Everyone on the event will see it as approved.'
                 : 'Say what needs fixing so the next version lands right.',
-            style: GwdType.callout
-                .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+            style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
           ),
           const SizedBox(height: GwdSpace.lg),
           GwdField(
@@ -443,8 +427,7 @@ Future<void> _decide(
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text('Cancel',
-              style: GwdType.callout
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+              style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -501,15 +484,11 @@ class _VersionHistoryState extends State<_VersionHistory> {
           pressedScale: 0.99,
           child: Row(
             children: [
-              Icon(Icons.history_rounded,
-                  size: 14, color: GwdColors.inkTertiaryOf(context)),
+              Icon(Icons.history_rounded, size: 14, color: GwdColors.inkTertiaryOf(context)),
               const SizedBox(width: 5),
               Text(
-                older.length == 1
-                    ? 'One earlier version'
-                    : '${older.length} earlier versions',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                older.length == 1 ? 'One earlier version' : '${older.length} earlier versions',
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
               ),
               const Spacer(),
               AnimatedRotation(
@@ -535,34 +514,25 @@ class _VersionHistoryState extends State<_VersionHistory> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: PressableScale(
-                            onTap: () => _open(context, widget.document,
-                                version: version.version),
+                            onTap: () => _open(context, widget.document, version: version.version),
                             child: Row(
                               children: [
                                 Text('v${version.version}',
-                                    style: GwdType.caption.copyWith(
-                                        fontSize: 9.5,
-                                        letterSpacing: 0,
-                                        color: GwdColors.inkTertiaryOf(context))),
+                                    style: GwdType.micro
+                                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
                                 const SizedBox(width: GwdSpace.sm),
                                 Expanded(
                                   child: Text(
-                                    version.note.isEmpty
-                                        ? version.filename
-                                        : version.note,
+                                    version.note.isEmpty ? version.filename : version.note,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GwdType.footnote.copyWith(
-                                        color:
-                                            GwdColors.inkSecondaryOf(context)),
+                                    style: GwdType.footnote
+                                        .copyWith(color: GwdColors.inkSecondaryOf(context)),
                                   ),
                                 ),
                                 Text(version.uploadedByName.split(' ').first,
-                                    style: GwdType.caption.copyWith(
-                                        fontSize: 9,
-                                        letterSpacing: 0,
-                                        color:
-                                            GwdColors.inkTertiaryOf(context))),
+                                    style: GwdType.micro
+                                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
                               ],
                             ),
                           ),
@@ -597,8 +567,7 @@ class _FileRow extends StatelessWidget {
               color: GwdColors.sunkenOf(context),
               borderRadius: BorderRadius.circular(GwdRadius.sm),
             ),
-            child: Icon(document.icon,
-                size: 16, color: GwdColors.inkSecondaryOf(context)),
+            child: Icon(document.icon, size: 16, color: GwdColors.inkSecondaryOf(context)),
           ),
           const SizedBox(width: GwdSpace.md),
           Expanded(
@@ -609,19 +578,15 @@ class _FileRow extends StatelessWidget {
                 Text(document.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.callout.copyWith(
-                        color: GwdColors.inkOf(context),
-                        fontWeight: FontWeight.w600)),
+                    style: GwdType.callout
+                        .copyWith(color: GwdColors.inkOf(context), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 1),
                 Text(
                   [
                     document.createdByName.split(' ').first,
                     if (document.sizeLabel.isNotEmpty) document.sizeLabel,
                   ].join('  ·  '),
-                  style: GwdType.caption.copyWith(
-                      fontSize: 9.5,
-                      letterSpacing: 0,
-                      color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),

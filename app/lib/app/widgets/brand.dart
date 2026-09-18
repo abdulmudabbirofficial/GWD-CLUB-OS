@@ -199,8 +199,7 @@ class BracketLoader extends StatefulWidget {
   State<BracketLoader> createState() => _BracketLoaderState();
 }
 
-class _BracketLoaderState extends State<BracketLoader>
-    with SingleTickerProviderStateMixin {
+class _BracketLoaderState extends State<BracketLoader> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1500),
@@ -290,8 +289,7 @@ class BrandedSectionHeader extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle!,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -335,8 +333,7 @@ class GwdWordmark extends StatelessWidget {
             if (subtitle != null)
               Text(
                 subtitle!,
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
               ),
           ],
         ),
@@ -355,8 +352,7 @@ class AnimatedGwdMark extends StatefulWidget {
   State<AnimatedGwdMark> createState() => _AnimatedGwdMarkState();
 }
 
-class _AnimatedGwdMarkState extends State<AnimatedGwdMark>
-    with SingleTickerProviderStateMixin {
+class _AnimatedGwdMarkState extends State<AnimatedGwdMark> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: AppleDuration.deliberate,

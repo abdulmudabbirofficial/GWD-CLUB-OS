@@ -101,8 +101,7 @@ class PressableScale extends StatefulWidget {
 
 enum HapticStrength { none, selection, light, medium }
 
-class _PressableScaleState extends State<PressableScale>
-    with SingleTickerProviderStateMixin {
+class _PressableScaleState extends State<PressableScale> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController.unbounded(
     vsync: this,
     value: 1.0,
@@ -255,8 +254,7 @@ class FluidReveal extends StatefulWidget {
   State<FluidReveal> createState() => _FluidRevealState();
 }
 
-class _FluidRevealState extends State<FluidReveal>
-    with SingleTickerProviderStateMixin {
+class _FluidRevealState extends State<FluidReveal> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: AppleDuration.deliberate,
@@ -275,8 +273,7 @@ class _FluidRevealState extends State<FluidReveal>
       _controller.value = 1.0;
       return;
     }
-    final delayMs =
-        (widget.index * widget.stepMs).clamp(0, widget.maxDelayMs).toInt();
+    final delayMs = (widget.index * widget.stepMs).clamp(0, widget.maxDelayMs).toInt();
     Future<void>.delayed(Duration(milliseconds: delayMs), () {
       if (mounted) _controller.forward();
     });
@@ -357,8 +354,7 @@ class FluidPageTransitionsBuilder extends PageTransitionsBuilder {
     }
 
     final enter = CurvedAnimation(parent: animation, curve: AppleCurves.enter);
-    final leave =
-        CurvedAnimation(parent: secondaryAnimation, curve: AppleCurves.standard);
+    final leave = CurvedAnimation(parent: secondaryAnimation, curve: AppleCurves.standard);
 
     return AnimatedBuilder(
       animation: Listenable.merge([enter, leave]),
@@ -368,8 +364,7 @@ class FluidPageTransitionsBuilder extends PageTransitionsBuilder {
           child: Transform.translate(
             offset: Offset(0, 24 * (1 - enter.value)),
             child: Transform.scale(
-              scale: lerpDouble(0.98, 1.0, enter.value)! -
-                  (leave.value * 0.02),
+              scale: lerpDouble(0.98, 1.0, enter.value)! - (leave.value * 0.02),
               child: inner,
             ),
           ),
@@ -495,8 +490,7 @@ class SheetHeader extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-              GwdSpace.xl, 0, GwdSpace.md, GwdSpace.md),
+          padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.md, GwdSpace.md),
           child: Row(
             children: [
               Expanded(
@@ -506,8 +500,7 @@ class SheetHeader extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: GwdType.title3
-                          .copyWith(color: GwdColors.inkOf(context)),
+                      style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -515,8 +508,7 @@ class SheetHeader extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         subtitle!,
-                        style: GwdType.footnote.copyWith(
-                            color: GwdColors.inkSecondaryOf(context)),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -592,8 +584,7 @@ class BreathingDot extends StatefulWidget {
   State<BreathingDot> createState() => _BreathingDotState();
 }
 
-class _BreathingDotState extends State<BreathingDot>
-    with SingleTickerProviderStateMixin {
+class _BreathingDotState extends State<BreathingDot> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2000),
@@ -677,17 +668,14 @@ class ProgressArc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final track = trackColor ??
-        GwdColors.inkTertiaryOf(context).withValues(alpha: 0.18);
+    final track = trackColor ?? GwdColors.inkTertiaryOf(context).withValues(alpha: 0.18);
 
     return SizedBox(
       width: size,
       height: size,
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
-        duration: prefersReducedMotion(context)
-            ? Duration.zero
-            : AppleDuration.deliberate,
+        duration: prefersReducedMotion(context) ? Duration.zero : AppleDuration.deliberate,
         curve: AppleCurves.enter,
         builder: (context, value, _) => CustomPaint(
           painter: _ArcPainter(
@@ -735,16 +723,13 @@ class _ArcPainter extends CustomPainter {
 
     canvas.drawArc(rect, -math.pi / 2, math.pi * 2, false, track);
     if (progress > 0) {
-      canvas.drawArc(
-          rect, -math.pi / 2, math.pi * 2 * progress, false, fill);
+      canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * progress, false, fill);
     }
   }
 
   @override
   bool shouldRepaint(covariant _ArcPainter old) =>
-      old.progress != progress ||
-      old.color != color ||
-      old.trackColor != trackColor;
+      old.progress != progress || old.color != color || old.trackColor != trackColor;
 }
 
 /// A thin horizontal meter that fills on a decelerating curve.
@@ -772,15 +757,12 @@ class FluidMeter extends StatelessWidget {
           children: [
             Positioned.fill(
               child: ColoredBox(
-                color: trackColor ??
-                    GwdColors.inkTertiaryOf(context).withValues(alpha: 0.16),
+                color: trackColor ?? GwdColors.inkTertiaryOf(context).withValues(alpha: 0.16),
               ),
             ),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
-              duration: prefersReducedMotion(context)
-                  ? Duration.zero
-                  : AppleDuration.deliberate,
+              duration: prefersReducedMotion(context) ? Duration.zero : AppleDuration.deliberate,
               curve: AppleCurves.enter,
               builder: (context, value, _) => FractionallySizedBox(
                 widthFactor: value,
@@ -817,8 +799,7 @@ class AppleFloat extends StatefulWidget {
   State<AppleFloat> createState() => _AppleFloatState();
 }
 
-class _AppleFloatState extends State<AppleFloat>
-    with SingleTickerProviderStateMixin {
+class _AppleFloatState extends State<AppleFloat> with SingleTickerProviderStateMixin {
   late final AnimationController _controller =
       AnimationController(vsync: this, duration: widget.duration);
 
@@ -872,8 +853,7 @@ class ApplePulseRing extends StatefulWidget {
   State<ApplePulseRing> createState() => _ApplePulseRingState();
 }
 
-class _ApplePulseRingState extends State<ApplePulseRing>
-    with SingleTickerProviderStateMixin {
+class _ApplePulseRingState extends State<ApplePulseRing> with SingleTickerProviderStateMixin {
   late final AnimationController _controller =
       AnimationController(vsync: this, duration: widget.duration);
 
@@ -998,8 +978,7 @@ class _EqualizerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const gap = 3.0;
-    final barWidth =
-        math.max(2.0, (size.width - (gap * (barCount - 1))) / barCount);
+    final barWidth = math.max(2.0, (size.width - (gap * (barCount - 1))) / barCount);
     final activeCount = (progress * barCount).round();
     final paint = Paint()..style = PaintingStyle.fill;
 
@@ -1008,8 +987,8 @@ class _EqualizerPainter extends CustomPainter {
       // Envelope peaks in the middle so the meter reads as a waveform.
       final envelope = (1.0 - (ratio - 0.5).abs() * 1.5).clamp(0.34, 1.0);
       final wave = 0.12 * math.sin(phase + (i * 0.42));
-      final h = ((size.height * envelope) + (size.height * wave))
-          .clamp(size.height * 0.22, size.height);
+      final h =
+          ((size.height * envelope) + (size.height * wave)).clamp(size.height * 0.22, size.height);
 
       paint.color = i < activeCount ? color : trackColor;
       final x = i * (barWidth + gap);

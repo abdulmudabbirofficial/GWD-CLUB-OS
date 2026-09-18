@@ -31,8 +31,7 @@ class DepartmentRecognition {
   final List<Member> members;
   final DepartmentTotals totals;
 
-  factory DepartmentRecognition.fromJson(Map<String, dynamic> json) =>
-      DepartmentRecognition(
+  factory DepartmentRecognition.fromJson(Map<String, dynamic> json) => DepartmentRecognition(
         departmentId: json['departmentId'] as String? ?? '',
         name: json['name'] as String? ?? 'Department',
         colorSeed: json['colorSeed'] as String?,
@@ -53,8 +52,14 @@ class DepartmentRecognition {
   /// else in the app.
   Color get tint {
     const palette = [
-      Color(0xFFDC2626), Color(0xFF0B0B0F), Color(0xFF9F1239), Color(0xFF334155),
-      Color(0xFFB45309), Color(0xFF15803D), Color(0xFF1D4ED8), Color(0xFF6D28D9),
+      Color(0xFFDC2626),
+      Color(0xFF0B0B0F),
+      Color(0xFF9F1239),
+      Color(0xFF334155),
+      Color(0xFFB45309),
+      Color(0xFF15803D),
+      Color(0xFF1D4ED8),
+      Color(0xFF6D28D9),
     ];
     final seed = colorSeed ?? departmentId;
     var hash = 0;
@@ -156,8 +161,7 @@ class AssignableDepartment {
   final String? leadName;
   final String? colorSeed;
 
-  factory AssignableDepartment.fromJson(Map<String, dynamic> json) =>
-      AssignableDepartment(
+  factory AssignableDepartment.fromJson(Map<String, dynamic> json) => AssignableDepartment(
         id: json['id'] as String,
         name: json['name'] as String? ?? 'Department',
         leadName: json['leadName'] as String?,

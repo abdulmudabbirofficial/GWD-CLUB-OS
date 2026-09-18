@@ -181,6 +181,7 @@ class ApiClient {
     Map<String, String> fields = const {},
     List<int>? bytes,
     String? filename,
+
     /// Which multipart part the file goes in. The routes differ deliberately —
     /// a document is `file`, a receipt is `receipt` — and the server rejects
     /// anything it was not told to expect.
@@ -288,8 +289,5 @@ List<T> listFrom<T>(
 ) {
   final raw = json[key];
   if (raw is! List) return const [];
-  return raw
-      .whereType<Map>()
-      .map((e) => parse(e.cast<String, dynamic>()))
-      .toList(growable: false);
+  return raw.whereType<Map>().map((e) => parse(e.cast<String, dynamic>())).toList(growable: false);
 }

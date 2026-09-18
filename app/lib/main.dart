@@ -81,12 +81,18 @@ class _GwdClubAppState extends State<GwdClubApp> {
         scrollBehavior: const _FluidScrollBehavior(),
         builder: (context, child) {
           final media = MediaQuery.of(context);
-          // Honour the user's text-size preference, but cap the extremes so
-          // dense rows stay readable rather than collapsing.
+          // Scale up freely, never down.
+          //
+          // Growing text is the direction that matters: somebody who has asked
+          // their phone for larger type needs it, so the cap sits high enough
+          // to be a real help and stops only where dense rows would collapse.
+          // Shrinking is different — the smallest label in the design is
+          // already 9.5pt, and the old 0.85 floor rendered that at 8pt, which
+          // is not small, it is unreadable. The app's own floor is the floor.
           return MediaQuery(
             data: media.copyWith(
               textScaler: media.textScaler.clamp(
-                minScaleFactor: 0.85,
+                minScaleFactor: 1.0,
                 maxScaleFactor: 1.4,
               ),
             ),
@@ -208,7 +214,6 @@ class _FluidScrollBehavior extends MaterialScrollBehavior {
       const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 
   @override
-  Widget buildOverscrollIndicator(
-          BuildContext context, Widget child, ScrollableDetails details) =>
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) =>
       child;
 }

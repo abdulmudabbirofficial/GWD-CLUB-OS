@@ -147,8 +147,7 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -170,8 +169,7 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
                           : 'Posters, scripts, budgets — anything the team needs.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -179,25 +177,20 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
                         _ApprovalNotice(),
                         const SizedBox(height: GwdSpace.lg),
                       ],
-
                       if (!_isReplacement) ...[
                         GwdField(
                           label: 'What is it',
                           controller: _title,
-                          hint: _isApproval
-                              ? 'Principal’s permission letter'
-                              : 'Poster — final',
+                          hint: _isApproval ? 'Principal’s permission letter' : 'Poster — final',
                           onChanged: (_) => setState(() {}),
                         ),
                         const SizedBox(height: GwdSpace.lg),
                       ],
-
                       _SourceSwitch(
                         useLink: _useLink,
                         onChanged: (value) => setState(() => _useLink = value),
                       ),
                       const SizedBox(height: GwdSpace.md),
-
                       if (_useLink)
                         GwdField(
                           label: 'Link',
@@ -208,7 +201,6 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
                         )
                       else
                         _FileSlot(file: _file, sizeBytes: _fileSize, onTap: _pick),
-
                       const SizedBox(height: GwdSpace.lg),
                       GwdField(
                         label: _isReplacement ? 'What changed' : 'Note (optional)',
@@ -218,7 +210,6 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
                             ? 'Venue moved to Block C'
                             : 'Anything worth knowing about it',
                       ),
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -265,8 +256,7 @@ class _ApprovalNotice extends StatelessWidget {
             child: Text(
               'This goes on the record as awaiting sign-off. The President, '
               'Vice President or Secretary General marks it approved.',
-              style:
-                  GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
             ),
           ),
         ],
@@ -284,9 +274,19 @@ class _SourceSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _Option(label: 'Attach a file', icon: Icons.attach_file_rounded, selected: !useLink, onTap: () => onChanged(false))),
+        Expanded(
+            child: _Option(
+                label: 'Attach a file',
+                icon: Icons.attach_file_rounded,
+                selected: !useLink,
+                onTap: () => onChanged(false))),
         const SizedBox(width: GwdSpace.sm),
-        Expanded(child: _Option(label: 'Paste a link', icon: Icons.link_rounded, selected: useLink, onTap: () => onChanged(true))),
+        Expanded(
+            child: _Option(
+                label: 'Paste a link',
+                icon: Icons.link_rounded,
+                selected: useLink,
+                onTap: () => onChanged(true))),
       ],
     );
   }
@@ -316,14 +316,11 @@ class _Option extends StatelessWidget {
         height: 42,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected
-              ? GwdColors.primaryRed.withValues(alpha: 0.10)
-              : GwdColors.sunkenOf(context),
+          color:
+              selected ? GwdColors.primaryRed.withValues(alpha: 0.10) : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
           border: Border.all(
-            color: selected
-                ? GwdColors.primaryRed.withValues(alpha: 0.35)
-                : Colors.transparent,
+            color: selected ? GwdColors.primaryRed.withValues(alpha: 0.35) : Colors.transparent,
           ),
         ),
         child: Row(
@@ -331,16 +328,12 @@ class _Option extends StatelessWidget {
           children: [
             Icon(icon,
                 size: 14,
-                color: selected
-                    ? GwdColors.primaryRed
-                    : GwdColors.inkTertiaryOf(context)),
+                color: selected ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(context)),
             const SizedBox(width: 6),
             Text(
               label,
               style: GwdType.footnote.copyWith(
-                color: selected
-                    ? GwdColors.primaryRed
-                    : GwdColors.inkSecondaryOf(context),
+                color: selected ? GwdColors.primaryRed : GwdColors.inkSecondaryOf(context),
               ),
             ),
           ],
@@ -378,9 +371,7 @@ class _FileSlot extends StatelessWidget {
             Icon(
               picked == null ? Icons.cloud_upload_outlined : Icons.description_rounded,
               size: 20,
-              color: picked == null
-                  ? GwdColors.inkTertiaryOf(context)
-                  : GwdColors.primaryRed,
+              color: picked == null ? GwdColors.inkTertiaryOf(context) : GwdColors.primaryRed,
             ),
             const SizedBox(width: GwdSpace.md),
             Expanded(
@@ -401,20 +392,14 @@ class _FileSlot extends StatelessWidget {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    picked == null
-                        ? 'PDF, image or document, up to 15 MB'
-                        : _size(sizeBytes),
-                    style: GwdType.caption.copyWith(
-                        fontSize: 9.5,
-                        letterSpacing: 0,
-                        color: GwdColors.inkTertiaryOf(context)),
+                    picked == null ? 'PDF, image or document, up to 15 MB' : _size(sizeBytes),
+                    style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ],
               ),
             ),
             if (picked != null)
-              Icon(Icons.swap_horiz_rounded,
-                  size: 16, color: GwdColors.inkTertiaryOf(context)),
+              Icon(Icons.swap_horiz_rounded, size: 16, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),

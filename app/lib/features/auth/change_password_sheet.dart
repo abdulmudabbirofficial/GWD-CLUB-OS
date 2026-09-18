@@ -100,8 +100,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -117,8 +116,7 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                       : 'You will need the one you use now.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -147,7 +145,6 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                           if (_valid) _submit();
                         },
                       ),
-
                       if (_problem != null) ...[
                         const SizedBox(height: GwdSpace.md),
                         Row(
@@ -156,12 +153,11 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                                 size: 14, color: GwdColors.inkTertiaryOf(context)),
                             const SizedBox(width: 6),
                             Text(_problem!,
-                                style: GwdType.footnote.copyWith(
-                                    color: GwdColors.inkTertiaryOf(context))),
+                                style: GwdType.footnote
+                                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
                           ],
                         ),
                       ],
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -178,8 +174,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
                           child: Text('Not now',
-                              style: GwdType.callout.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.callout
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                         ),
                       ],
                     ],
@@ -252,8 +248,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -264,13 +259,10 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
               children: [
                 SheetHeader(
                   title: _sent ? 'Asked' : 'Forgotten your password?',
-                  subtitle: _sent
-                      ? null
-                      : 'A Director or the President will set you a new one.',
+                  subtitle: _sent ? null : 'A Director or the President will set you a new one.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: _sent
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,7 +270,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                             Container(
                               padding: const EdgeInsets.all(GwdSpace.lg),
                               decoration: BoxDecoration(
-                                color: GwdColors.successSoft,
+                                color: GwdColors.tintOf(context, GwdColors.success),
                                 borderRadius: BorderRadius.circular(GwdRadius.md),
                               ),
                               child: Row(
@@ -292,8 +284,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                                       'They have been told. They will pass you a '
                                       'temporary password — you will be asked to '
                                       'pick your own when you sign in with it.',
-                                      style: GwdType.callout.copyWith(
-                                          color: GwdColors.inkSecondaryOf(context)),
+                                      style: GwdType.callout
+                                          .copyWith(color: GwdColors.inkSecondaryOf(context)),
                                     ),
                                   ),
                                 ],
@@ -314,8 +306,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                               'mail server. Instead this tells the people who can '
                               'fix it, and they hand you a new password however '
                               'they normally reach you.',
-                              style: GwdType.footnote.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context)),
+                              style: GwdType.footnote
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context)),
                             ),
                             const SizedBox(height: GwdSpace.lg),
                             GwdField(
@@ -335,8 +327,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                               label: 'Ask for a reset',
                               icon: Icons.help_outline_rounded,
                               busy: _busy,
-                              onPressed:
-                                  _email.text.contains('@') ? _submit : null,
+                              onPressed: _email.text.contains('@') ? _submit : null,
                             ),
                           ],
                         ),

@@ -55,8 +55,7 @@ class CategoryAdminPage extends StatelessWidget {
                       'Categories appear on the schedule filter and when anyone adds '
                       'an entry. Task deadlines are generated automatically and are '
                       'not listed here.',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ),
                 ],
@@ -123,15 +122,12 @@ class _CategoryRow extends StatelessWidget {
                         child: Text(category.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GwdType.headline
-                                .copyWith(color: GwdColors.inkOf(context))),
+                            style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                       ),
                       if (!category.active) ...[
                         const SizedBox(width: GwdSpace.sm),
                         GwdChip(
-                            label: 'HIDDEN',
-                            color: GwdColors.inkTertiaryOf(context),
-                            dense: true),
+                            label: 'HIDDEN', color: GwdColors.inkTertiaryOf(context), dense: true),
                       ],
                     ],
                   ),
@@ -142,14 +138,12 @@ class _CategoryRow extends StatelessWidget {
                         : (category.blurb.isEmpty ? 'No entries yet' : category.blurb),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),
@@ -191,7 +185,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
   Future<void> _save() async {
     if (_name.text.trim().length < 2) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await AppScope.readStore(context).saveCategory(
         id: widget.existing?.id,
@@ -224,7 +221,12 @@ class _CategoryEditorState extends State<_CategoryEditor> {
         messenger.showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _busy = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _busy = false;
+        });
+      }
     }
   }
 
@@ -253,8 +255,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
             Expanded(
               child: ListView(
                 controller: controller,
-                padding: EdgeInsets.fromLTRB(
-                    GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
+                padding: EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
                 children: [
                   // Live preview, so the choices below have an obvious effect.
                   Center(
@@ -293,8 +294,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
                   const SizedBox(height: GwdSpace.xl),
                   Text('COLOUR',
-                      style: GwdType.eyebrow
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   Wrap(
                     spacing: GwdSpace.sm,
@@ -314,15 +314,13 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                               color: hexToColor(hex),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: _color == hex
-                                    ? GwdColors.inkOf(context)
-                                    : Colors.transparent,
+                                color:
+                                    _color == hex ? GwdColors.inkOf(context) : Colors.transparent,
                                 width: 2.5,
                               ),
                             ),
                             child: _color == hex
-                                ? const Icon(Icons.check_rounded,
-                                    size: 16, color: Colors.white)
+                                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
                                 : null,
                           ),
                         ),
@@ -331,8 +329,7 @@ class _CategoryEditorState extends State<_CategoryEditor> {
 
                   const SizedBox(height: GwdSpace.xl),
                   Text('ICON',
-                      style: GwdType.eyebrow
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   Wrap(
                     spacing: GwdSpace.sm,
@@ -348,14 +345,10 @@ class _CategoryEditorState extends State<_CategoryEditor> {
                             height: 44,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: _icon == entry.key
-                                  ? tint
-                                  : GwdColors.surfaceOf(context),
+                              color: _icon == entry.key ? tint : GwdColors.surfaceOf(context),
                               borderRadius: BorderRadius.circular(GwdRadius.md),
                               border: Border.all(
-                                color: _icon == entry.key
-                                    ? tint
-                                    : GwdColors.hairlineOf(context),
+                                color: _icon == entry.key ? tint : GwdColors.hairlineOf(context),
                               ),
                             ),
                             child: Icon(

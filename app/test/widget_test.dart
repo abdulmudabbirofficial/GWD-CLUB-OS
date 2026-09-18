@@ -12,6 +12,7 @@ import 'package:gwd_club_os/core/models/department.dart';
 import 'package:gwd_club_os/core/models/event_bill.dart';
 import 'package:gwd_club_os/core/models/event_document.dart';
 import 'package:gwd_club_os/core/models/help_request.dart';
+import 'package:gwd_club_os/core/models/meeting.dart';
 import 'package:gwd_club_os/core/models/recognition.dart';
 import 'package:gwd_club_os/core/models/member.dart';
 import 'package:gwd_club_os/core/models/schedule_category.dart';
@@ -894,6 +895,104 @@ void main() {
       expect(GwdTheme.light().brightness, Brightness.light);
       expect(GwdTheme.dark().brightness, Brightness.dark);
     });
+
+    test('the type ramp descends without a gap and stops at 9.5', () {
+      final ramp = <String, TextStyle>{
+        'largeTitle': GwdType.largeTitle,
+        'title1': GwdType.title1,
+        'title2': GwdType.title2,
+        'title3': GwdType.title3,
+        'headline': GwdType.headline,
+        'body': GwdType.body,
+        'callout': GwdType.callout,
+        'subhead': GwdType.subhead,
+        'footnote': GwdType.footnote,
+        'caption': GwdType.caption,
+        'eyebrow': GwdType.eyebrow,
+        'micro': GwdType.micro,
+      };
+      final sizes = ramp.values.map((s) => s.fontSize!).toList();
+      for (var i = 1; i < sizes.length; i++) {
+        expect(sizes[i], lessThanOrEqualTo(sizes[i - 1]),
+            reason: '${ramp.keys.elementAt(i)} must not be larger than the step above it');
+      }
+      // The floor. Text below this was reaching the screen at under 8pt once
+      // the system text-scale minimum was applied.
+      for (final entry in ramp.entries) {
+        expect(entry.value.fontSize, greaterThanOrEqualTo(9.5), reason: entry.key);
+      }
+    });
+
+    test('the same state is drawn the same way everywhere', () {
+      // "Finished" used to be five different glyphs depending on the screen:
+      // check_circle_rounded on a task, check_circle_outline_rounded on a
+      // meeting, task_alt_rounded in a notification, verified_rounded on a
+      // paid bill. Nobody decided that, it accumulated — and it means the app
+      // has no vocabulary for a member to learn.
+      expect(TaskStatus.completed.icon, GwdIcons.done);
+      expect(EventStatus.completed.icon, GwdIcons.done);
+      expect(HelpStatus.resolved.icon, GwdIcons.done);
+      expect(MeetingStatus.held.icon, GwdIcons.done);
+
+      // Waiting on a person, not on work.
+      expect(BillStatus.pending.icon, GwdIcons.waiting);
+      expect(DocumentStatus.pending.icon, GwdIcons.waiting);
+
+      // A decision that went your way is not the same event as finishing
+      // something, so it keeps its own glyph — consistently.
+      expect(BillStatus.approved.icon, GwdIcons.approved);
+      expect(DocumentStatus.approved.icon, GwdIcons.approved);
+      expect(EventStatus.approved.icon, GwdIcons.approved);
+      expect(GwdIcons.approved, isNot(GwdIcons.done));
+
+      // And money actually moving is its own thing again: "approved" means
+      // somebody is still out of pocket.
+      expect(BillStatus.paid.icon, GwdIcons.settled);
+      expect(GwdIcons.settled, isNot(GwdIcons.approved));
+
+      // Declined is one glyph, not block_rounded here and block_outlined there.
+      expect(BillStatus.rejected.icon, GwdIcons.declined);
+      expect(DocumentStatus.rejected.icon, GwdIcons.declined);
+    });
+
+    testWidgets('a semantic tint is readable in both themes', (tester) async {
+      // The pale `*Soft` constants this replaced were light-mode hexes with no
+      // dark counterpart, so ErrorNote — the error component every screen uses
+      // — painted a near-white pink block on the obsidian canvas.
+      Future<Color> tintUnder(ThemeMode mode) async {
+        late Color captured;
+        await tester.pumpWidget(MaterialApp(
+          theme: GwdTheme.light(),
+          darkTheme: GwdTheme.dark(),
+          themeMode: mode,
+          home: Builder(builder: (context) {
+            captured = GwdColors.tintOf(context, GwdColors.critical);
+            return const SizedBox();
+          }),
+        ));
+        // MaterialApp cross-fades between themes, so the frame straight after
+        // pumpWidget is still interpolating and reads as the previous theme.
+        await tester.pumpAndSettle();
+        expect(
+          Theme.of(tester.element(find.byType(SizedBox))).brightness,
+          mode == ThemeMode.dark ? Brightness.dark : Brightness.light,
+          reason: 'the probe must actually be under the theme it is testing',
+        );
+        return captured;
+      }
+
+      final light = await tintUnder(ThemeMode.light);
+      final dark = await tintUnder(ThemeMode.dark);
+
+      // Same hue, different weight — never one frozen value for both.
+      expect(dark.a, greaterThan(light.a),
+          reason: 'a wash that reads on white disappears on black');
+
+      // And it must actually be a wash, not an opaque slab that would swallow
+      // the text sitting on it.
+      expect(light.a, lessThan(0.3));
+      expect(dark.a, lessThan(0.3));
+    });
   });
 
   group('widgets', () {
@@ -936,6 +1035,216 @@ void main() {
       await tester.tap(find.byType(PrimaryButton));
       await tester.pump();
       expect(taps, 0, reason: 'a busy button must not fire twice');
+    });
+  });
+
+  group('meetings', () {
+    Meeting at(DateTime when, {List<({String id, String name})> departments = const [],
+        int invited = 0}) {
+      return Meeting(
+        id: 'm1',
+        title: 'Sync',
+        date: when,
+        status: MeetingStatus.scheduled,
+        createdByName: 'Aldrin Paul',
+        participants: const [],
+        departments: departments,
+        invitedCount: invited,
+      );
+    }
+
+    test('a meeting earlier today is still today, not past', () {
+      // The bug this pins down made events vanish on the morning they ran:
+      // comparing a stored timestamp against `now` rather than comparing
+      // calendar days. A 10am meeting is still today's meeting at 2pm.
+      final earlierToday = DateTime.now().subtract(const Duration(hours: 5));
+      final meeting = at(earlierToday);
+      expect(meeting.isToday, isTrue);
+      expect(meeting.isPast, isFalse);
+    });
+
+    test('yesterday is past, tomorrow is neither', () {
+      expect(at(DateTime.now().subtract(const Duration(days: 1))).isPast, isTrue);
+      final tomorrow = at(DateTime.now().add(const Duration(days: 1)));
+      expect(tomorrow.isPast, isFalse);
+      expect(tomorrow.isToday, isFalse);
+    });
+
+    test('a department invite reads as the team, not a headcount', () {
+      expect(
+        at(DateTime.now(), departments: [(id: 'd1', name: 'Tech')], invited: 11)
+            .whoLabel,
+        'Tech team',
+      );
+      expect(
+        at(DateTime.now(), departments: [
+          (id: 'd1', name: 'Tech'),
+          (id: 'd2', name: 'Production'),
+        ], invited: 20).whoLabel,
+        'Tech and Production teams',
+      );
+    });
+
+    test('individually invited people fall back to a headcount', () {
+      expect(at(DateTime.now(), invited: 1).whoLabel, '1 person');
+      expect(at(DateTime.now(), invited: 4).whoLabel, '4 people');
+    });
+
+    test('when and where skips whatever is missing', () {
+      Meeting withTimes({String start = '', String end = '', String venue = ''}) =>
+          Meeting(
+            id: 'm',
+            title: 'x',
+            date: DateTime(2026, 3, 4),
+            status: MeetingStatus.scheduled,
+            createdByName: 'x',
+            participants: const [],
+            startTime: start,
+            endTime: end,
+            venue: venue,
+          );
+
+      expect(withTimes(start: '17:00', end: '18:00', venue: 'Hall 1').whenAndWhere,
+          '17:00–18:00 · Hall 1');
+      expect(withTimes(start: '17:00').whenAndWhere, '17:00');
+      expect(withTimes(venue: 'Hall 1').whenAndWhere, 'Hall 1');
+      expect(withTimes().whenAndWhere, isEmpty);
+    });
+
+    test('an unknown attendance mark reads as unrecorded, never as absent', () {
+      // Guessing "absent" for a value this client does not understand would put
+      // a miss on somebody's record that nobody ever entered.
+      expect(AttendanceMark.fromWire('who-knows'), AttendanceMark.invited);
+      expect(AttendanceMark.fromWire(null), AttendanceMark.invited);
+      for (final mark in AttendanceMark.values) {
+        expect(AttendanceMark.fromWire(mark.wire), mark);
+      }
+    });
+
+    test('an unknown meeting status reads as scheduled', () {
+      expect(MeetingStatus.fromWire('exploded'), MeetingStatus.scheduled);
+      for (final status in MeetingStatus.values) {
+        expect(MeetingStatus.fromWire(status.wire), status);
+      }
+    });
+
+    test('nothing recorded is no data, not nought per cent', () {
+      // 0% and "not marked yet" look identical on a dial and mean opposite
+      // things. Rendering the second as the first puts a failing figure on
+      // somebody who has done nothing wrong.
+      const nothing = AttendanceRecord(invited: 0, upcoming: 3);
+      expect(nothing.rate, isNull);
+      expect(nothing.hasData, isFalse);
+
+      const missedEverything = AttendanceRecord(invited: 2, absent: 2, rate: 0);
+      expect(missedEverything.hasData, isTrue);
+      expect(missedEverything.rate, 0);
+    });
+
+    test('a rate absent from the wire stays absent', () {
+      expect(AttendanceRecord.fromJson(const {'invited': 4}).rate, isNull);
+      expect(AttendanceRecord.fromJson(const {'invited': 4, 'rate': 0}).rate, 0);
+    });
+  });
+
+  group('notification deep links', () {
+    AppNotification of(String type, [Map<String, dynamic> payload = const {}]) =>
+        AppNotification(
+          id: 'n1',
+          type: type,
+          title: 't',
+          body: 'b',
+          createdAt: DateTime.now(),
+          payload: payload,
+        );
+
+    test('an id in the payload wins over the type', () {
+      final n = of('taskAssigned', {'taskId': 'abc', 'taskTitle': 'Poster'});
+      expect(n.target.kind, NotificationTargetKind.task);
+      expect(n.target.id, 'abc');
+    });
+
+    test('the most specific id wins', () {
+      // A task on an event should open the task, not the festival.
+      final n = of('taskAssigned', {'taskId': 'task1', 'eventId': 'event1'});
+      expect(n.target.kind, NotificationTargetKind.task);
+      expect(n.target.id, 'task1');
+    });
+
+    test('without an id it still lands on the screen for its kind', () {
+      expect(of('approvalNeeded').target.kind, NotificationTargetKind.approvals);
+      expect(of('taskDueReminder').target.kind, NotificationTargetKind.myWork);
+      expect(of('departmentTaskAssigned').target.kind, NotificationTargetKind.incoming);
+      expect(of('clubAlert').target.kind, NotificationTargetKind.broadcasts);
+      expect(of('pointsAwarded').target.kind, NotificationTargetKind.recognition);
+    });
+
+    test('a type this build has never heard of goes nowhere, not somewhere wrong', () {
+      final n = of('somethingTheServerAddedLater');
+      expect(n.target.kind, NotificationTargetKind.none);
+      expect(n.opensSomething, isFalse);
+    });
+
+    test('an empty or null id is not treated as an id', () {
+      // The payload is stringified on the way through FCM, so a missing id can
+      // arrive as the literal text "null" rather than as absent.
+      expect(of('taskAssigned', {'taskId': ''}).target.kind,
+          NotificationTargetKind.myWork);
+      expect(of('taskAssigned', {'taskId': 'null'}).target.kind,
+          NotificationTargetKind.myWork);
+    });
+
+    test('every notification that needs somebody is marked actionable', () {
+      for (final type in const [
+        'approvalNeeded',
+        'taskRequestReceived',
+        'taskAssigned',
+        'departmentTaskAssigned',
+        'departmentTaskUnclaimed',
+        'helpRequested',
+        'documentPending',
+        'billFiled',
+        'passwordResetRequested',
+        'workReturnedToDepartment',
+      ]) {
+        expect(of(type).isActionable, isTrue, reason: type);
+      }
+    });
+
+    test('and good news is not', () {
+      // The accent means "somebody is blocked on you". Spending it on praise
+      // is how it stops meaning anything.
+      for (final type in const [
+        'taskCompleted',
+        'pointsAwarded',
+        'approvalGranted',
+        'helpResolved',
+        'billSettled',
+      ]) {
+        expect(of(type).isActionable, isFalse, reason: type);
+      }
+    });
+
+    test('every type the backend sends has its own icon', () {
+      // A generic bell on half the list is how a notification screen stops
+      // being scannable.
+      const generic = Icons.notifications_none_rounded;
+      for (final type in const [
+        'taskAssigned', 'departmentTaskAssigned', 'departmentTaskUnclaimed',
+        'workReturnedToDepartment', 'taskRequestReceived', 'taskRequestAccepted',
+        'taskRequestDeclined', 'taskCompleted', 'taskComment', 'taskDueReminder',
+        'approvalNeeded', 'approvalGranted', 'approvalRejected', 'approvalObserved',
+        'passwordResetRequested', 'passwordReset', 'profileRenamed',
+        'clubAlert', 'departmentChanged', 'departmentCreated',
+        'pointsEarned', 'pointsAwarded',
+        'eventCreated', 'eventUpdated', 'eventCancelled',
+        'documentPending', 'documentDecision',
+        'billFiled', 'billDecision', 'billSettled',
+        'helpRequested', 'helpOffered', 'helpResolved', 'helpJoined',
+        'meetingInvited', 'meetingMoved', 'meetingCancelled',
+      ]) {
+        expect(of(type).icon, isNot(generic), reason: type);
+      }
     });
   });
 }

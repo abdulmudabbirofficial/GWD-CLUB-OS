@@ -113,8 +113,7 @@ class _FileBillSheetState extends State<_FileBillSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -128,8 +127,7 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                   subtitle: 'Money already spent, so the club can pay it back.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -141,60 +139,53 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Text('HOW MUCH',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.xs + 2),
                       TextField(
                         controller: _amount,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                         ],
                         onChanged: (_) => setState(() {}),
-                        style: GwdType.title2.merge(GwdType.numeric).copyWith(
-                            color: GwdColors.inkOf(context)),
+                        style: GwdType.title2
+                            .merge(GwdType.numeric)
+                            .copyWith(color: GwdColors.inkOf(context)),
                         decoration: InputDecoration(
                           prefixText: '₹ ',
-                          prefixStyle: GwdType.title2.copyWith(
-                              color: GwdColors.inkTertiaryOf(context)),
+                          prefixStyle:
+                              GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
                           hintText: '0',
-                          hintStyle: GwdType.title2.copyWith(
-                              color: GwdColors.inkTertiaryOf(context)),
+                          hintStyle:
+                              GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
                           filled: true,
                           fillColor: GwdColors.sunkenOf(context),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: GwdSpace.lg, vertical: GwdSpace.md),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide:
-                                BorderSide(color: GwdColors.hairlineOf(context)),
+                            borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide:
-                                BorderSide(color: GwdColors.hairlineOf(context)),
+                            borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide: const BorderSide(
-                                color: GwdColors.primaryRed, width: 1.5),
+                            borderSide: const BorderSide(color: GwdColors.primaryRed, width: 1.5),
                           ),
                         ),
                       ),
                       if (_parsedAmount > 0) ...[
                         const SizedBox(height: 5),
                         Text(formatRupees(_parsedAmount),
-                            style: GwdType.footnote.copyWith(
-                                color: GwdColors.inkTertiaryOf(context))),
+                            style:
+                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       ],
                       const SizedBox(height: GwdSpace.lg),
-
                       Text('WHAT KIND',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       Wrap(
                         spacing: GwdSpace.sm,
@@ -209,7 +200,6 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                         ],
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Row(
                         children: [
                           Expanded(
@@ -225,16 +215,15 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('WHEN',
-                                    style: GwdType.eyebrow.copyWith(
-                                        color: GwdColors.inkTertiaryOf(context))),
+                                    style: GwdType.eyebrow
+                                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
                                 const SizedBox(height: GwdSpace.xs + 2),
                                 PressableScale(
                                   onTap: () async {
                                     final picked = await showDatePicker(
                                       context: context,
                                       initialDate: _spentOn,
-                                      firstDate: DateTime.now()
-                                          .subtract(const Duration(days: 365)),
+                                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
                                       lastDate: DateTime.now(),
                                     );
                                     if (picked != null) {
@@ -243,20 +232,16 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                                   },
                                   child: Container(
                                     height: 48,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: GwdSpace.lg),
+                                    padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg),
                                     alignment: Alignment.centerLeft,
                                     decoration: BoxDecoration(
                                       color: GwdColors.sunkenOf(context),
-                                      borderRadius:
-                                          BorderRadius.circular(GwdRadius.md),
-                                      border: Border.all(
-                                          color: GwdColors.hairlineOf(context)),
+                                      borderRadius: BorderRadius.circular(GwdRadius.md),
+                                      border: Border.all(color: GwdColors.hairlineOf(context)),
                                     ),
                                     child: Text(
                                       '${_spentOn.day}/${_spentOn.month}/${_spentOn.year}',
-                                      style: GwdType.body.copyWith(
-                                          color: GwdColors.inkOf(context)),
+                                      style: GwdType.body.copyWith(color: GwdColors.inkOf(context)),
                                     ),
                                   ),
                                 ),
@@ -266,21 +251,18 @@ class _FileBillSheetState extends State<_FileBillSheet> {
                         ],
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       _ReceiptSlot(
                         file: _receipt,
                         sizeBytes: _receiptSize,
                         onTap: _pickReceipt,
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       GwdField(
                         label: 'Note',
                         controller: _note,
                         maxLines: 2,
                         hint: 'A3 colour, 40 copies.',
                       ),
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -361,17 +343,13 @@ class _ReceiptSlot extends StatelessWidget {
                         // has to take on trust, and that is how these go wrong.
                         ? 'A photo of the bill. Without one this is harder to approve.'
                         : _size(sizeBytes),
-                    style: GwdType.caption.copyWith(
-                        fontSize: 9.5,
-                        letterSpacing: 0,
-                        color: GwdColors.inkTertiaryOf(context)),
+                    style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ],
               ),
             ),
             if (picked != null)
-              Icon(Icons.swap_horiz_rounded,
-                  size: 16, color: GwdColors.inkTertiaryOf(context)),
+              Icon(Icons.swap_horiz_rounded, size: 16, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),
@@ -399,8 +377,7 @@ class _Tag extends StatelessWidget {
       haptic: HapticStrength.selection,
       child: AnimatedContainer(
         duration: AppleDuration.fast,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.sm),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm),
         decoration: BoxDecoration(
           color: selected ? GwdColors.primaryRed : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.sm),

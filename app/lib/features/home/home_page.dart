@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -17,6 +18,8 @@ import '../events/event_workspace_page.dart';
 import '../events/events_page.dart' show EventCard;
 import '../help/ask_for_help_sheet.dart';
 import '../help/help_page.dart';
+import '../meetings/meeting_detail_page.dart';
+import '../meetings/new_meeting_sheet.dart';
 import '../profile/profile_sheet.dart';
 import '../schedule/schedule_editor.dart';
 import '../schedule/schedule_page.dart';
@@ -55,8 +58,7 @@ class HomePage extends StatelessWidget {
     final soon = store.eventsUpcoming.take(3).toList();
     // Other people's open asks. Yours are not "someone needs a hand" — you
     // already know about yours.
-    final helpNeeded =
-        store.openHelp.where((h) => !h.mine && !h.helping).take(2).toList();
+    final helpNeeded = store.openHelp.where((h) => !h.mine && !h.helping).take(2).toList();
 
     var step = 0;
     int next() => step++;
@@ -66,217 +68,227 @@ class HomePage extends StatelessWidget {
       body: RefreshIndicator(
         color: GwdColors.primaryRed,
         onRefresh: () => store.loadAll(silent: true),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxxl),
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: GwdSpace.lg),
-                child: AppleStaggerItem(index: next(), child: _Header(store: store)),
+        // Capped on a wide window like every other screen. Without this, Home
+        // — the one people open most, and the one the web build lands on —
+        // stretched its rows the full width of a desktop browser while the
+        // Schedule and Meetings beside it stayed readable.
+        child: ContentWidth(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxxl),
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: GwdSpace.lg),
+                  child: AppleStaggerItem(index: next(), child: _Header(store: store)),
+                ),
               ),
-            ),
 
-            // ---------- anything live takes the whole width ----------
-            if (live.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xl),
-              for (final event in live)
-                AppleStaggerItem(
-                  index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: _LiveEventBanner(
-                      event: event,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => EventWorkspacePage(eventId: event.id),
-                      )),
+              // ---------- anything live takes the whole width ----------
+              if (live.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xl),
+                for (final event in live)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                      child: _LiveEventBanner(
+                        event: event,
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => EventWorkspacePage(eventId: event.id),
+                        )),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
 
-            // ---------- the one focal decision ----------
-            const SizedBox(height: GwdSpace.xxl),
-            AppleStaggerItem(
-              index: next(),
-              child: SectionHeader(
-                title: "What's next",
-                subtitle: store.whatsNext.isEmpty
-                    ? null
-                    : 'The one thing worth your attention right now',
-              ),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _WhatsNextCard(
-                store: store,
-                onOpenSchedule: () => _openSchedule(context),
-              ),
-            ),
-
-            // ---------- today ----------
-            if (store.today.isNotEmpty) ...[
+              // ---------- the one focal decision ----------
               const SizedBox(height: GwdSpace.xxl),
               AppleStaggerItem(
                 index: next(),
                 child: SectionHeader(
-                  title: 'Today',
-                  subtitle: '${store.today.length} on the schedule',
-                  trailing: _More(onTap: () => _openSchedule(context)),
+                  title: "What's next",
+                  subtitle: store.whatsNext.isEmpty
+                      ? null
+                      : 'The one thing worth your attention right now',
                 ),
               ),
               AppleStaggerItem(
                 index: next(),
-                child: _TodayStrip(
-                  items: store.today,
-                  onOpenTask: (id) => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: id)),
-                  ),
+                child: _WhatsNextCard(
+                  store: store,
                   onOpenSchedule: () => _openSchedule(context),
                 ),
               ),
-            ],
 
-            // ---------- what the club is putting on ----------
-            if (soon.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: SectionHeader(
-                  title: 'Coming up',
-                  subtitle: 'What the club is putting on',
-                  trailing: _More(onTap: () => onNavigate(1)),
-                ),
-              ),
-              for (final event in soon)
+              // ---------- today ----------
+              if (store.today.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
                 AppleStaggerItem(
                   index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: EventCard(
-                      event: event,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => EventWorkspacePage(eventId: event.id),
-                      )),
-                    ),
+                  child: SectionHeader(
+                    title: 'Today',
+                    subtitle: '${store.today.length} on the schedule',
+                    trailing: _More(onTap: () => _openSchedule(context)),
                   ),
                 ),
-            ],
-
-            // ---------- things waiting on you ----------
-            if (needsYou > 0) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: const SectionHeader(
-                    title: 'Needs you', subtitle: 'Nobody else can action these'),
-              ),
-              if (store.pendingApprovals.isNotEmpty)
                 AppleStaggerItem(
                   index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                  child: _TodayStrip(
+                    items: store.today,
+                    onOpenTask: (id) => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: id)),
+                    ),
+                    onOpenMeeting: (id) => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => MeetingDetailPage(meetingId: id)),
+                    ),
+                    onOpenSchedule: () => _openSchedule(context),
+                  ),
+                ),
+              ],
+
+              // ---------- what the club is putting on ----------
+              if (soon.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: SectionHeader(
+                    title: 'Coming up',
+                    subtitle: 'What the club is putting on',
+                    trailing: _More(onTap: () => onNavigate(1)),
+                  ),
+                ),
+                for (final event in soon)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                      child: EventCard(
+                        event: event,
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => EventWorkspacePage(eventId: event.id),
+                        )),
+                      ),
+                    ),
+                  ),
+              ],
+
+              // ---------- things waiting on you ----------
+              if (needsYou > 0) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: const SectionHeader(
+                      title: 'Needs you', subtitle: 'Nobody else can action these'),
+                ),
+                if (store.pendingApprovals.isNotEmpty)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                      child: _ActionRow(
+                        icon: Icons.how_to_reg_outlined,
+                        tint: GwdColors.primaryRed,
+                        title: '${store.pendingApprovals.length} waiting to join',
+                        subtitle: 'Approve or decline',
+                        onTap: () => Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => const ApprovalsPage())),
+                      ),
+                    ),
+                  ),
+                if (openRequests > 0)
+                  AppleStaggerItem(
+                    index: next(),
                     child: _ActionRow(
-                      icon: Icons.how_to_reg_outlined,
-                      tint: GwdColors.primaryRed,
-                      title: '${store.pendingApprovals.length} waiting to join',
-                      subtitle: 'Approve or decline',
+                      icon: Icons.pan_tool_alt_outlined,
+                      tint: GwdColors.warning,
+                      title: '$openRequests task request${openRequests == 1 ? '' : 's'}',
+                      subtitle: 'Accept or decline',
+                      onTap: () => onNavigate(2),
+                    ),
+                  ),
+              ],
+
+              // ---------- somebody is stuck ----------
+              if (helpNeeded.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: SectionHeader(
+                    title: 'Someone needs a hand',
+                    subtitle: 'Five minutes from you might unblock them',
+                    trailing: _More(
                       onTap: () => Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (_) => const ApprovalsPage())),
+                          .push(MaterialPageRoute(builder: (_) => const HelpPage())),
                     ),
                   ),
                 ),
-              if (openRequests > 0)
+                for (final request in helpNeeded)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                      child: HelpCard(request: request),
+                    ),
+                  ),
+              ],
+
+              // ---------- quick actions ----------
+              const SizedBox(height: GwdSpace.xxl),
+              AppleStaggerItem(
+                index: next(),
+                child: const SectionHeader(title: 'Quick actions'),
+              ),
+              AppleStaggerItem(
+                index: next(),
+                child: _QuickActions(
+                  caps: caps,
+                  canCreateEvents: store.canCreateEvents,
+                  canScheduleMeetings: store.canScheduleMeetings,
+                  onOpenSchedule: () => _openSchedule(context),
+                ),
+              ),
+
+              // ---------- your week ----------
+              if (caps.earnsPoints) ...[
+                const SizedBox(height: GwdSpace.xxl),
                 AppleStaggerItem(
                   index: next(),
-                  child: _ActionRow(
-                    icon: Icons.pan_tool_alt_outlined,
-                    tint: GwdColors.warning,
-                    title: '$openRequests task request${openRequests == 1 ? '' : 's'}',
-                    subtitle: 'Accept or decline',
-                    onTap: () => onNavigate(2),
-                  ),
+                  child: const SectionHeader(
+                      title: 'Your week', subtitle: 'Finished against everything on your plate'),
                 ),
-            ],
-
-            // ---------- somebody is stuck ----------
-            if (helpNeeded.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: SectionHeader(
-                  title: 'Someone needs a hand',
-                  subtitle: 'Five minutes from you might unblock them',
-                  trailing: _More(
-                    onTap: () => Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (_) => const HelpPage())),
-                  ),
-                ),
-              ),
-              for (final request in helpNeeded)
                 AppleStaggerItem(
                   index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: HelpCard(request: request),
+                  child: _WeekCard(store: store, onOpenTasks: () => onNavigate(2)),
+                ),
+              ],
+
+              // ---------- departments ----------
+              if (store.departments.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: SectionHeader(
+                    title: 'Across the club',
+                    subtitle: 'How each department is getting on',
+                    trailing: _More(
+                      label: 'All',
+                      onTap: () => onNavigate(3),
+                    ),
                   ),
                 ),
-            ],
-
-            // ---------- quick actions ----------
-            const SizedBox(height: GwdSpace.xxl),
-            AppleStaggerItem(
-              index: next(),
-              child: const SectionHeader(title: 'Quick actions'),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _QuickActions(
-                caps: caps,
-                canCreateEvents: store.canCreateEvents,
-                onOpenSchedule: () => _openSchedule(context),
-              ),
-            ),
-
-            // ---------- your week ----------
-            if (caps.earnsPoints) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: const SectionHeader(
-                    title: 'Your week', subtitle: 'Finished against everything on your plate'),
-              ),
-              AppleStaggerItem(
-                index: next(),
-                child: _WeekCard(store: store, onOpenTasks: () => onNavigate(2)),
-              ),
-            ],
-
-            // ---------- departments ----------
-            if (store.departments.isNotEmpty) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: SectionHeader(
-                  title: 'Across the club',
-                  subtitle: 'How each department is getting on',
-                  trailing: _More(
-                    label: 'All',
-                    onTap: () => onNavigate(3),
-                  ),
+                AppleStaggerItem(
+                  index: next(),
+                  child: _DepartmentStrip(store: store, onOpenAll: () => onNavigate(3)),
                 ),
-              ),
-              AppleStaggerItem(
-                index: next(),
-                child: _DepartmentStrip(store: store, onOpenAll: () => onNavigate(3)),
-              ),
-            ],
+              ],
 
-            if (me != null && me.role.isSupervisor) ...[
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(index: next(), child: _SupervisorNote(role: me.role)),
+              if (me != null && me.role.isSupervisor) ...[
+                const SizedBox(height: GwdSpace.xxl),
+                AppleStaggerItem(index: next(), child: _SupervisorNote(role: me.role)),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -284,8 +296,8 @@ class HomePage extends StatelessWidget {
 
   /// The schedule lives under More now, so Home pushes it rather than
   /// switching to a tab that no longer exists.
-  void _openSchedule(BuildContext context) => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => const SchedulePage()));
+  void _openSchedule(BuildContext context) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SchedulePage()));
 }
 
 /// An event happening today, on Home.
@@ -324,8 +336,7 @@ class _LiveEventBanner extends StatelessWidget {
                   children: [
                     const BreathingDot(color: Colors.white, size: 6),
                     const SizedBox(width: 6),
-                    Text('TODAY',
-                        style: GwdType.eyebrow.copyWith(color: Colors.white)),
+                    Text('TODAY', style: GwdType.eyebrow.copyWith(color: Colors.white)),
                   ],
                 ),
                 const SizedBox(height: 5),
@@ -345,8 +356,7 @@ class _LiveEventBanner extends StatelessWidget {
                       if (event.timeLabel.isNotEmpty) event.timeLabel,
                       if (event.venue.isNotEmpty) event.venue,
                     ].join('  ·  '),
-                    style: GwdType.footnote
-                        .copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                    style: GwdType.footnote.copyWith(color: Colors.white.withValues(alpha: 0.85)),
                   ),
                 ],
               ],
@@ -360,8 +370,7 @@ class _LiveEventBanner extends StatelessWidget {
                 color: Colors.white,
                 trackColor: Colors.white.withValues(alpha: 0.26),
                 child: Text('${event.progress}%',
-                    style: GwdType.numeric
-                        .copyWith(fontSize: 12, color: Colors.white)),
+                    style: GwdType.numeric.copyWith(fontSize: 12, color: Colors.white)),
               ),
           ],
         ),
@@ -379,14 +388,14 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = AppScope.sessionOf(context);
     final me = session.me;
-    final role = me?.role ?? ClubRole.clubMember;
 
-    // "Good morning, President" — the office, not an honorific. Guessing
-    // someone's title from their name or gender and getting it wrong every
-    // single morning is worse than the formality it would buy.
-    final greeting = role.hasAddress
-        ? '${_timeGreeting()}, ${role.address}'
-        : _timeGreeting();
+    // Just the time of day.
+    //
+    // This used to append the office — "Good morning, President" — directly
+    // above a name with "President" set under it again. The identity block
+    // below is where somebody's post belongs, and saying it twice in three
+    // lines reads like a mail-merge that went wrong rather than a greeting.
+    final greeting = _timeGreeting();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,8 +412,7 @@ class _Header extends StatelessWidget {
                       greeting,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.callout
-                          .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                      style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
                     ),
                   ),
                   const SizedBox(width: GwdSpace.sm),
@@ -432,8 +440,7 @@ class _Header extends StatelessWidget {
                   me.positionLine(session.department?.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
             ],
           ),
@@ -485,8 +492,7 @@ class _PointsPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_outlined,
-                size: 12, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.auto_awesome_outlined, size: 12, color: GwdColors.inkTertiaryOf(context)),
             const SizedBox(width: 5),
             AnimatedCounter(
               value: points,
@@ -516,15 +522,52 @@ class _WhatsNextCard extends StatelessWidget {
 
     final next = store.whatsNext;
     if (next.isEmpty) {
+      final failed = store.loadError != null;
+      // Quiet, and one row tall.
+      //
+      // This was the full centred EmptyState inside a card that added its own
+      // padding on top — a 570pt billboard announcing that nothing is wrong.
+      // An empty focal slot is *good news*, and good news does not get to be
+      // the largest thing on the screen; it should read as a clear desk, not
+      // as a hole where the content failed to load.
       return SurfaceCard(
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.lg, vertical: GwdSpace.xxl),
-        child: EmptyState(
-          compact: true,
-          icon: Icons.check_circle_outline,
-          title: "You're all clear",
-          message: store.loadError ??
-              'Nothing is waiting on you. New work shows up here the moment it lands.',
+        padding: const EdgeInsets.all(GwdSpace.md + 2),
+        borderColor: failed ? GwdColors.tintBorderOf(context, GwdColors.critical) : null,
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: GwdColors.tintOf(
+                    context, failed ? GwdColors.critical : GwdColors.success),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(failed ? Icons.wifi_off_rounded : GwdIcons.done,
+                  size: 19,
+                  color: failed ? GwdColors.critical : GwdColors.success),
+            ),
+            const SizedBox(width: GwdSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(failed ? 'Cannot reach the server' : "You're all clear",
+                      style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+                  const SizedBox(height: 1),
+                  Text(
+                    store.loadError ?? 'Nothing is waiting on you right now.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GwdType.footnote
+                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -541,32 +584,25 @@ class _WhatsNextCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              GwdChip(
-                  label: entry.categoryName.toUpperCase(),
-                  color: entry.tint,
-                  icon: entry.icon),
+              GwdChip(label: entry.categoryName.toUpperCase(), color: entry.tint, icon: entry.icon),
               const Spacer(),
               Text(entry.relativeLabel,
-                  style: GwdType.caption
-                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context))),
             ],
           ),
           const SizedBox(height: GwdSpace.md),
-          Text(entry.title,
-              style: GwdType.title2.copyWith(color: GwdColors.inkOf(context))),
+          Text(entry.title, style: GwdType.title2.copyWith(color: GwdColors.inkOf(context))),
           if (entry.location.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.xs),
             Row(
               children: [
-                Icon(Icons.place_outlined,
-                    size: 13, color: GwdColors.inkTertiaryOf(context)),
+                Icon(Icons.place_outlined, size: 13, color: GwdColors.inkTertiaryOf(context)),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(entry.location,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
                 ),
               ],
             ),
@@ -644,8 +680,7 @@ class _NextTaskCardState extends State<_NextTaskCard> {
             Text(task.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
           if (task.status.nextForOwner != null) ...[
             const SizedBox(height: GwdSpace.xl),
@@ -668,11 +703,13 @@ class _TodayStrip extends StatelessWidget {
   const _TodayStrip({
     required this.items,
     required this.onOpenTask,
+    required this.onOpenMeeting,
     required this.onOpenSchedule,
   });
 
   final List<TodayItem> items;
   final void Function(String taskId) onOpenTask;
+  final void Function(String meetingId) onOpenMeeting;
   final VoidCallback onOpenSchedule;
 
   @override
@@ -684,9 +721,14 @@ class _TodayStrip extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: GwdSpace.sm),
             child: SurfaceCard(
               padding: const EdgeInsets.all(GwdSpace.md),
-              onTap: () => item.taskId != null
-                  ? onOpenTask(item.taskId!)
-                  : onOpenSchedule(),
+              // A deadline row and a meeting row are the real thing shown on
+              // the schedule, so tapping opens the real thing. Only a genuine
+              // schedule entry falls through to the calendar.
+              onTap: () {
+                if (item.taskId != null) return onOpenTask(item.taskId!);
+                if (item.meetingId != null) return onOpenMeeting(item.meetingId!);
+                onOpenSchedule();
+              },
               child: Row(
                 children: [
                   SizedBox(
@@ -761,8 +803,7 @@ class _SheetChoice extends StatelessWidget {
       onTap: onTap,
       haptic: HapticStrength.light,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.xl, vertical: GwdSpace.md),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.xl, vertical: GwdSpace.md),
         child: Row(
           children: [
             Container(
@@ -781,17 +822,13 @@ class _SheetChoice extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title,
-                      style: GwdType.headline
-                          .copyWith(color: GwdColors.inkOf(context))),
+                  Text(title, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                   Text(subtitle,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),
@@ -803,10 +840,12 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.caps,
     required this.canCreateEvents,
+    required this.canScheduleMeetings,
     required this.onOpenSchedule,
   });
   final Capabilities caps;
   final bool canCreateEvents;
+  final bool canScheduleMeetings;
   final VoidCallback onOpenSchedule;
 
   /// Add something, or go and look at what is already there.
@@ -821,8 +860,7 @@ class _QuickActions extends StatelessWidget {
       builder: (sheetContext) => Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(sheetContext),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -896,6 +934,17 @@ class _QuickActions extends StatelessWidget {
           _chooseScheduleAction(context);
         },
       ),
+      // Only for the people who call meetings. For everybody else the meeting
+      // they are expected at is already on the Today strip, and the list lives
+      // in More — a tile that only ever means "go and look" does not earn a
+      // place among four actions.
+      if (canScheduleMeetings)
+        _Action(
+          icon: Icons.groups_2_outlined,
+          label: 'Call meeting',
+          tint: GwdColors.info,
+          onTap: () => showNewMeetingSheet(context),
+        ),
       if (caps.canBroadcast)
         _Action(
           icon: Icons.campaign_outlined,
@@ -923,9 +972,7 @@ class _QuickActions extends StatelessWidget {
                   for (var i = 0; i < perRow; i++) ...[
                     if (i > 0) const SizedBox(width: GwdSpace.md),
                     Expanded(
-                      child: i < rows[r].length
-                          ? rows[r][i]
-                          : const SizedBox.shrink(),
+                      child: i < rows[r].length ? rows[r][i] : const SizedBox.shrink(),
                     ),
                   ],
                 ],
@@ -1016,9 +1063,7 @@ class _WeekCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  p.total == 0
-                      ? 'Nothing on your plate'
-                      : '${p.done} of ${p.total} done',
+                  p.total == 0 ? 'Nothing on your plate' : '${p.done} of ${p.total} done',
                   style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                 ),
                 const SizedBox(height: 3),
@@ -1026,14 +1071,12 @@ class _WeekCard extends StatelessWidget {
                   p.total == 0
                       ? 'Work assigned to you this week appears here.'
                       : '${store.pendingCount} pending · ${store.inProgressCount} in progress',
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: 20, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 20, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -1074,8 +1117,7 @@ class _DepartmentStrip extends StatelessWidget {
               children: [
                 Text(
                   '+${departments.length - shown.length} more',
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
                 const Spacer(),
                 Icon(Icons.chevron_right_rounded,
@@ -1122,9 +1164,7 @@ class _DepartmentRow extends StatelessWidget {
             curve: AppleCurves.standard,
             tween: Tween(
                 begin: 0,
-                end: department.assigned == 0
-                    ? 0
-                    : department.completed / department.assigned),
+                end: department.assigned == 0 ? 0 : department.completed / department.assigned),
             builder: (context, t, _) => Container(
               height: 7,
               decoration: BoxDecoration(
@@ -1148,9 +1188,7 @@ class _DepartmentRow extends StatelessWidget {
         SizedBox(
           width: 58,
           child: Text(
-            department.assigned == 0
-                ? 'no work'
-                : '${department.completed}/${department.assigned}',
+            department.assigned == 0 ? 'no work' : '${department.completed}/${department.assigned}',
             textAlign: TextAlign.right,
             style: GwdType.footnote.merge(GwdType.numeric).copyWith(
                   color: GwdColors.inkTertiaryOf(context),
@@ -1183,9 +1221,7 @@ class _SupervisorNote extends StatelessWidget {
             child: Text(
               'As ${role.title} you have full visibility across the club, and '
               'can award points to anyone.',
-
-              style: GwdType.footnote
-                  .copyWith(color: GwdColors.inkTertiaryOf(context)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
             ),
           ),
         ],
@@ -1234,16 +1270,13 @@ class _ActionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title,
-                    style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+                Text(title, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                 Text(subtitle,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: 20, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 20, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -1260,8 +1293,7 @@ class _More extends StatelessWidget {
     return PressableScale(
       haptic: HapticStrength.selection,
       onTap: onTap,
-      child: Text(label,
-          style: GwdType.footnote.copyWith(color: GwdColors.primaryRed)),
+      child: Text(label, style: GwdType.footnote.copyWith(color: GwdColors.primaryRed)),
     );
   }
 }

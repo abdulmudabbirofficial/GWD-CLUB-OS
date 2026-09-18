@@ -134,6 +134,49 @@ const login = async (email, password) => {
     profile.body?.attendance?.rate === 100,
     JSON.stringify(profile.body?.attendance));
 
+  // --- it reaches Home ----------------------------------------------------
+  // A meeting today is exactly what the Today strip exists for. The date and
+  // the start time are stored in separate fields, so this also pins down that
+  // the two are folded back together on the way out - without that, every
+  // meeting sorts to the top of the day and shows 00:00.
+  const todayMeeting = await api('/api/meetings', {
+    method: 'POST', token: president.token,
+    body: {
+      title: 'Standup',
+      date: new Date().toISOString(),
+      startTime: '17:30',
+      venue: 'Studio',
+      departmentIds: [tech.id],
+    },
+  });
+  ok('A meeting can be called for today', todayMeeting.status === 201,
+    todayMeeting.txt?.slice(0, 200));
+
+  const leadHome = await api('/api/home', { token: techLead.token });
+  const leadRow = (leadHome.body?.today ?? [])
+    .find((r) => r.meetingId === todayMeeting.body?.meeting?.id);
+  ok("Today's meeting is on the invitee's Home", Boolean(leadRow),
+    (leadHome.body?.today ?? []).map((r) => `${r.kind}:${r.title}`).join(', '));
+  ok('Carrying its id, so the row opens the meeting itself',
+    leadRow?.kind === 'meeting' && Boolean(leadRow?.meetingId));
+  ok('And its start time, not midnight',
+    new Date(leadRow?.date ?? 0).getHours() === 17
+      && new Date(leadRow?.date ?? 0).getMinutes() === 30,
+    String(leadRow?.date));
+
+  const outsiderHome = await api('/api/home', { token: prodLead.token });
+  ok('Somebody not invited does not get it on theirs',
+    !(outsiderHome.body?.today ?? []).some((r) => r.meetingId === todayMeeting.body?.meeting?.id));
+
+  // Home answers "what should I do now", so a meeting nobody is going to
+  // must not keep sitting there.
+  await api(`/api/meetings/${todayMeeting.body.meeting.id}`, {
+    method: 'PATCH', token: president.token, body: { status: 'cancelled' },
+  });
+  const afterHome = await api('/api/home', { token: techLead.token });
+  ok('A cancelled meeting leaves Home',
+    !(afterHome.body?.today ?? []).some((r) => r.meetingId === todayMeeting.body?.meeting?.id));
+
   // --- cancelling ---------------------------------------------------------
   const cancelled = await api(`/api/meetings/${meeting.id}`, {
     method: 'PATCH', token: president.token, body: { status: 'cancelled' },

@@ -187,12 +187,14 @@ router.post('/', async (request, response, next) => {
       if (department.leadUserId) {
         await notify(department.leadUserId, 'departmentTaskAssigned', {
           taskTitle: title, byName: actor.name, departmentName: department.name,
+          taskId: String(doc._id),
         });
       } else {
         const president = await col(C.users).findOne({ role: ROLES.president, approvalStatus: 'approved' });
         if (president) {
           await notify(president._id, 'departmentTaskUnclaimed', {
             taskTitle: title, departmentName: department.name,
+            taskId: String(doc._id),
           });
         }
       }
@@ -247,10 +249,15 @@ router.post('/', async (request, response, next) => {
     const result = await col(C.tasks).insertMany(docs);
     docs.forEach((doc, i) => { doc._id = result.insertedIds[i]; });
 
+    // Each person is told about *their* copy of the task, so tapping the
+    // notification opens the one addressed to them rather than a sibling.
     await Promise.all(
-      targets
-        .filter((t) => String(t._id) !== String(actor._id))
-        .map((t) => notify(t._id, 'taskAssigned', { taskTitle: title, byName: actor.name })),
+      docs
+        .map((doc, i) => ({ doc, target: targets[i] }))
+        .filter(({ target }) => String(target._id) !== String(actor._id))
+        .map(({ doc, target }) => notify(target._id, 'taskAssigned', {
+          taskTitle: title, byName: actor.name, taskId: String(doc._id),
+        })),
     );
     await audit(actor._id, 'task.create', { count: docs.length, title });
 
@@ -307,7 +314,7 @@ router.post('/:id/assign', async (request, response, next) => {
 
     if (!isSelf) {
       await notify(target._id, 'taskAssigned', {
-        taskTitle: task.title, byName: actor.name,
+        taskTitle: task.title, byName: actor.name, taskId: String(id),
       });
     }
     await audit(actor._id, 'task.distribute', {

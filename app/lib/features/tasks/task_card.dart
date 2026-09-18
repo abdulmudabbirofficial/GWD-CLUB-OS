@@ -59,9 +59,7 @@ class TaskCard extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: AppleDuration.standard,
                   style: GwdType.headline.copyWith(
-                    color: done
-                        ? GwdColors.inkTertiaryOf(context)
-                        : GwdColors.inkOf(context),
+                    color: done ? GwdColors.inkTertiaryOf(context) : GwdColors.inkOf(context),
                     decoration: done ? TextDecoration.lineThrough : TextDecoration.none,
                     decorationColor: GwdColors.inkTertiaryOf(context),
                   ),
@@ -76,8 +74,7 @@ class TaskCard extends StatelessWidget {
                           subtitle!,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GwdType.footnote
-                              .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                          style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                         ),
                       ),
                     if (subtitle != null && task.dueLabel != null) ...[
@@ -96,9 +93,7 @@ class TaskCard extends StatelessWidget {
                       Text(
                         task.dueLabel!,
                         style: GwdType.footnote.copyWith(
-                          color: overdue
-                              ? GwdColors.critical
-                              : GwdColors.inkTertiaryOf(context),
+                          color: overdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
                           fontWeight: overdue ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
@@ -109,8 +104,7 @@ class TaskCard extends StatelessWidget {
           ),
           if (task.priority == TaskPriority.high && !done) ...[
             const SizedBox(width: GwdSpace.sm),
-            const Icon(Icons.keyboard_double_arrow_up_rounded,
-                size: 16, color: GwdColors.warning),
+            const Icon(Icons.keyboard_double_arrow_up_rounded, size: 16, color: GwdColors.warning),
           ],
         ],
       ),

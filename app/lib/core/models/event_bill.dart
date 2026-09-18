@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 /// Event finance.
 ///
 /// Bookkeeping, not banking: this records what an event cost, carries a photo
@@ -42,10 +44,13 @@ enum BillStatus {
       };
 
   IconData get icon => switch (this) {
-        BillStatus.pending => Icons.hourglass_empty_rounded,
-        BillStatus.approved => Icons.check_circle_outline_rounded,
-        BillStatus.rejected => Icons.block_rounded,
-        BillStatus.paid => Icons.verified_rounded,
+        BillStatus.pending => GwdIcons.waiting,
+        // Approved is not paid. Somebody is still out of pocket, and the
+        // Finance tab leads with that number, so the two must not share a
+        // glyph the way they used to.
+        BillStatus.approved => GwdIcons.approved,
+        BillStatus.rejected => GwdIcons.declined,
+        BillStatus.paid => GwdIcons.settled,
       };
 }
 
@@ -228,6 +233,5 @@ class EventFinance {
     );
   }
 
-  int get awaitingDecision =>
-      bills.where((b) => b.status == BillStatus.pending).length;
+  int get awaitingDecision => bills.where((b) => b.status == BillStatus.pending).length;
 }

@@ -35,16 +35,11 @@ class DepartmentChart extends StatelessWidget {
   Widget build(BuildContext context) {
     // Anybody who has never been given anything has no bar to draw, and a row
     // of zeroes reads as an accusation rather than information.
-    final shown = members
-        .where((m) => (m.assignedTasks ?? 0) > 0)
-        .take(12)
-        .toList();
+    final shown = members.where((m) => (m.assignedTasks ?? 0) > 0).take(12).toList();
 
     if (shown.length < 2) return const SizedBox.shrink();
 
-    final tallest = shown
-        .map((m) => (m.assignedTasks ?? 0))
-        .fold<int>(0, (a, b) => a > b ? a : b);
+    final tallest = shown.map((m) => (m.assignedTasks ?? 0)).fold<int>(0, (a, b) => a > b ? a : b);
     // A little headroom, and never a zero axis.
     final maxY = (tallest + 1).toDouble();
 
@@ -115,9 +110,7 @@ class DepartmentChart extends StatelessWidget {
                     interval: maxY <= 5 ? 1 : (maxY / 4).ceilToDouble(),
                     getTitlesWidget: (value, meta) => Text(
                       value.toInt().toString(),
-                      style: GwdType.caption.copyWith(
-                        fontSize: 9,
-                        letterSpacing: 0,
+                      style: GwdType.micro.copyWith(
                         color: GwdColors.inkTertiaryOf(context),
                       ),
                     ),
@@ -134,9 +127,7 @@ class DepartmentChart extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           shown[i].initials,
-                          style: GwdType.caption.copyWith(
-                            fontSize: 9,
-                            letterSpacing: 0,
+                          style: GwdType.micro.copyWith(
                             color: GwdColors.inkTertiaryOf(context),
                           ),
                         ),
@@ -266,9 +257,7 @@ class ClubProgressChart extends StatelessWidget {
                     interval: maxY <= 5 ? 1 : (maxY / 4).ceilToDouble(),
                     getTitlesWidget: (value, meta) => Text(
                       value.toInt().toString(),
-                      style: GwdType.caption.copyWith(
-                        fontSize: 9,
-                        letterSpacing: 0,
+                      style: GwdType.micro.copyWith(
                         color: GwdColors.inkTertiaryOf(context),
                       ),
                     ),
@@ -288,9 +277,7 @@ class ClubProgressChart extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
                           short.length > 9 ? short.substring(0, 8) : short,
-                          style: GwdType.caption.copyWith(
-                            fontSize: 8.5,
-                            letterSpacing: 0,
+                          style: GwdType.micro.copyWith(
                             color: GwdColors.inkTertiaryOf(context),
                           ),
                         ),
@@ -307,8 +294,7 @@ class ClubProgressChart extends StatelessWidget {
                       BarChartRodData(
                         toY: shown[i].assigned.toDouble(),
                         width: 20,
-                        borderRadius:
-                            const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         color: open,
                         rodStackItems: [
                           BarChartRodStackItem(
@@ -353,9 +339,7 @@ class _Key extends StatelessWidget {
         const SizedBox(width: 5),
         Text(
           label,
-          style: GwdType.caption.copyWith(
-            fontSize: 9.5,
-            letterSpacing: 0,
+          style: GwdType.micro.copyWith(
             color: GwdColors.inkTertiaryOf(context),
           ),
         ),

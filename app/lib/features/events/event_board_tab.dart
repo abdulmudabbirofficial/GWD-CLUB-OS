@@ -134,24 +134,21 @@ class _WideBoard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.md, GwdSpace.lg, GwdSpace.md, GwdSpace.sm),
+                  padding:
+                      const EdgeInsets.fromLTRB(GwdSpace.md, GwdSpace.lg, GwdSpace.md, GwdSpace.sm),
                   child: Row(
                     children: [
                       Container(
                         width: 7,
                         height: 7,
-                        decoration: BoxDecoration(
-                            color: status.tint, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: status.tint, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: GwdSpace.sm),
                       Text(status.boardLabel.toUpperCase(),
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkOf(context))),
                       const Spacer(),
                       Text('${byLane[status]!.length}',
-                          style: GwdType.caption.copyWith(
-                              color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     ],
                   ),
                 ),
@@ -212,11 +209,8 @@ class _Lane extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(
-          showHeader ? gutter : GwdSpace.md,
-          GwdSpace.md,
-          showHeader ? gutter : GwdSpace.md,
-          GwdSpace.xxxl + 40),
+      padding: EdgeInsets.fromLTRB(showHeader ? gutter : GwdSpace.md, GwdSpace.md,
+          showHeader ? gutter : GwdSpace.md, GwdSpace.xxxl + 40),
       itemCount: cards.length,
       itemBuilder: (context, i) => Padding(
         padding: const EdgeInsets.only(bottom: GwdSpace.sm),
@@ -263,8 +257,7 @@ class _BoardCard extends StatelessWidget {
               if (card.priority == 'high') ...[
                 const Padding(
                   padding: EdgeInsets.only(top: 2, right: 6),
-                  child: Icon(Icons.priority_high_rounded,
-                      size: 13, color: GwdColors.critical),
+                  child: Icon(Icons.priority_high_rounded, size: 13, color: GwdColors.critical),
                 ),
               ],
               Expanded(
@@ -275,9 +268,8 @@ class _BoardCard extends StatelessWidget {
                   style: GwdType.callout.copyWith(
                     color: GwdColors.inkOf(context),
                     fontWeight: FontWeight.w600,
-                    decoration: card.status == TaskStatus.completed
-                        ? TextDecoration.lineThrough
-                        : null,
+                    decoration:
+                        card.status == TaskStatus.completed ? TextDecoration.lineThrough : null,
                     decorationColor: GwdColors.inkTertiaryOf(context),
                   ),
                 ),
@@ -306,12 +298,8 @@ class _BoardCard extends StatelessWidget {
               if (card.dueDate != null)
                 Text(
                   '${card.dueDate!.day}/${card.dueDate!.month}',
-                  style: GwdType.caption.copyWith(
-                    fontSize: 9.5,
-                    letterSpacing: 0,
-                    color: card.isOverdue
-                        ? GwdColors.critical
-                        : GwdColors.inkTertiaryOf(context),
+                  style: GwdType.micro.copyWith(
+                    color: card.isOverdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
                   ),
                 ),
               const SizedBox(width: GwdSpace.sm),
@@ -326,10 +314,7 @@ class _BoardCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(GwdRadius.sm),
                     ),
                     child: Text('I’ll take it',
-                        style: GwdType.caption.copyWith(
-                            fontSize: 9.5,
-                            letterSpacing: 0,
-                            color: GwdColors.primaryRed)),
+                        style: GwdType.micro.copyWith(color: GwdColors.primaryRed)),
                   ),
                 )
               else
@@ -387,11 +372,7 @@ Future<void> _showCardSheet(
     if (mine)
       ...switch (card.status) {
         TaskStatus.pending => [TaskStatus.inProgress, TaskStatus.blocked],
-        TaskStatus.inProgress => [
-            TaskStatus.review,
-            TaskStatus.completed,
-            TaskStatus.blocked
-          ],
+        TaskStatus.inProgress => [TaskStatus.review, TaskStatus.completed, TaskStatus.blocked],
         TaskStatus.review => [TaskStatus.inProgress],
         TaskStatus.blocked => [TaskStatus.inProgress],
         _ => <TaskStatus>[],
@@ -424,16 +405,14 @@ Future<void> _showCardSheet(
             ),
             if (card.description.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.md),
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.md),
                 child: Text(card.description,
-                    style: GwdType.body
-                        .copyWith(color: GwdColors.inkSecondaryOf(sheetContext))),
+                    style: GwdType.body.copyWith(color: GwdColors.inkSecondaryOf(sheetContext))),
               ),
             if (card.assignedTo == null)
               ListTile(
-                leading: const Icon(Icons.pan_tool_alt_outlined,
-                    size: 20, color: GwdColors.primaryRed),
+                leading:
+                    const Icon(Icons.pan_tool_alt_outlined, size: 20, color: GwdColors.primaryRed),
                 title: Text('I’ll take this on',
                     style: GwdType.body.copyWith(color: GwdColors.primaryRed)),
                 onTap: () {
@@ -467,15 +446,14 @@ Future<void> _showCardSheet(
               ),
             if (moves.isEmpty && card.assignedTo != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    GwdSpace.xl, GwdSpace.sm, GwdSpace.xl, GwdSpace.lg),
+                padding:
+                    const EdgeInsets.fromLTRB(GwdSpace.xl, GwdSpace.sm, GwdSpace.xl, GwdSpace.lg),
                 child: Text(
                   card.status == TaskStatus.completed
                       ? 'This one is finished.'
                       : '${card.assigneeName ?? 'Someone'} is on this. '
                           'They move it along from here.',
-                  style: GwdType.callout
-                      .copyWith(color: GwdColors.inkTertiaryOf(sheetContext)),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(sheetContext)),
                 ),
               ),
 
@@ -527,8 +505,7 @@ class _LaneSwitcher extends StatelessWidget {
       height: 54,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(
-            horizontal: Layout.of(context).gutter, vertical: GwdSpace.sm),
+        padding: EdgeInsets.symmetric(horizontal: Layout.of(context).gutter, vertical: GwdSpace.sm),
         itemCount: TaskStatus.board.length,
         separatorBuilder: (_, __) => const SizedBox(width: GwdSpace.sm),
         itemBuilder: (context, i) {
@@ -544,14 +521,12 @@ class _LaneSwitcher extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: selected
-                    ? status.tint.withValues(alpha: 0.12)
-                    : GwdColors.surfaceOf(context),
+                color:
+                    selected ? status.tint.withValues(alpha: 0.12) : GwdColors.surfaceOf(context),
                 borderRadius: BorderRadius.circular(GwdRadius.md),
                 border: Border.all(
-                  color: selected
-                      ? status.tint.withValues(alpha: 0.4)
-                      : GwdColors.hairlineOf(context),
+                  color:
+                      selected ? status.tint.withValues(alpha: 0.4) : GwdColors.hairlineOf(context),
                 ),
               ),
               child: Row(
@@ -560,25 +535,21 @@ class _LaneSwitcher extends StatelessWidget {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration:
-                        BoxDecoration(color: status.tint, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: status.tint, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     status.boardLabel,
                     style: GwdType.footnote.copyWith(
-                      color: selected
-                          ? GwdColors.inkOf(context)
-                          : GwdColors.inkSecondaryOf(context),
+                      color:
+                          selected ? GwdColors.inkOf(context) : GwdColors.inkSecondaryOf(context),
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                   const SizedBox(width: 5),
                   Text(
                     '${counts[i]}',
-                    style: GwdType.caption.copyWith(
-                      fontSize: 9.5,
-                      letterSpacing: 0,
+                    style: GwdType.micro.copyWith(
                       color: GwdColors.inkTertiaryOf(context),
                     ),
                   ),
@@ -609,8 +580,7 @@ class _DepartmentFilter extends StatelessWidget {
       height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(
-            horizontal: Layout.of(context).gutter, vertical: GwdSpace.sm),
+        padding: EdgeInsets.symmetric(horizontal: Layout.of(context).gutter, vertical: GwdSpace.sm),
         children: [
           _Pill(
             label: 'Everyone',
@@ -657,9 +627,7 @@ class _Pill extends StatelessWidget {
         child: Text(
           label,
           style: GwdType.footnote.copyWith(
-            color: selected
-                ? GwdColors.canvasOf(context)
-                : GwdColors.inkSecondaryOf(context),
+            color: selected ? GwdColors.canvasOf(context) : GwdColors.inkSecondaryOf(context),
           ),
         ),
       ),

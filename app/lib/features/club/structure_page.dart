@@ -45,9 +45,19 @@ class _StructurePageState extends State<StructurePage> {
   Future<void> _load() async {
     try {
       final json = await AppScope.readStore(context).structure();
-      if (mounted) setState(() { _data = json; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _data = json;
+          _loading = false;
+        });
+      }
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -66,27 +76,26 @@ class _StructurePageState extends State<StructurePage> {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Structure',
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Structure', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       body: RefreshIndicator(
         color: GwdColors.primaryRed,
         onRefresh: _load,
         child: ContentWidth(
           child: _loading
-              ? const Center(child: Padding(
+              ? const Center(
+                  child: Padding(
                   padding: EdgeInsets.all(GwdSpace.xxxl),
                   child: BracketLoader(),
                 ))
               : ListView(
-                  padding: EdgeInsets.fromLTRB(
-                      layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
+                  padding:
+                      EdgeInsets.fromLTRB(layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
                   children: [
                     if (_error != null) ...[
                       ErrorNote(message: _error!),
                       const SizedBox(height: GwdSpace.lg),
                     ],
-
                     const BrandedSectionHeader(
                       title: 'Executive',
                       subtitle: 'Who leads the club',
@@ -99,7 +108,6 @@ class _StructurePageState extends State<StructurePage> {
                           child: _SeatCard(seat: executive[i], emphasis: i == 0),
                         ),
                       ),
-
                     const SizedBox(height: GwdSpace.xl),
                     BrandedSectionHeader(
                       title: 'Departments',
@@ -156,11 +164,9 @@ class _SeatCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(role.title,
-                      style: GwdType.headline
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.headline.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   Text('Vacant',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
@@ -196,14 +202,12 @@ class _SeatCard extends StatelessWidget {
                         .copyWith(color: GwdColors.inkOf(context))),
                 const SizedBox(height: 2),
                 Text(role.title,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
           if (canOpen)
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -247,8 +251,7 @@ class _DepartmentCard extends StatelessWidget {
               if (overdue > 0)
                 GwdChip(label: '$overdue OVERDUE', color: GwdColors.critical, dense: true),
               const SizedBox(width: GwdSpace.sm),
-              Icon(Icons.chevron_right_rounded,
-                  size: 18, color: GwdColors.inkTertiaryOf(context)),
+              Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
             ],
           ),
           const SizedBox(height: GwdSpace.md),
@@ -283,9 +286,7 @@ class _DepartmentCard extends StatelessWidget {
               ),
               const SizedBox(width: GwdSpace.md),
               Text('$rate%',
-                  style: GwdType.headline
-                      .merge(GwdType.numeric)
-                      .copyWith(color: _rateColor(rate))),
+                  style: GwdType.headline.merge(GwdType.numeric).copyWith(color: _rateColor(rate))),
             ],
           ),
           const SizedBox(height: GwdSpace.sm),
@@ -298,14 +299,12 @@ class _DepartmentCard extends StatelessWidget {
                   lead == null ? 'No Lead assigned' : '${lead['name']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ),
               Text(
                 '$completed of $assigned · $memberCount ${memberCount == 1 ? 'member' : 'members'}',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
               ),
             ],
           ),
@@ -368,7 +367,12 @@ class _DepartmentPageState extends State<DepartmentPage> {
         _loading = false;
       });
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -381,21 +385,20 @@ class _DepartmentPageState extends State<DepartmentPage> {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text(widget.name,
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text(widget.name, style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       body: ContentWidth(
         child: !widget.canViewRoster
             ? const EmptyState(
                 icon: Icons.lock_outline_rounded,
                 title: 'Members are private',
-                message:
-                    'You can see this department\'s overall progress, but its '
+                message: 'You can see this department\'s overall progress, but its '
                     'individual members are visible to their own department and '
                     'the club\'s leadership.',
               )
             : _loading
-                ? const Center(child: Padding(
+                ? const Center(
+                    child: Padding(
                     padding: EdgeInsets.all(GwdSpace.xxxl),
                     child: BracketLoader(),
                   ))
@@ -407,7 +410,6 @@ class _DepartmentPageState extends State<DepartmentPage> {
                         ErrorNote(message: _error!),
                         const SizedBox(height: GwdSpace.lg),
                       ],
-
                       const BrandedSectionHeader(title: 'Lead'),
                       if (lead == null)
                         const EmptyState(
@@ -418,7 +420,6 @@ class _DepartmentPageState extends State<DepartmentPage> {
                         )
                       else
                         MemberRow(member: lead, subtitle: 'Department Lead'),
-
                       const SizedBox(height: GwdSpace.xl),
                       BrandedSectionHeader(
                         title: 'Members',

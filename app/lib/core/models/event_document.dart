@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 /// Two kinds of document live on an event, and the distinction is the whole
 /// point of the feature:
 ///
@@ -47,9 +49,10 @@ enum DocumentStatus {
       };
 
   IconData get icon => switch (this) {
-        DocumentStatus.pending => Icons.hourglass_empty_rounded,
-        DocumentStatus.approved => Icons.verified_rounded,
-        DocumentStatus.rejected => Icons.undo_rounded,
+        DocumentStatus.pending => GwdIcons.waiting,
+        DocumentStatus.approved => GwdIcons.approved,
+        DocumentStatus.rejected => GwdIcons.declined,
+        // Not a decision — a newer version exists. Keeps its own glyph.
         DocumentStatus.replaced => Icons.history_rounded,
       };
 }
@@ -222,6 +225,5 @@ class EventDocuments {
     canDecide: false,
   );
 
-  int get pendingApprovals =>
-      approvals.where((d) => d.status == DocumentStatus.pending).length;
+  int get pendingApprovals => approvals.where((d) => d.status == DocumentStatus.pending).length;
 }

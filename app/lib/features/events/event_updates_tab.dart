@@ -137,8 +137,7 @@ class _TimelineRow extends StatelessWidget {
                       Expanded(
                         child: Text(
                           activity.text,
-                          style: GwdType.callout
-                              .copyWith(color: GwdColors.inkOf(context)),
+                          style: GwdType.callout.copyWith(color: GwdColors.inkOf(context)),
                         ),
                       ),
                     ],
@@ -151,10 +150,7 @@ class _TimelineRow extends StatelessWidget {
                         if (activity.who != null) activity.who!,
                         _when(activity.at),
                       ].join('  ·  '),
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ),
                 ],

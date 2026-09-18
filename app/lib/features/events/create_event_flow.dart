@@ -131,8 +131,7 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
       }
     }
     setState(() => _step = step);
-    _page.animateToPage(step,
-        duration: AppleDuration.standard, curve: AppleCurves.standard);
+    _page.animateToPage(step, duration: AppleDuration.standard, curve: AppleCurves.standard);
   }
 
   Future<void> _submit() async {
@@ -200,6 +199,7 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
         leading: IconButton(
+          tooltip: 'Abandon this event',
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -227,8 +227,7 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                  layout.gutter, GwdSpace.md, layout.gutter, GwdSpace.md),
+              padding: EdgeInsets.fromLTRB(layout.gutter, GwdSpace.md, layout.gutter, GwdSpace.md),
               child: Column(
                 children: [
                   if (_error != null) ...[
@@ -250,9 +249,8 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
                           label: _step == 2 ? 'Create event' : 'Continue',
                           icon: _step == 2 ? Icons.check_rounded : null,
                           busy: _saving,
-                          onPressed: canAdvance
-                              ? () => _step == 2 ? _submit() : _go(_step + 1)
-                              : null,
+                          onPressed:
+                              canAdvance ? () => _step == 2 ? _submit() : _go(_step + 1) : null,
                         ),
                       ),
                     ],
@@ -475,7 +473,6 @@ class _StepTeamState extends State<_StepTeam> {
           ],
         ),
         const SizedBox(height: GwdSpace.xxl),
-
         Text(
           'Who is leading it?',
           style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
@@ -489,11 +486,9 @@ class _StepTeamState extends State<_StepTeam> {
         _PeopleGrid(
           members: widget.members,
           selected: {if (s._leadUserId != null) s._leadUserId!},
-          onTap: (id) => setState(
-              () => s._leadUserId = s._leadUserId == id ? null : id),
+          onTap: (id) => setState(() => s._leadUserId = s._leadUserId == id ? null : id),
         ),
         const SizedBox(height: GwdSpace.xxl),
-
         Text(
           'Core team',
           style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
@@ -555,13 +550,11 @@ class _StepWorkState extends State<_StepWork> {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
         child: Container(
           decoration: BoxDecoration(
             color: GwdColors.surfaceOf(sheetContext),
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
           ),
           padding: const EdgeInsets.all(GwdSpace.xl),
           child: Column(
@@ -612,15 +605,13 @@ class _StepWorkState extends State<_StepWork> {
           style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
         ),
         const SizedBox(height: GwdSpace.lg),
-
         for (final r in s._responsibilities)
           Padding(
             padding: const EdgeInsets.only(bottom: GwdSpace.md),
             child: _ResponsibilityCard(
               responsibility: r,
-              department: widget.departments
-                  .firstWhere((d) => d.id == r.departmentId,
-                      orElse: () => widget.departments.first),
+              department: widget.departments.firstWhere((d) => d.id == r.departmentId,
+                  orElse: () => widget.departments.first),
               suggestions: _suggestions[widget.departments
                       .firstWhere((d) => d.id == r.departmentId,
                           orElse: () => widget.departments.first)
@@ -639,7 +630,6 @@ class _StepWorkState extends State<_StepWork> {
                       }),
             ),
           ),
-
         if (remaining.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.sm),
           Text('BRING IN ANOTHER DEPARTMENT',
@@ -708,9 +698,10 @@ class _ResponsibilityCard extends StatelessWidget {
               ),
               if (onRemove != null)
                 IconButton(
+                  tooltip: 'Remove this',
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.close_rounded,
-                      size: 16, color: GwdColors.inkTertiaryOf(context)),
+                  icon:
+                      Icon(Icons.close_rounded, size: 16, color: GwdColors.inkTertiaryOf(context)),
                   onPressed: onRemove,
                 ),
             ],
@@ -722,8 +713,7 @@ class _ResponsibilityCard extends StatelessWidget {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'What are they responsible for?',
-              hintStyle:
-                  GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
+              hintStyle: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
             ),
@@ -740,8 +730,8 @@ class _ResponsibilityCard extends StatelessWidget {
                     const SizedBox(width: GwdSpace.sm),
                     Expanded(
                       child: Text(task,
-                          style: GwdType.callout
-                              .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                          style:
+                              GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
                     ),
                     PressableScale(
                       onTap: () => onRemoveTask(task),
@@ -812,8 +802,7 @@ class _Choice extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppleDuration.fast,
         curve: AppleCurves.standard,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.sm + 1),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm + 1),
         decoration: BoxDecoration(
           color: selected ? GwdColors.primaryRed : GwdColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -872,8 +861,7 @@ class _PickerTile extends StatelessWidget {
       onTap: onTap,
       pressedScale: 0.97,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.md),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
         decoration: BoxDecoration(
           color: GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -884,8 +872,7 @@ class _PickerTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(label.toUpperCase(),
-                style: GwdType.eyebrow
-                    .copyWith(color: GwdColors.inkTertiaryOf(context), fontSize: 9)),
+                style: GwdType.microLabel.copyWith(color: GwdColors.inkTertiaryOf(context))),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -897,9 +884,7 @@ class _PickerTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GwdType.footnote.copyWith(
-                      color: muted
-                          ? GwdColors.inkTertiaryOf(context)
-                          : GwdColors.inkOf(context),
+                      color: muted ? GwdColors.inkTertiaryOf(context) : GwdColors.inkOf(context),
                     ),
                   ),
                 ),
@@ -948,12 +933,11 @@ class _DisclosureState extends State<_Disclosure> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(widget.title,
-                          style: GwdType.headline
-                              .copyWith(color: GwdColors.inkOf(context))),
+                          style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                       const SizedBox(height: 1),
                       Text(widget.subtitle,
-                          style: GwdType.footnote
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style:
+                              GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     ],
                   ),
                 ),
@@ -1038,11 +1022,9 @@ class _PeopleGrid extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: GwdColors.primaryRed,
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: GwdColors.canvasOf(context), width: 1.5),
+                              border: Border.all(color: GwdColors.canvasOf(context), width: 1.5),
                             ),
-                            child: const Icon(Icons.check_rounded,
-                                size: 9, color: Colors.white),
+                            child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
                           ),
                         ),
                     ],
@@ -1053,12 +1035,9 @@ class _PeopleGrid extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: GwdType.caption.copyWith(
-                      fontSize: 9.5,
-                      letterSpacing: 0,
-                      color: isSelected
-                          ? GwdColors.inkOf(context)
-                          : GwdColors.inkTertiaryOf(context),
+                    style: GwdType.micro.copyWith(
+                      color:
+                          isSelected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
                     ),
                   ),
                 ],

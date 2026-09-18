@@ -18,6 +18,7 @@ import '../models/department.dart';
 import '../models/event_bill.dart';
 import '../models/event_document.dart';
 import '../models/help_request.dart';
+import '../models/meeting.dart';
 import '../models/member.dart';
 import '../models/recognition.dart';
 import '../models/schedule_category.dart';
@@ -36,7 +37,7 @@ class LiveToast {
     required this.title,
     required this.body,
     required this.kind,
-    this.taskId,
+    this.target = const NotificationTarget.none(),
     this.critical = false,
   });
 
@@ -44,8 +45,14 @@ class LiveToast {
   final String title;
   final String body;
   final ToastKind kind;
-  final String? taskId;
+
+  /// Where tapping it goes. Previously this was a bare `taskId`, so a toast
+  /// about anything other than a task was a dead tap.
+  final NotificationTarget target;
+
   final bool critical;
+
+  bool get opensSomething => target.kind != NotificationTargetKind.none;
 }
 
 /// What the compose sheet may offer, as the server sees it.
@@ -102,6 +109,7 @@ class TodayItem {
     required this.categoryColorHex,
     this.location = '',
     this.taskId,
+    this.meetingId,
   });
 
   final String id;
@@ -111,7 +119,11 @@ class TodayItem {
   final String categoryIcon;
   final String categoryColorHex;
   final String location;
+
+  /// Set on the rows that are really something else wearing a schedule row's
+  /// clothes. Tapping one opens the actual thing, never a read-only copy of it.
   final String? taskId;
+  final String? meetingId;
 
   Color get tint => hexToColor(categoryColorHex);
   IconData get icon => iconFor(categoryIcon);
@@ -125,6 +137,7 @@ class TodayItem {
         categoryColorHex: json['categoryColor'] as String? ?? '#DC2626',
         location: json['location'] as String? ?? '',
         taskId: json['taskId'] as String?,
+        meetingId: json['meetingId'] as String?,
       );
 
   String get timeLabel =>
@@ -221,6 +234,23 @@ class ClubStore extends ChangeNotifier {
   List<AccessRequest> pendingApprovals = const [];
   List<TodayItem> today = const [];
 
+  // --- meetings -------------------------------------------------------------
+  /// Meetings this person can see: everyone sees what they were invited to,
+  /// leadership sees all of them so clashes are visible.
+  List<Meeting> meetingsUpcoming = const [];
+  List<Meeting> meetingsPast = const [];
+  bool canScheduleMeetings = false;
+
+  /// Meetings that have happened and still have nobody marked.
+  ///
+  /// Only counted for people who can actually record it — a badge a member
+  /// cannot clear is a badge they learn to ignore. This is the one thing about
+  /// meetings that genuinely needs somebody, so it is the only thing that gets
+  /// to nag.
+  int get meetingsAwaitingAttendance => canScheduleMeetings
+      ? meetingsPast.where((m) => !m.attendanceRecorded && !m.isCancelled).length
+      : 0;
+
   /// Recognition, per department. There is no club-wide list by design — see
   /// [DepartmentRecognition].
   List<DepartmentRecognition> recognition = const [];
@@ -269,6 +299,15 @@ class ClubStore extends ChangeNotifier {
 
   final List<LiveToast> toasts = [];
 
+  /// The id of the task whose comment thread just changed, for whichever task
+  /// page happens to be open.
+  ///
+  /// A `ValueNotifier` rather than a `notifyListeners()` on the store: a
+  /// comment on somebody else's task must not rebuild Home, the Work tab and
+  /// every board for every member of the club. Threads are fetched by the
+  /// detail page directly, so this is a nudge addressed to one screen.
+  final ValueNotifier<String?> commentsChangedFor = ValueNotifier(null);
+
   LiveStatus get liveStatus => socket.status.value;
 
   // ------------------------------------------------------------- lifecycle
@@ -289,6 +328,11 @@ class ClubStore extends ChangeNotifier {
     outgoingRequests = const [];
     pendingApprovals = const [];
     today = const [];
+    // Cleared on sign-out with everything else, or the next person to use this
+    // phone sees the previous member's meetings.
+    meetingsUpcoming = const [];
+    meetingsPast = const [];
+    canScheduleMeetings = false;
     recognition = const [];
     unaffiliated = const [];
     departmentProgress = const [];
@@ -328,6 +372,7 @@ class ClubStore extends ChangeNotifier {
     _subscription.cancel();
     socket.status.removeListener(_onStatusChanged);
     socket.dispose();
+    commentsChangedFor.dispose();
     super.dispose();
   }
 
@@ -354,6 +399,11 @@ class ClubStore extends ChangeNotifier {
         loadEvents(),
         loadHelp(),
         loadIncoming(),
+        // Adding a `load*` method is two edits, not one. `loadIncoming` was
+        // once written, called from two write paths, and left out of here —
+        // so a Lead's triage pile was empty until they happened to assign
+        // something. Anything the app must have on open belongs in this list.
+        loadMeetings(),
       ]);
       if (capabilities.canViewAudit || session.role == ClubRole.clubLead) {
         await loadPendingApprovals();
@@ -382,8 +432,8 @@ class ClubStore extends ChangeNotifier {
 
     capabilities =
         Capabilities.fromJson((json['capabilities'] as Map?)?.cast<String, dynamic>() ?? const {});
-    progress = WeekProgress.fromJson(
-        (json['progress'] as Map?)?.cast<String, dynamic>() ?? const {});
+    progress =
+        WeekProgress.fromJson((json['progress'] as Map?)?.cast<String, dynamic>() ?? const {});
 
     today = ((json['today'] as List?) ?? [])
         .whereType<Map>()
@@ -396,8 +446,8 @@ class ClubStore extends ChangeNotifier {
     } else if (next['kind'] == 'task' && next['task'] != null) {
       whatsNext = WhatsNext(task: ClubTask.fromJson((next['task'] as Map).cast<String, dynamic>()));
     } else if (next['kind'] == 'schedule' && next['entry'] != null) {
-      whatsNext = WhatsNext(
-          entry: ScheduleEntry.fromJson((next['entry'] as Map).cast<String, dynamic>()));
+      whatsNext =
+          WhatsNext(entry: ScheduleEntry.fromJson((next['entry'] as Map).cast<String, dynamic>()));
     } else {
       whatsNext = const WhatsNext();
     }
@@ -469,8 +519,7 @@ class ClubStore extends ChangeNotifier {
       tasks.where((t) => t.assignedTo == _meId).toList()..sort(_byUrgency);
 
   List<ClubTask> get assignedByMe =>
-      tasks.where((t) => t.assignedBy == _meId && t.assignedTo != _meId).toList()
-        ..sort(_byUrgency);
+      tasks.where((t) => t.assignedBy == _meId && t.assignedTo != _meId).toList()..sort(_byUrgency);
 
   int _byUrgency(ClubTask a, ClubTask b) {
     if (a.status.isOpen != b.status.isOpen) return a.status.isOpen ? -1 : 1;
@@ -520,8 +569,7 @@ class ClubStore extends ChangeNotifier {
 
   /// Categories that can be picked when creating, plus the derived deadline
   /// pseudo-category for filtering only.
-  List<ScheduleCategory> get activeCategories =>
-      categories.where((c) => c.active).toList();
+  List<ScheduleCategory> get activeCategories => categories.where((c) => c.active).toList();
 
   ScheduleCategory? categoryById(String? id) {
     if (id == null) return null;
@@ -553,10 +601,7 @@ class ClubStore extends ChangeNotifier {
     final json = await _api.post('/api/tasks', {
       'title': title,
       'description': description,
-      if (departmentId != null)
-        'departmentId': departmentId
-      else
-        'assignedTo': assignedTo,
+      if (departmentId != null) 'departmentId': departmentId else 'assignedTo': assignedTo,
       if (dueDate != null) 'dueDate': dueDate.toUtc().toIso8601String(),
       if (points != null) 'points': points,
       'priority': priority.name,
@@ -854,15 +899,12 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
-
   // ----------------------------------------------------------- member stats
-  Future<Map<String, dynamic>> memberStats(String userId) =>
-      _api.get('/api/users/$userId/stats');
+  Future<Map<String, dynamic>> memberStats(String userId) => _api.get('/api/users/$userId/stats');
 
   /// The club as an org chart: executive seats, then departments with their
   /// Lead and headline progress.
-  Future<Map<String, dynamic>> structure() =>
-      _api.get('/api/departments/structure');
+  Future<Map<String, dynamic>> structure() => _api.get('/api/departments/structure');
 
   /// The people in one department. The server refuses this for a Member asking
   /// about someone else's department.
@@ -1015,8 +1057,7 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Map<String, dynamic>> eventChecklist(String id) =>
-      _api.get('/api/events/$id/checklist');
+  Future<Map<String, dynamic>> eventChecklist(String id) => _api.get('/api/events/$id/checklist');
 
   /// Create an event and everything under it in one commit.
   ///
@@ -1094,10 +1135,9 @@ class ClubStore extends ChangeNotifier {
     return null;
   }
 
-  Future<void> addEventDepartment(String eventId, String departmentId,
-      {String notes = ''}) async {
-    await _api.post('/api/events/$eventId/departments',
-        {'departmentId': departmentId, 'notes': notes});
+  Future<void> addEventDepartment(String eventId, String departmentId, {String notes = ''}) async {
+    await _api
+        .post('/api/events/$eventId/departments', {'departmentId': departmentId, 'notes': notes});
     await Future.wait([loadEventWorkspace(eventId), loadEventBoard(eventId)]);
     notifyListeners();
   }
@@ -1124,8 +1164,8 @@ class ClubStore extends ChangeNotifier {
   }
 
   Future<void> claimEventTask(String eventId, String taskId, {String? userId}) async {
-    await _api.post('/api/events/$eventId/tasks/$taskId/claim',
-        {if (userId != null) 'userId': userId});
+    await _api
+        .post('/api/events/$eventId/tasks/$taskId/claim', {if (userId != null) 'userId': userId});
     await Future.wait([loadEventBoard(eventId), loadTasks()]);
     notifyListeners();
   }
@@ -1135,8 +1175,7 @@ class ClubStore extends ChangeNotifier {
   /// Optimistic: the card moves immediately and snaps back if the server
   /// refuses, because a board that waits for a round trip before the card
   /// moves feels broken on college Wi-Fi.
-  Future<void> setEventTaskStatus(
-      String eventId, EventTaskCard card, TaskStatus next) async {
+  Future<void> setEventTaskStatus(String eventId, EventTaskCard card, TaskStatus next) async {
     final board = _boards[eventId];
     if (board != null) {
       _boards[eventId] = [
@@ -1423,6 +1462,97 @@ class ClubStore extends ChangeNotifier {
     helpRequests = listFrom(json, 'requests', HelpRequest.fromJson);
   }
 
+  // ------------------------------------------------------------- meetings
+  Future<void> loadMeetings() async {
+    final json = await _api.get('/api/meetings');
+    meetingsUpcoming = listFrom(json, 'upcoming', Meeting.fromJson);
+    meetingsPast = listFrom(json, 'past', Meeting.fromJson);
+    canScheduleMeetings = json['canSchedule'] == true;
+  }
+
+  /// One meeting in full, with its participant list.
+  ///
+  /// The list endpoint deliberately does not carry every invitee — thirty
+  /// meetings times thirty names is a payload nobody reads — so the detail
+  /// screen asks for the one it is showing. It also returns whether *this*
+  /// viewer may record attendance, so the UI never offers a control the server
+  /// would refuse.
+  Future<Map<String, dynamic>> meetingDetail(String id) => _api.get('/api/meetings/$id');
+
+  /// Call a meeting. Invitees arrive as named people, whole departments, or
+  /// both — the server resolves a department to its members once, at creation,
+  /// so the attendance sheet cannot change underneath the record later.
+  Future<void> createMeeting({
+    required String title,
+    required DateTime date,
+    String description = '',
+    String startTime = '',
+    String endTime = '',
+    String venue = '',
+    List<String> userIds = const [],
+    List<String> departmentIds = const [],
+  }) async {
+    await _api.post('/api/meetings', {
+      'title': title,
+      'description': description,
+      'date': date.toUtc().toIso8601String(),
+      'startTime': startTime,
+      'endTime': endTime,
+      'venue': venue,
+      'userIds': userIds,
+      'departmentIds': departmentIds,
+    });
+    // A meeting is a commitment with a date, so the schedule and Home have to
+    // know about it too — not just the meetings list.
+    await Future.wait([loadMeetings(), loadSchedule(), _loadHome()]);
+    notifyListeners();
+  }
+
+  Future<void> updateMeeting(
+    String id, {
+    String? title,
+    String? description,
+    DateTime? date,
+    String? startTime,
+    String? endTime,
+    String? venue,
+    MeetingStatus? status,
+  }) async {
+    await _api.patch('/api/meetings/$id', {
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (date != null) 'date': date.toUtc().toIso8601String(),
+      if (startTime != null) 'startTime': startTime,
+      if (endTime != null) 'endTime': endTime,
+      if (venue != null) 'venue': venue,
+      if (status != null) 'status': status.wire,
+    });
+    await Future.wait([loadMeetings(), loadSchedule(), _loadHome()]);
+    notifyListeners();
+  }
+
+  /// Record who turned up — the whole sheet in one call.
+  ///
+  /// Attendance is what every profile figure is derived from, so the boards
+  /// and the member list are refreshed with it rather than being left showing
+  /// the previous numbers.
+  Future<void> markAttendance(String meetingId, Map<String, AttendanceMark> marks) async {
+    await _api.post('/api/meetings/$meetingId/attendance', {
+      'attendance': marks.entries.map((e) => {'userId': e.key, 'status': e.value.wire}).toList(),
+    });
+    await Future.wait([loadMeetings(), loadMembers(), _loadHome()]);
+    notifyListeners();
+  }
+
+  /// One person's attendance record. Derived server-side from the meetings,
+  /// never a counter stored on the user.
+  Future<AttendanceRecord> attendanceFor(String userId) async {
+    final json = await _api.get('/api/meetings/attendance/$userId');
+    return AttendanceRecord.fromJson(
+      (json['attendance'] as Map?)?.cast<String, dynamic>() ?? const {},
+    );
+  }
+
   List<HelpRequest> get openHelp => helpRequests.where((h) => h.isOpen).toList();
 
   Future<void> askForHelp({
@@ -1499,7 +1629,6 @@ class ClubStore extends ChangeNotifier {
       case 'task:created':
       case 'task:updated':
         final task = ClubTask.fromJson(event.data);
-        final existing = tasks.any((t) => t.id == task.id);
         _upsertTask(task);
         // Event work moving on somebody else's screen should move on this one
         // too — but only refetch the board actually open, not all of them.
@@ -1508,49 +1637,32 @@ class ClubStore extends ChangeNotifier {
           unawaited(loadEventBoard(eventId));
           unawaited(loadEventWorkspace(eventId));
         }
-        if (event.name == 'task:created' && !existing && task.assignedTo == _meId) {
-          _addToast(LiveToast(
-            id: 'task-${task.id}',
-            title: 'NEW TASK',
-            body: task.title,
-            kind: ToastKind.taskAssigned,
-            taskId: task.id,
-            critical: true,
-          ));
-        }
+        // No toast here either: the server writes a `taskAssigned`
+        // notification for the same person at the same moment, and that is
+        // where toasts come from now.
         unawaited(_pushToWidget());
 
       case 'notification:new':
         unawaited(loadNotifications());
+        // Every live toast now comes from here.
+        //
+        // Toasts used to be raised from three *other* streams — a new task, a
+        // new alert, a new task request — which meant the other thirty
+        // notification types arrived in total silence while the app was open:
+        // a meeting invite, work handed to your department, a document waiting
+        // on you. The server already writes a notification for all of them,
+        // with copy identical to the push, so that is the one place to read.
+        _toastFor(AppNotification.fromJson(event.data));
 
       case 'alert:new':
         final alert = ClubAlert.fromJson(event.data);
         if (!alerts.any((a) => a.id == alert.id)) {
           alerts = [alert, ...alerts];
         }
-        _addToast(LiveToast(
-          id: 'alert-${alert.id}',
-          title: alert.urgency == AlertUrgency.urgent
-              ? 'URGENT · ${alert.senderName}'
-              : 'CLUB ALERT · ${alert.senderName}',
-          body: alert.title,
-          kind: ToastKind.alert,
-          critical: alert.urgency != AlertUrgency.normal,
-        ));
+      // No toast here: the same broadcast arrives as a `clubAlert`
+      // notification, and raising one from both streams showed it twice.
 
       case 'taskRequest:created':
-        final request = TaskRequest.fromJson(event.data);
-        if (request.toUserId == _meId) {
-          _addToast(LiveToast(
-            id: 'req-${request.id}',
-            title: 'TASK REQUEST',
-            body: '${request.fromName} asked you to take on "${request.title}".',
-            kind: ToastKind.taskRequest,
-            critical: true,
-          ));
-          unawaited(loadRequests());
-        }
-
       case 'taskRequest:updated':
         unawaited(loadRequests());
 
@@ -1608,10 +1720,55 @@ class ClubStore extends ChangeNotifier {
           unawaited(loadEventWorkspace(id));
         }
 
+      // Only the event's *id* travels for money and documents, never the
+      // figures — so refetch, and only for the event actually open. Refetching
+      // every board the app has ever loaded would turn one person filing an
+      // expense into a burst of requests from everybody in the club.
+      case 'bill:changed':
+        final id = event.data['eventId'] as String?;
+        if (id != null && _finance.containsKey(id)) {
+          unawaited(loadEventFinance(id));
+          unawaited(loadEventWorkspace(id));
+        }
+
+      // A comment thread is only ever shown on an open task detail page, which
+      // fetches it directly rather than through the store. Rebroadcasting is
+      // enough: the page listens and refetches its own thread.
+      case 'comment:changed':
+        final taskId = event.data['taskId'] as String?;
+        if (taskId != null) {
+          commentsChangedFor.value = taskId;
+          // Cleared straight away so a second comment on the *same* task still
+          // fires: a ValueNotifier is silent when the value does not change,
+          // which would have made every reply after the first one invisible.
+          commentsChangedFor.value = null;
+        }
+
+      case 'category:changed':
+        unawaited(loadCategories());
+        // A retired category leaves every entry that used it without a name or
+        // a colour until the schedule is refetched too.
+        unawaited(loadSchedule());
+
       case 'help:created':
       case 'help:updated':
       case 'help:deleted':
         unawaited(loadHelp());
+
+      case 'meeting:created':
+      case 'meeting:updated':
+      case 'meeting:deleted':
+        unawaited(loadMeetings());
+        // A meeting carries a date, so the schedule and Home's "what's next"
+        // move with it.
+        unawaited(loadSchedule());
+        unawaited(_loadHome());
+        // Attendance is what every profile and department figure is derived
+        // from, so recording it has to refresh those too — otherwise the
+        // numbers only catch up on the next cold start.
+        if (event.data['attendanceRecorded'] == true) {
+          unawaited(loadMembers());
+        }
 
       case 'user:updated':
         // Points or a role changed somewhere — the board may have moved.
@@ -1636,6 +1793,40 @@ class ClubStore extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------- toasts
+
+  /// Raise a live toast for a notification that just arrived.
+  ///
+  /// Not everything gets one. A toast interrupts whatever the person is
+  /// looking at, so it is spent on what needs them — the same test
+  /// [AppNotification.isActionable] applies to the accent in the list. The
+  /// rest still land in Alerts and still bump the badge; they just do not
+  /// shove themselves in front of somebody mid-sentence.
+  ///
+  /// The one exception is a club alert, which is a human deliberately
+  /// interrupting everybody and has already been counted out loud in the
+  /// compose sheet.
+  void _toastFor(AppNotification notification) {
+    final urgent = notification.type == 'clubAlert';
+    if (!notification.isActionable && !urgent) return;
+
+    _addToast(LiveToast(
+      // Keyed on the notification so the same one arriving twice — a
+      // reconnect replaying, say — cannot stack up.
+      id: 'note-${notification.id}',
+      title: notification.title.toUpperCase(),
+      body: notification.body,
+      kind: switch (notification.type) {
+        'taskAssigned' || 'departmentTaskAssigned' => ToastKind.taskAssigned,
+        'taskRequestReceived' => ToastKind.taskRequest,
+        'approvalNeeded' => ToastKind.approval,
+        'clubAlert' => ToastKind.alert,
+        _ => ToastKind.info,
+      },
+      target: notification.target,
+      critical: urgent || notification.isActionable,
+    ));
+  }
+
   void _addToast(LiveToast toast) {
     if (toasts.any((t) => t.id == toast.id)) return;
     toasts.insert(0, toast);

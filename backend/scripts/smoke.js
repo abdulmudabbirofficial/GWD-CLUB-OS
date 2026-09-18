@@ -88,11 +88,21 @@ async function main() {
   ok('Club Director can sign in', director.status === 200, JSON.stringify(director.body));
   const directorToken = director.body?.token;
 
+  // A password that came out of .env is a handover credential, not a private
+  // one: the file gets copied to a laptop, pasted into a hosting dashboard and
+  // read aloud when the account changes hands. The club's most privileged
+  // accounts must not be left standing on it.
+  ok('A seeded Director is made to choose their own password',
+    director.body?.user?.mustChangePassword === true,
+    JSON.stringify(director.body?.user));
+
   const president = await api('/api/auth/login', {
     method: 'POST',
     body: { email: 'president@gwd.club', password: 'PresidentPass1!' },
   });
   ok('President can sign in', president.status === 200);
+  ok('And so is the President', president.body?.user?.mustChangePassword === true,
+    JSON.stringify(president.body?.user));
   const presidentToken = president.body?.token;
 
   ok('Director is approved without ever queueing',
@@ -323,6 +333,28 @@ async function main() {
     `got ${notifications.body?.notifications?.length}`);
   ok('Notifications carry rendered copy for the UI',
     Boolean(notifications.body?.notifications?.[0]?.title));
+
+  // Without an id in the payload the app can only drop somebody on a list and
+  // let them find it, which is what "New task assigned" used to do.
+  const assignedNotes = (notifications.body?.notifications ?? [])
+    .filter((n) => n.type === 'taskAssigned');
+  ok('Task notifications exist to check', assignedNotes.length > 0);
+  ok('Every one of them says which task it is about',
+    assignedNotes.every((n) => Boolean(n.payload?.taskId)),
+    assignedNotes.filter((n) => !n.payload?.taskId)
+      .map((n) => JSON.stringify(n.payload)).join(' | '));
+  ok('Including the one for the task just handed to them',
+    assignedNotes.some((n) => n.payload?.taskId === taskId),
+    assignedNotes.map((n) => n.payload?.taskId).join(','));
+
+  // Every notification must render to something a human can read. A type
+  // without copy falls through to a blank body, which reaches the phone as a
+  // silent push saying "GWD Club".
+  const blank = (notifications.body?.notifications ?? [])
+    .filter((n) => !n.title || n.title === 'GWD Club');
+  ok('Every notification renders real copy, never the fallback',
+    blank.length === 0,
+    blank.map((n) => n.type).join(', '));
 
   // ------------------------------------- the primary approval path: a Lead
   // The checks above exercised escalation to the President, because a fresh
@@ -1180,6 +1212,41 @@ async function main() {
     && timeline.body.timeline.length > 0,
     `${timeline.body?.timeline?.length} entries`);
 
+  // ------------------------------------------------------- cancelling one
+  // An event vanishing from the list is not how somebody halfway through
+  // building a set should find out it is off.
+  console.log('\nevent cancellation');
+  const memberCancels = await api(`/api/events/${eventId}`, {
+    method: 'DELETE', token: memberToken,
+  });
+  ok('A Member cannot cancel an event', memberCancels.status === 403,
+    `got ${memberCancels.status}`);
+
+  const purgeBeforeCancel = await api(`/api/events/${eventId}?purge=true`, {
+    method: 'DELETE', token: presidentToken,
+  });
+  ok('A live event cannot be deleted outright in one step',
+    purgeBeforeCancel.status === 409, `got ${purgeBeforeCancel.status}`);
+
+  const cancelledEvent = await api(`/api/events/${eventId}`, {
+    method: 'DELETE', token: presidentToken,
+  });
+  ok('The President can cancel it', cancelledEvent.status === 200
+    && cancelledEvent.body.deleted === false, JSON.stringify(cancelledEvent.body));
+
+  const notesAfterCancel = await api('/api/notifications', { token: memberToken });
+  const cancelNote = (notesAfterCancel.body?.notifications ?? [])
+    .find((n) => n.type === 'eventCancelled');
+  ok('Everyone on the team is told', Boolean(cancelNote),
+    (notesAfterCancel.body?.notifications ?? []).map((n) => n.type).join(','));
+  ok('And the message says which event', cancelNote?.payload?.eventId === eventId);
+
+  const listAfterCancel = await api('/api/events', { token: memberToken });
+  ok('A cancelled event drops off the normal list',
+    !(listAfterCancel.body?.upcoming ?? []).some((e) => e.id === eventId)
+    && !(listAfterCancel.body?.past ?? []).some((e) => e.id === eventId),
+    'cancel hides it; it is not deleted');
+
   // ============================================== HELP & COLLABORATION (v3)
   console.log('\nhelp & collaboration');
   const asked = await api('/api/help', {
@@ -1785,6 +1852,102 @@ async function main() {
     });
     ok('But can still create a department', vpMakesDept.status === 201,
       `got ${vpMakesDept.status}`);
+
+    // ---- the middle tier, which nothing else covered --------------------
+    //
+    // The Vice President and the Secretary General are the two roles the suite
+    // barely touched, and they sit exactly where a permission mistake is
+    // easiest to make: senior enough to run the club, junior enough that
+    // several things must still be out of reach. The escalation bug above
+    // lived here.
+    console.log('\nthe middle tier');
+
+    const vpAssignable = await api('/api/users/assignable', { token: vpToken });
+    ok('A VP is offered departments, never a list of individuals',
+      (vpAssignable.body?.departments ?? []).length > 0
+      && (vpAssignable.body?.users ?? []).length === 0,
+      `${vpAssignable.body?.departments?.length} departments, `
+      + `${vpAssignable.body?.users?.length} people`);
+
+    const vpToMember = await api('/api/tasks', {
+      method: 'POST', token: vpToken,
+      body: { title: `VP straight to a member ${RUN}`, assignedTo: memberId },
+    });
+    ok('And cannot hand work straight to a member, bypassing their Lead',
+      vpToMember.status === 403, `got ${vpToMember.status}`);
+
+    const vpToDept = await api('/api/tasks', {
+      method: 'POST', token: vpToken,
+      body: { title: `VP to a department ${RUN}`, departmentId: creative.id },
+    });
+    ok('But can send it to the department, which is the whole point',
+      vpToDept.status === 201, `got ${vpToDept.status}`);
+
+    const vpRemoves = await api(`/api/users/${memberId}`, {
+      method: 'DELETE', token: vpToken,
+    });
+    ok('A VP cannot remove somebody from the club', vpRemoves.status === 403,
+      `got ${vpRemoves.status}`);
+
+    const vpAudit = await api('/api/audit', { token: vpToken });
+    ok('Nor read the audit log', vpAudit.status === 403, `got ${vpAudit.status}`);
+
+    const presidentAudit = await api('/api/audit', { token: presidentToken });
+    ok('While the President can — the gate is the role, not a 404',
+      presidentAudit.status === 200, `got ${presidentAudit.status}`);
+
+    // The Secretary General sits at the same tier. Nothing had exercised it at
+    // all, so a mistake there would have shipped silently.
+    const genSecSignup = await api('/api/auth/signup', {
+      method: 'POST',
+      body: {
+        name: `Matrix SecGen ${RUN}`, email: `matrixsg.${RUN}@gwd.club`,
+        phone: '9000000004', password: 'MatrixPass1', role: 'secretaryGeneral',
+      },
+    });
+    if (genSecSignup.body?.user?.id) {
+      const sgRow = (await api('/api/access/pending', { token: directorToken }))
+        .body.requests.find((r) => r.userId === genSecSignup.body.user.id);
+      if (sgRow) {
+        await api(`/api/access/${sgRow.id}/approve`, { method: 'POST', token: directorToken });
+      }
+      const sgToken = (await api('/api/auth/login', {
+        method: 'POST', body: { email: `matrixsg.${RUN}@gwd.club`, password: 'MatrixPass1' },
+      })).body?.token;
+
+      ok('A Secretary General can sign in once approved', Boolean(sgToken));
+
+      if (sgToken) {
+        const sgToMember = await api('/api/tasks', {
+          method: 'POST', token: sgToken,
+          body: { title: `SecGen straight to a member ${RUN}`, assignedTo: memberId },
+        });
+        ok('They assign to a department, not to a person either',
+          sgToMember.status === 403, `got ${sgToMember.status}`);
+
+        const sgRole = await api(`/api/users/${memberId}/role`, {
+          method: 'PATCH', token: sgToken, body: { role: 'clubLead' },
+        });
+        ok('And cannot edit roles', sgRole.status === 403, `got ${sgRole.status}`);
+
+        const sgDept = await api('/api/departments', {
+          method: 'POST', token: sgToken, body: { name: `SecGen dept ${RUN}` },
+        });
+        ok('Nor create departments — that is the VP and above',
+          sgDept.status === 403, `got ${sgDept.status}`);
+
+        // What they *can* do: see the club. Both roles are described as seeing
+        // the same tier as each other, and a role that can see nothing is a
+        // role nobody can do anything with.
+        const sgSeesPeople = await api('/api/users', { token: sgToken });
+        ok('But they can see the whole club', sgSeesPeople.status === 200
+          && (sgSeesPeople.body?.users ?? []).length > 0,
+          `got ${sgSeesPeople.status}`);
+
+        const sgSchedules = await api('/api/meetings', { token: sgToken });
+        ok('And call a meeting', sgSchedules.body?.canSchedule === true);
+      }
+    }
   }
 
   const presidentPromotesSelf = await api(`/api/users/${logins[0].body.user.id}/role`, {

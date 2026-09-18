@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -60,10 +61,15 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
       return Scaffold(
         backgroundColor: GwdColors.canvasOf(context),
         appBar: AppBar(),
-        body: const EmptyState(
-          icon: Icons.event_busy_outlined,
-          title: 'Not on the schedule',
-          message: 'This entry may have been removed.',
+        // Capped on a wide window: rows stretching the full width of a
+        // desktop browser or a tablet are unreadable however nicely the
+        // type is set.
+        body: const ContentWidth(
+          child: EmptyState(
+            icon: Icons.event_busy_outlined,
+            title: 'Not on the schedule',
+            message: 'This entry may have been removed.',
+          ),
         ),
       );
     }
@@ -92,13 +98,10 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
             child: Row(
               children: [
                 GwdChip(
-                    label: entry.categoryName.toUpperCase(),
-                    color: entry.tint,
-                    icon: entry.icon),
+                    label: entry.categoryName.toUpperCase(), color: entry.tint, icon: entry.icon),
                 const Spacer(),
                 Text(entry.relativeLabel,
-                    style: GwdType.caption
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
@@ -124,17 +127,12 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
                   ),
                   if (entry.location.isNotEmpty) ...[
                     _divider(context),
-                    _Fact(
-                        icon: Icons.place_outlined,
-                        label: 'Where',
-                        value: entry.location),
+                    _Fact(icon: Icons.place_outlined, label: 'Where', value: entry.location),
                   ],
                   if (entry.createdByName != null) ...[
                     _divider(context),
                     _Fact(
-                        icon: Icons.person_outline,
-                        label: 'Added by',
-                        value: entry.createdByName!),
+                        icon: Icons.person_outline, label: 'Added by', value: entry.createdByName!),
                   ],
                   if (store.departmentById(entry.departmentId) != null) ...[
                     _divider(context),
@@ -164,10 +162,7 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
                           value: entry.platform!.label),
                     if (entry.format != null) ...[
                       _divider(context),
-                      _Fact(
-                          icon: entry.format!.icon,
-                          label: 'Format',
-                          value: entry.format!.label),
+                      _Fact(icon: entry.format!.icon, label: 'Format', value: entry.format!.label),
                     ],
                     if (entry.stage != null) ...[
                       _divider(context),
@@ -177,12 +172,11 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
                               size: 16, color: GwdColors.inkTertiaryOf(context)),
                           const SizedBox(width: GwdSpace.md),
                           Text('Stage',
-                              style: GwdType.callout.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.callout
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                           const Spacer(),
                           GwdChip(
-                              label: entry.stage!.label.toUpperCase(),
-                              color: entry.stage!.tint),
+                              label: entry.stage!.label.toUpperCase(), color: entry.stage!.tint),
                         ],
                       ),
                     ],
@@ -248,16 +242,14 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
               children: [
                 for (final a in _attendees)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: GwdSpace.md, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: 6),
                     decoration: BoxDecoration(
                       color: GwdColors.surfaceOf(context),
                       borderRadius: BorderRadius.circular(GwdRadius.pill),
                       border: Border.all(color: GwdColors.hairlineOf(context)),
                     ),
                     child: Text(a['name'] ?? '',
-                        style: GwdType.footnote
-                            .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
                   ),
               ],
             ),
@@ -282,8 +274,20 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
       Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context));
 
   static String _when(ScheduleEntry entry) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     final d = entry.date;
     final base = '${d.day} ${months[d.month - 1]} · ${entry.timeLabel}';
     final end = entry.endDate;
@@ -343,8 +347,7 @@ class _Fact extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: GwdColors.inkTertiaryOf(context)),
         const SizedBox(width: GwdSpace.md),
-        Text(label,
-            style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+        Text(label, style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
         const SizedBox(width: GwdSpace.md),
         Expanded(
           child: Text(
@@ -381,12 +384,9 @@ class _RsvpBar extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppleDuration.standard,
         curve: AppleCurves.standard,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.lg, vertical: GwdSpace.md),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg, vertical: GwdSpace.md),
         decoration: BoxDecoration(
-          color: going
-              ? GwdColors.success.withValues(alpha: 0.12)
-              : GwdColors.surfaceOf(context),
+          color: going ? GwdColors.success.withValues(alpha: 0.12) : GwdColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.lg),
           border: Border.all(
             color: going ? GwdColors.success : GwdColors.hairlineOf(context),
@@ -415,8 +415,7 @@ class _RsvpBar extends StatelessWidget {
             ),
             if (count > 0)
               Text('$count going',
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
         ),
       ),

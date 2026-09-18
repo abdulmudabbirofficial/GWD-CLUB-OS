@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -14,7 +15,7 @@ import 'task_detail_page.dart';
 
 /// Section 6.2 — one page, two tabs.
 ///
-/// *Assigned Task* only exists for roles that can assign; a Member never sees
+/// *Handed out* only exists for roles that can assign; a Member never sees
 /// a tab they can do nothing with. The task-request action sits in the compose
 /// sheet as a mode, not as a third tab.
 class TasksPage extends StatefulWidget {
@@ -35,8 +36,7 @@ class _TasksPageState extends State<TasksPage> {
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     final tasks = _tab == 0 ? store.myTasks : store.assignedByMe;
-    final visible =
-        _filter == null ? tasks : tasks.where((t) => t.status == _filter).toList();
+    final visible = _filter == null ? tasks : tasks.where((t) => t.status == _filter).toList();
 
     final pendingRequests = store.incomingRequests.where((r) => r.isPending).toList();
 
@@ -52,151 +52,153 @@ class _TasksPageState extends State<TasksPage> {
               label: Text('New task', style: GwdType.headline.copyWith(color: Colors.white)),
             )
           : null,
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadAll(silent: true),
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Work',
-                          style: GwdType.largeTitle
-                              .copyWith(color: GwdColors.inkOf(context))),
-                      const SizedBox(height: GwdSpace.lg),
-                      if (canAssign)
-                        _TabBar(
-                          index: _tab,
-                          mine: store.myTasks.where((t) => t.status.isOpen).length,
-                          assigned:
-                              store.assignedByMe.where((t) => t.status.isOpen).length,
-                          onChanged: (i) => setState(() {
-                            _tab = i;
-                            _filter = null;
-                          }),
-                        ),
-                      if (canAssign) const SizedBox(height: GwdSpace.lg),
-                      _StatusFilter(
-                        value: _filter,
-                        counts: _countsFor(tasks),
-                        onChanged: (s) => setState(() => _filter = s),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Work the leadership sent to this Lead's department that nobody
-            // has been given yet. Top of the screen because it is blocking
-            // somebody else, and it only exists while there is something in it.
-            if (_tab == 0 && store.incoming.isNotEmpty)
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadAll(silent: true),
+          child: CustomScrollView(
+            slivers: [
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SectionHeader(
-                        title: 'Sent to your department',
-                        subtitle: store.incoming.length == 1
-                            ? 'Decide who takes it on'
-                            : 'Decide who takes these on',
-                      ),
-                      for (final task in store.incoming)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                          child: _IncomingCard(task: task),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Work',
+                            style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+                        const SizedBox(height: GwdSpace.lg),
+                        if (canAssign)
+                          _TabBar(
+                            index: _tab,
+                            mine: store.myTasks.where((t) => t.status.isOpen).length,
+                            assigned: store.assignedByMe.where((t) => t.status.isOpen).length,
+                            onChanged: (i) => setState(() {
+                              _tab = i;
+                              _filter = null;
+                            }),
+                          ),
+                        if (canAssign) const SizedBox(height: GwdSpace.lg),
+                        _StatusFilter(
+                          value: _filter,
+                          counts: _countsFor(tasks),
+                          onChanged: (s) => setState(() => _filter = s),
                         ),
-                      const SizedBox(height: GwdSpace.lg),
-                    ],
+                        const SizedBox(height: GwdSpace.lg),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-            // Incoming task requests — a distinct action, shown above the list
-            // only when there are some, so it never becomes permanent furniture.
-            if (_tab == 0 && pendingRequests.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionHeader(title: 'Requests for you'),
-                      for (final request in pendingRequests)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                          child: _RequestCard(request: request, store: store),
+              // Work the leadership sent to this Lead's department that nobody
+              // has been given yet. Top of the screen because it is blocking
+              // somebody else, and it only exists while there is something in it.
+              if (_tab == 0 && store.incoming.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SectionHeader(
+                          title: 'Sent to your department',
+                          subtitle: store.incoming.length == 1
+                              ? 'Decide who takes it on'
+                              : 'Decide who takes these on',
                         ),
-                      const SizedBox(height: GwdSpace.lg),
-                    ],
+                        for (final task in store.incoming)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                            child: _IncomingCard(task: task),
+                          ),
+                        const SizedBox(height: GwdSpace.lg),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-            if (store.loading && !store.hasLoadedOnce)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const SkeletonList(),
+              // Incoming task requests — a distinct action, shown above the list
+              // only when there are some, so it never becomes permanent furniture.
+              if (_tab == 0 && pendingRequests.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SectionHeader(title: 'Requests for you'),
+                        for (final request in pendingRequests)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                            child: _RequestCard(request: request, store: store),
+                          ),
+                        const SizedBox(height: GwdSpace.lg),
+                      ],
+                    ),
+                  ),
                 ),
-              )
-            else if (visible.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: EmptyState(
-                  icon: _tab == 0 ? Icons.inbox_outlined : Icons.outbox_outlined,
-                  title: _tab == 0 ? 'No tasks for you' : 'You haven\'t assigned anything',
-                  message: _filter != null
-                      ? 'Nothing is ${_filter!.label.toLowerCase()} right now.'
-                      : _tab == 0
-                          ? 'When someone assigns you work, it appears here straight away.'
-                          : 'Work you hand to other people shows up here so you can track it.',
-                  action: _filter != null
-                      ? SecondaryButton(
-                          label: 'Clear filter',
-                          onPressed: () => setState(() => _filter = null),
-                        )
-                      : null,
-                ),
-              )
-            else
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 96),
-                sliver: SliverList.builder(
-                  itemCount: visible.length,
-                  itemBuilder: (context, i) {
-                    final task = visible[i];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                      child: AppleStaggerItem(
-                        index: i,
-                        // Keyed by id so a live update animates in place rather
-                        // than the whole list rebuilding underneath the user.
-                        child: TaskCard(
-                          key: ValueKey(task.id),
-                          task: task,
-                          subtitle: _tab == 0
-                              ? 'From ${store.memberName(task.assignedBy)}'
-                              : 'To ${store.memberName(task.assignedTo)}',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => TaskDetailPage(taskId: task.id)),
+
+              if (store.loading && !store.hasLoadedOnce)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: const SkeletonList(),
+                  ),
+                )
+              else if (visible.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyState(
+                    icon: _tab == 0 ? Icons.inbox_outlined : Icons.outbox_outlined,
+                    title: _tab == 0 ? 'No tasks for you' : 'You haven\'t assigned anything',
+                    message: _filter != null
+                        ? 'Nothing is ${_filter!.label.toLowerCase()} right now.'
+                        : _tab == 0
+                            ? 'When someone assigns you work, it appears here straight away.'
+                            : 'Work you hand to other people shows up here so you can track it.',
+                    action: _filter != null
+                        ? SecondaryButton(
+                            label: 'Clear filter',
+                            onPressed: () => setState(() => _filter = null),
+                          )
+                        : null,
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 96),
+                  sliver: SliverList.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) {
+                      final task = visible[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                        child: AppleStaggerItem(
+                          index: i,
+                          // Keyed by id so a live update animates in place rather
+                          // than the whole list rebuilding underneath the user.
+                          child: TaskCard(
+                            key: ValueKey(task.id),
+                            task: task,
+                            subtitle: _tab == 0
+                                ? 'From ${store.memberName(task.assignedBy)}'
+                                : 'To ${store.memberName(task.assignedTo)}',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: task.id)),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -234,8 +236,8 @@ class _TabBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _tab(context, 0, 'My Task', mine),
-          _tab(context, 1, 'Assigned Task', assigned),
+          _tab(context, 0, 'My tasks', mine),
+          _tab(context, 1, 'Handed out', assigned),
         ],
       ),
     );
@@ -256,8 +258,9 @@ class _TabBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? GwdColors.surfaceOf(context) : Colors.transparent,
             borderRadius: BorderRadius.circular(GwdRadius.sm),
-            boxShadow: selected ? GwdShadow.resting(
-                Theme.of(context).brightness == Brightness.dark) : null,
+            boxShadow: selected
+                ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -265,9 +268,7 @@ class _TabBar extends StatelessWidget {
               Text(
                 label,
                 style: GwdType.callout.copyWith(
-                  color: selected
-                      ? GwdColors.inkOf(context)
-                      : GwdColors.inkTertiaryOf(context),
+                  color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
@@ -275,9 +276,7 @@ class _TabBar extends StatelessWidget {
                 const SizedBox(width: 5),
                 Text('$count',
                     style: GwdType.caption.copyWith(
-                      color: selected
-                          ? GwdColors.primaryRed
-                          : GwdColors.inkTertiaryOf(context),
+                      color: selected ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(context),
                     )),
               ],
             ],
@@ -342,9 +341,8 @@ class _StatusFilter extends StatelessWidget {
               Text(
                 label,
                 style: GwdType.footnote.copyWith(
-                  color: selected
-                      ? GwdColors.surfaceOf(context)
-                      : GwdColors.inkSecondaryOf(context),
+                  color:
+                      selected ? GwdColors.surfaceOf(context) : GwdColors.inkSecondaryOf(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -398,9 +396,7 @@ class _IncomingCard extends StatelessWidget {
               const Spacer(),
               if (task.dueLabel != null)
                 Text(task.dueLabel!,
-                    style: GwdType.caption.copyWith(
-                        fontSize: 9.5,
-                        letterSpacing: 0,
+                    style: GwdType.micro.copyWith(
                         color: task.isOverdue
                             ? GwdColors.critical
                             : GwdColors.inkTertiaryOf(context))),
@@ -416,8 +412,7 @@ class _IncomingCard extends StatelessWidget {
             Text(task.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
           const SizedBox(height: GwdSpace.lg),
           SecondaryButton(
@@ -474,22 +469,19 @@ class _RequestCardState extends State<_RequestCard> {
                   'from ${request.fromName}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: GwdSpace.sm),
-          Text(request.title,
-              style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+          Text(request.title, style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
           if (request.description.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(request.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
           const SizedBox(height: GwdSpace.lg),
           Row(

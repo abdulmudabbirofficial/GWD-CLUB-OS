@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
+import '../../app/shell/club_shell.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -42,75 +44,80 @@ class _AlertsPageState extends State<AlertsPage> {
               backgroundColor: GwdColors.primaryRed,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.campaign_outlined, size: 20),
-              label: Text('Send alert',
-                  style: GwdType.headline.copyWith(color: Colors.white)),
+              label: Text('Send alert', style: GwdType.headline.copyWith(color: Colors.white)),
             )
           : null,
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () async {
-          await store.loadNotifications();
-          await store.loadAlerts();
-        },
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text('Alerts',
-                                style: GwdType.largeTitle
-                                    .copyWith(color: GwdColors.inkOf(context))),
-                          ),
-                          if (_tab == 0 && store.unreadNotifications > 0)
-                            PressableScale(
-                              haptic: HapticStrength.light,
-                              onTap: store.markAllRead,
-                              child: Text('Mark all read',
-                                  style: GwdType.footnote
-                                      .copyWith(color: GwdColors.primaryRed)),
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () async {
+            await store.loadNotifications();
+            await store.loadAlerts();
+          },
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('Alerts',
+                                  style:
+                                      GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      _Segments(
-                        index: _tab,
-                        forYou: store.unreadNotifications,
-                        club: broadcasts.length,
-                        onChanged: (i) => setState(() => _tab = i),
-                      ),
-                    ],
+                            if (_tab == 0 && store.unreadNotifications > 0)
+                              PressableScale(
+                                haptic: HapticStrength.light,
+                                onTap: store.markAllRead,
+                                child: Text('Mark all read',
+                                    style: GwdType.footnote.copyWith(color: GwdColors.primaryRed)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: GwdSpace.lg),
+                        _Segments(
+                          index: _tab,
+                          forYou: store.unreadNotifications,
+                          club: broadcasts.length,
+                          onChanged: (i) => setState(() => _tab = i),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            if (store.loading && !store.hasLoadedOnce)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const SkeletonList(count: 5, height: 68),
-                ),
-              )
-            else if (_tab == 0)
-              ..._personalSlivers(context, gutter, personal, store)
-            else
-              ..._clubSlivers(context, gutter, broadcasts, store),
-          ],
+              if (store.loading && !store.hasLoadedOnce)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: const SkeletonList(count: 5, height: 68),
+                  ),
+                )
+              else if (_tab == 0)
+                ..._personalSlivers(context, gutter, personal, store)
+              else
+                ..._clubSlivers(context, gutter, broadcasts, store),
+            ],
+          ),
         ),
       ),
     );
   }
 
   List<Widget> _personalSlivers(
-    BuildContext context, double gutter, List<AppNotification> items, store,
+    BuildContext context,
+    double gutter,
+    List<AppNotification> items,
+    store,
   ) {
     if (items.isEmpty) {
       return const [
@@ -119,8 +126,7 @@ class _AlertsPageState extends State<AlertsPage> {
           child: EmptyState(
             icon: Icons.notifications_none_rounded,
             title: 'Nothing for you yet',
-            message:
-                'Task assignments, approvals and points land here — and as a push '
+            message: 'Task assignments, approvals and points land here — and as a push '
                 'on your phone when the app is closed.',
           ),
         ),
@@ -138,7 +144,7 @@ class _AlertsPageState extends State<AlertsPage> {
               child: _NotificationRow(
                 key: ValueKey(items[i].id),
                 notification: items[i],
-                onTap: () => store.markNotificationRead(items[i].id),
+                onTap: () => _follow(store, items[i]),
               ),
             ),
           ),
@@ -147,8 +153,27 @@ class _AlertsPageState extends State<AlertsPage> {
     ];
   }
 
+  /// Mark it read, then go to whatever it is about.
+  ///
+  /// Tapping used to only mark it read, which made this a log rather than a way
+  /// in — "New task assigned" led nowhere. The shell owns the navigation
+  /// because most destinations are tabs, which a page-local navigator cannot
+  /// switch.
+  void _follow(store, AppNotification notification) {
+    if (!notification.read) store.markNotificationRead(notification.id);
+    if (!notification.opensSomething) return;
+    // This page is itself pushed on the shell's inner navigator, so it has to
+    // come off before the destination goes on — otherwise back lands here
+    // rather than where the person started.
+    Navigator.of(context).maybePop();
+    ClubShell.open(notification.target);
+  }
+
   List<Widget> _clubSlivers(
-    BuildContext context, double gutter, List<ClubAlert> items, store,
+    BuildContext context,
+    double gutter,
+    List<ClubAlert> items,
+    store,
   ) {
     if (items.isEmpty) {
       return [
@@ -252,8 +277,7 @@ class _Segments extends StatelessWidget {
                     borderRadius: BorderRadius.circular(GwdRadius.pill),
                   ),
                   child: Text('$count',
-                      style: GwdType.caption.copyWith(
-                        fontSize: 9,
+                      style: GwdType.micro.copyWith(
                         color: accent ? Colors.white : GwdColors.inkSecondaryOf(context),
                       )),
                 ),
@@ -279,9 +303,7 @@ class _NotificationRow extends StatelessWidget {
     return SurfaceCard(
       onTap: onTap,
       padding: const EdgeInsets.all(GwdSpace.md),
-      emphasis: unread && notification.isActionable
-          ? SurfaceEmphasis.live
-          : SurfaceEmphasis.quiet,
+      emphasis: unread && notification.isActionable ? SurfaceEmphasis.live : SurfaceEmphasis.quiet,
       backgroundColor: unread ? null : GwdColors.canvasOf(context),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,16 +332,15 @@ class _NotificationRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GwdType.headline.copyWith(
-                          color: unread
-                              ? GwdColors.inkOf(context)
-                              : GwdColors.inkSecondaryOf(context),
+                          color:
+                              unread ? GwdColors.inkOf(context) : GwdColors.inkSecondaryOf(context),
                         ),
                       ),
                     ),
                     const SizedBox(width: GwdSpace.sm),
                     Text(notification.timeAgo,
-                        style: GwdType.caption.copyWith(
-                            color: GwdColors.inkTertiaryOf(context), letterSpacing: 0)),
+                        style: GwdType.caption
+                            .copyWith(color: GwdColors.inkTertiaryOf(context), letterSpacing: 0)),
                     if (unread) ...[
                       const SizedBox(width: 6),
                       Container(
@@ -337,8 +358,7 @@ class _NotificationRow extends StatelessWidget {
                     notification.body,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ],
               ],
@@ -375,13 +395,11 @@ class _BroadcastCard extends StatelessWidget {
                     dense: true),
               const Spacer(),
               Text(alert.timeAgo,
-                  style: GwdType.caption
-                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context))),
             ],
           ),
           const SizedBox(height: GwdSpace.sm),
-          Text(alert.title,
-              style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+          Text(alert.title, style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
           const SizedBox(height: 4),
           Text(alert.message,
               style: GwdType.body.copyWith(color: GwdColors.inkSecondaryOf(context))),
@@ -391,8 +409,8 @@ class _BroadcastCard extends StatelessWidget {
               // Always signed. An unsigned club-wide alert is how this feature
               // gets abused.
               Text(alert.senderName,
-                  style: GwdType.footnote.copyWith(
-                      color: GwdColors.inkOf(context), fontWeight: FontWeight.w700)),
+                  style: GwdType.footnote
+                      .copyWith(color: GwdColors.inkOf(context), fontWeight: FontWeight.w700)),
               const SizedBox(width: GwdSpace.sm),
               GwdChip(
                   label: alert.senderRole.badge,
@@ -401,8 +419,7 @@ class _BroadcastCard extends StatelessWidget {
               const Spacer(),
               if (alert.recipientCount > 0)
                 Text('${alert.recipientCount} reached',
-                    style: GwdType.caption
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context))),
             ],
           ),
         ],

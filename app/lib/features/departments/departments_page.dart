@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -26,8 +27,7 @@ class DepartmentsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Departments',
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Departments', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showEditor(context),
@@ -36,27 +36,32 @@ class DepartmentsPage extends StatelessWidget {
         icon: const Icon(Icons.add_rounded, size: 20),
         label: Text('New', style: GwdType.headline.copyWith(color: Colors.white)),
       ),
-      body: departments.isEmpty
-          ? const EmptyState(
-              icon: Icons.workspaces_outline,
-              title: 'No departments yet',
-              message:
-                  'Create the first one and members will be able to pick it when they sign up.',
-            )
-          : ListView.builder(
-              padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 96),
-              itemCount: departments.length,
-              itemBuilder: (context, i) => Padding(
-                padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                child: AppleStaggerItem(
-                  index: i,
-                  child: _DepartmentCard(
-                    key: ValueKey(departments[i].id),
-                    department: departments[i],
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: departments.isEmpty
+            ? const EmptyState(
+                icon: Icons.workspaces_outline,
+                title: 'No departments yet',
+                message:
+                    'Create the first one and members will be able to pick it when they sign up.',
+              )
+            : ListView.builder(
+                padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 96),
+                itemCount: departments.length,
+                itemBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                  child: AppleStaggerItem(
+                    index: i,
+                    child: _DepartmentCard(
+                      key: ValueKey(departments[i].id),
+                      department: departments[i],
+                    ),
                   ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }
@@ -79,8 +84,7 @@ class _DepartmentCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Avatar(
-                    initials: department.initials, tint: department.tint, size: 42),
+                Avatar(initials: department.initials, tint: department.tint, size: 42),
                 const SizedBox(width: GwdSpace.md),
                 Expanded(
                   child: Column(
@@ -93,8 +97,7 @@ class _DepartmentCard extends StatelessWidget {
                             child: Text(department.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GwdType.headline
-                                    .copyWith(color: GwdColors.inkOf(context))),
+                                style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                           ),
                           if (inactive) ...[
                             const SizedBox(width: GwdSpace.sm),
@@ -108,8 +111,7 @@ class _DepartmentCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${department.memberCount} member${department.memberCount == 1 ? '' : 's'}',
-                        style: GwdType.footnote
-                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                       ),
                     ],
                   ),
@@ -125,8 +127,7 @@ class _DepartmentCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.flag_outlined,
-                      size: 15, color: GwdColors.inkTertiaryOf(context)),
+                  Icon(Icons.flag_outlined, size: 15, color: GwdColors.inkTertiaryOf(context)),
                   const SizedBox(width: GwdSpace.sm),
                   Expanded(
                     child: Text(
@@ -192,8 +193,7 @@ Future<void> _pickLead(BuildContext context, Department department) async {
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   children: [
                     for (final member in candidates)
                       Padding(
@@ -216,15 +216,12 @@ Future<void> _pickLead(BuildContext context, Department department) async {
                             ),
                             child: Row(
                               children: [
-                                Avatar(
-                                    initials: member.initials,
-                                    tint: member.tint,
-                                    size: 34),
+                                Avatar(initials: member.initials, tint: member.tint, size: 34),
                                 const SizedBox(width: GwdSpace.md),
                                 Expanded(
                                   child: Text(member.name,
-                                      style: GwdType.headline.copyWith(
-                                          color: GwdColors.inkOf(sheetContext))),
+                                      style: GwdType.headline
+                                          .copyWith(color: GwdColors.inkOf(sheetContext))),
                                 ),
                                 if (member.id == department.leadUserId)
                                   const Icon(Icons.check_circle_rounded,
@@ -275,8 +272,7 @@ class _DepartmentEditor extends StatefulWidget {
 
 class _DepartmentEditorState extends State<_DepartmentEditor> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _description =
-      TextEditingController(text: widget.existing?.description ?? '');
+  late final _description = TextEditingController(text: widget.existing?.description ?? '');
   bool _busy = false;
   String? _error;
 
@@ -289,12 +285,14 @@ class _DepartmentEditorState extends State<_DepartmentEditor> {
 
   Future<void> _save() async {
     if (_name.text.trim().length < 2) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     final store = AppScope.readStore(context);
     try {
       if (widget.existing == null) {
-        await store.createDepartment(_name.text.trim(),
-            description: _description.text.trim());
+        await store.createDepartment(_name.text.trim(), description: _description.text.trim());
       } else {
         await store.updateDepartment(widget.existing!.id,
             name: _name.text.trim(), description: _description.text.trim());
@@ -324,13 +322,10 @@ class _DepartmentEditorState extends State<_DepartmentEditor> {
           children: [
             SheetHeader(
               title: existing == null ? 'New department' : 'Edit department',
-              subtitle: existing == null
-                  ? 'Members can pick it at signup straight away'
-                  : null,
+              subtitle: existing == null ? 'Members can pick it at signup straight away' : null,
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+              padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
               child: Column(
                 children: [
                   GwdField(

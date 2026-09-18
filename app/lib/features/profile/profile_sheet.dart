@@ -48,7 +48,6 @@ class _ProfileSheet extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xxl),
           children: [
             const SheetHeader(title: 'You'),
-
             if (me != null) ...[
               SurfaceCard(
                 child: Column(
@@ -79,8 +78,8 @@ class _ProfileSheet extends StatelessWidget {
                               Text(me.positionLine(session.department?.name),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GwdType.footnote.copyWith(
-                                      color: GwdColors.inkTertiaryOf(context))),
+                                  style: GwdType.footnote
+                                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
                             ],
                           ),
                         ),
@@ -90,13 +89,11 @@ class _ProfileSheet extends StatelessWidget {
                             children: [
                               AnimatedCounter(
                                 value: me.points,
-                                style: GwdType.title2
-                                    .copyWith(color: GwdColors.inkOf(context)),
+                                style: GwdType.title2.copyWith(color: GwdColors.inkOf(context)),
                               ),
                               Text('POINTS',
-                                  style: GwdType.caption.copyWith(
-                                      color: GwdColors.inkTertiaryOf(context),
-                                      fontSize: 8.5)),
+                                  style: GwdType.microLabel
+                                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
                             ],
                           ),
                       ],
@@ -112,11 +109,11 @@ class _ProfileSheet extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(role.title,
-                                  style: GwdType.headline
-                                      .copyWith(color: GwdColors.inkOf(context))),
+                                  style:
+                                      GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                               Text(role.remit,
-                                  style: GwdType.footnote.copyWith(
-                                      color: GwdColors.inkTertiaryOf(context))),
+                                  style: GwdType.footnote
+                                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
                             ],
                           ),
                         ),
@@ -129,16 +126,15 @@ class _ProfileSheet extends StatelessWidget {
                             size: 16, color: GwdColors.inkTertiaryOf(context)),
                         const SizedBox(width: GwdSpace.md),
                         Text('Email',
-                            style: GwdType.callout.copyWith(
-                                color: GwdColors.inkTertiaryOf(context))),
+                            style:
+                                GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
                         const Spacer(),
                         Flexible(
                           child: Text(me.email,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.end,
-                              style: GwdType.headline
-                                  .copyWith(color: GwdColors.inkOf(context))),
+                              style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                         ),
                       ],
                     ),
@@ -150,12 +146,11 @@ class _ProfileSheet extends StatelessWidget {
                               size: 16, color: GwdColors.inkTertiaryOf(context)),
                           const SizedBox(width: GwdSpace.md),
                           Text('Department',
-                              style: GwdType.callout.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.callout
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                           const Spacer(),
                           Text(session.department!.name,
-                              style: GwdType.headline
-                                  .copyWith(color: GwdColors.inkOf(context))),
+                              style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                         ],
                       ),
                     ],
@@ -163,7 +158,6 @@ class _ProfileSheet extends StatelessWidget {
                 ),
               ),
             ],
-
             const SizedBox(height: GwdSpace.xl),
             _SettingRow(
               icon: Icons.person_outline_rounded,
@@ -174,14 +168,12 @@ class _ProfileSheet extends StatelessWidget {
               highlight: me?.mustSetName == true,
               onTap: () => showSetNameSheet(context),
             ),
-
             const SizedBox(height: GwdSpace.md),
             _SettingRow(
               icon: Icons.lock_outline_rounded,
               label: 'Change password',
               onTap: () => showChangePasswordSheet(context),
             ),
-
             const SizedBox(height: GwdSpace.md),
             PressableScale(
               onTap: () async {
@@ -205,13 +197,11 @@ class _ProfileSheet extends StatelessWidget {
                   children: [
                     const Icon(Icons.logout_rounded, size: 18, color: GwdColors.critical),
                     const SizedBox(width: GwdSpace.md),
-                    Text('Sign out',
-                        style: GwdType.headline.copyWith(color: GwdColors.critical)),
+                    Text('Sign out', style: GwdType.headline.copyWith(color: GwdColors.critical)),
                   ],
                 ),
               ),
             ),
-
             const SizedBox(height: GwdSpace.xl),
             Center(
               child: Text(
@@ -266,8 +256,7 @@ class _SettingRow extends StatelessWidget {
             Expanded(
               child: Text(label, style: GwdType.headline.copyWith(color: tint)),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),

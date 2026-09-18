@@ -13,6 +13,7 @@ import '../directory/directory_page.dart';
 import '../help/help_page.dart';
 import '../leaderboard/leaderboard_page.dart';
 import '../leaderboard/my_overview_page.dart';
+import '../meetings/meetings_page.dart';
 import '../profile/profile_sheet.dart';
 import '../schedule/schedule_page.dart';
 import 'structure_page.dart';
@@ -39,192 +40,209 @@ class MorePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadAll(silent: true),
-        child: ListView(
-          padding:
-              EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: GwdSpace.lg),
-                child: AppleStaggerItem(
-                  index: next(),
-                  child: _ProfileHeader(),
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadAll(silent: true),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: GwdSpace.lg),
+                  child: AppleStaggerItem(
+                    index: next(),
+                    child: _ProfileHeader(),
+                  ),
                 ),
               ),
-            ),
 
-            // ---------- what is happening ----------
-            const SizedBox(height: GwdSpace.xxl),
-            AppleStaggerItem(
-              index: next(),
-              child: const SectionHeader(title: 'What is happening'),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.calendar_month_rounded,
-                tint: GwdColors.primaryRed,
-                title: 'Schedule',
-                subtitle: 'Meetings, shoots, deadlines — the whole calendar',
-                onTap: () => _push(context, const SchedulePage()),
+              // ---------- what is happening ----------
+              const SizedBox(height: GwdSpace.xxl),
+              AppleStaggerItem(
+                index: next(),
+                child: const SectionHeader(title: 'What is happening'),
               ),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.campaign_outlined,
-                tint: GwdColors.warning,
-                title: 'Announcements',
-                subtitle: 'Alerts sent to the club',
-                badge: store.unreadNotifications,
-                onTap: () => _push(context, const AlertsPage()),
-              ),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.volunteer_activism_outlined,
-                tint: GwdColors.success,
-                title: 'Help & collaboration',
-                subtitle: 'Who needs a hand, and who is offering',
-                badge: store.openHelp.length,
-                onTap: () => _push(context, const HelpPage()),
-              ),
-            ),
-
-            // ---------- people ----------
-            const SizedBox(height: GwdSpace.xl),
-            AppleStaggerItem(
-              index: next(),
-              child: const SectionHeader(title: 'People'),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.people_outline_rounded,
-                tint: GwdColors.info,
-                title: 'Member directory',
-                subtitle: 'Everyone in the club, by department',
-                onTap: () => _push(context, const DirectoryPage()),
-              ),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.account_tree_outlined,
-                tint: GwdColors.inkSecondaryOf(context),
-                title: 'Club structure',
-                subtitle: 'Executive, departments, Leads and members',
-                onTap: () => _push(context, const StructurePage()),
-              ),
-            ),
-            if (caps.onLeaderboard || caps.canViewAudit)
               AppleStaggerItem(
                 index: next(),
                 child: _Tile(
-                  icon: Icons.favorite_outline_rounded,
-                  tint: GwdColors.rubyDark,
-                  // Not "leaderboard". It is still everyone's progress in one
-                  // place — it just is not a contest.
-                  title: 'Recognition',
-                  subtitle: 'Everyone’s progress, and points given by hand',
-                  onTap: () => _push(context, const LeaderboardPage()),
+                  icon: Icons.calendar_month_rounded,
+                  tint: GwdColors.primaryRed,
+                  title: 'Schedule',
+                  subtitle: 'Meetings, shoots, deadlines — the whole calendar',
+                  onTap: () => _push(context, const SchedulePage()),
                 ),
               ),
-            // Only for people who actually give work out. For everyone else
-            // the answer is always "nothing", and a tile that is always empty
-            // is a tile that teaches people to stop looking.
-            if (caps.canAssign)
               AppleStaggerItem(
                 index: next(),
                 child: _Tile(
-                  icon: Icons.outbox_outlined,
+                  icon: Icons.groups_2_outlined,
                   tint: GwdColors.info,
-                  title: 'What I handed out',
-                  subtitle: 'How your assigned work is going, without opening each person',
-                  onTap: () => _push(context, const MyOverviewPage()),
+                  title: 'Meetings',
+                  // Separate from the Schedule on purpose: a schedule entry is a
+                  // date, a meeting has an invitee list and an attendance record,
+                  // and every attendance figure in the app comes from here.
+                  subtitle: 'Who is expected, and who turned up',
+                  badge: store.meetingsAwaitingAttendance,
+                  onTap: () => _push(context, const MeetingsPage()),
                 ),
               ),
-            if (store.pendingApprovals.isNotEmpty)
               AppleStaggerItem(
                 index: next(),
                 child: _Tile(
-                  icon: Icons.how_to_reg_outlined,
+                  icon: Icons.campaign_outlined,
+                  tint: GwdColors.warning,
+                  title: 'Announcements',
+                  subtitle: 'Alerts sent to the club',
+                  badge: store.unreadNotifications,
+                  onTap: () => _push(context, const AlertsPage()),
+                ),
+              ),
+              AppleStaggerItem(
+                index: next(),
+                child: _Tile(
+                  icon: Icons.volunteer_activism_outlined,
                   tint: GwdColors.success,
-                  title: 'Approvals',
-                  subtitle: 'People waiting to join',
-                  badge: store.pendingApprovals.length,
-                  onTap: () => _push(context, const ApprovalsPage()),
+                  title: 'Help & collaboration',
+                  subtitle: 'Who needs a hand, and who is offering',
+                  badge: store.openHelp.length,
+                  onTap: () => _push(context, const HelpPage()),
                 ),
               ),
 
-            // ---------- running the club ----------
-            if (caps.canManageDepartments || caps.canViewAudit) ...[
+              // ---------- people ----------
               const SizedBox(height: GwdSpace.xl),
               AppleStaggerItem(
                 index: next(),
-                child: const SectionHeader(
-                  title: 'Running the club',
-                  subtitle: 'Visible to supervisors and the President',
+                child: const SectionHeader(title: 'People'),
+              ),
+              AppleStaggerItem(
+                index: next(),
+                child: _Tile(
+                  icon: Icons.people_outline_rounded,
+                  tint: GwdColors.info,
+                  title: 'Member directory',
+                  subtitle: 'Everyone in the club, by department',
+                  onTap: () => _push(context, const DirectoryPage()),
                 ),
               ),
-              if (caps.canManageDepartments)
-                AppleStaggerItem(
-                  index: next(),
-                  child: _Tile(
-                    icon: Icons.workspaces_outline,
-                    tint: GwdColors.info,
-                    title: 'Manage departments',
-                    subtitle: 'Create, rename and assign Leads',
-                    onTap: () => _push(context, const DepartmentsPage()),
-                  ),
+              AppleStaggerItem(
+                index: next(),
+                child: _Tile(
+                  icon: Icons.account_tree_outlined,
+                  tint: GwdColors.inkSecondaryOf(context),
+                  title: 'Club structure',
+                  subtitle: 'Executive, departments, Leads and members',
+                  onTap: () => _push(context, const StructurePage()),
                 ),
-              if (caps.canViewAudit)
+              ),
+              if (caps.onLeaderboard || caps.canViewAudit)
                 AppleStaggerItem(
                   index: next(),
                   child: _Tile(
-                    icon: Icons.insights_outlined,
+                    icon: Icons.favorite_outline_rounded,
                     tint: GwdColors.rubyDark,
-                    title: 'Analytics & activity',
-                    subtitle: 'Completion by department, and the full audit log',
-                    onTap: () => _push(context, const AnalyticsPage()),
+                    // Not "leaderboard". It is still everyone's progress in one
+                    // place — it just is not a contest.
+                    title: 'Recognition',
+                    subtitle: 'Everyone’s progress, and points given by hand',
+                    onTap: () => _push(context, const LeaderboardPage()),
                   ),
                 ),
-            ],
+              // Only for people who actually give work out. For everyone else
+              // the answer is always "nothing", and a tile that is always empty
+              // is a tile that teaches people to stop looking.
+              if (caps.canAssign)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.outbox_outlined,
+                    tint: GwdColors.info,
+                    title: 'What I handed out',
+                    subtitle: 'How your assigned work is going, without opening each person',
+                    onTap: () => _push(context, const MyOverviewPage()),
+                  ),
+                ),
+              if (store.pendingApprovals.isNotEmpty)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.how_to_reg_outlined,
+                    tint: GwdColors.success,
+                    title: 'Approvals',
+                    subtitle: 'People waiting to join',
+                    badge: store.pendingApprovals.length,
+                    onTap: () => _push(context, const ApprovalsPage()),
+                  ),
+                ),
 
-            // ---------- you ----------
-            const SizedBox(height: GwdSpace.xl),
-            AppleStaggerItem(
-              index: next(),
-              child: const SectionHeader(title: 'You'),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.settings_outlined,
-                tint: GwdColors.inkTertiaryOf(context),
-                title: 'Account & settings',
-                subtitle: me?.email ?? 'Server address, sign out',
-                onTap: () => showProfileSheet(context),
+              // ---------- running the club ----------
+              if (caps.canManageDepartments || caps.canViewAudit) ...[
+                const SizedBox(height: GwdSpace.xl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: const SectionHeader(
+                    title: 'Running the club',
+                    subtitle: 'Visible to supervisors and the President',
+                  ),
+                ),
+                if (caps.canManageDepartments)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: _Tile(
+                      icon: Icons.workspaces_outline,
+                      tint: GwdColors.info,
+                      title: 'Manage departments',
+                      subtitle: 'Create, rename and assign Leads',
+                      onTap: () => _push(context, const DepartmentsPage()),
+                    ),
+                  ),
+                if (caps.canViewAudit)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: _Tile(
+                      icon: Icons.insights_outlined,
+                      tint: GwdColors.rubyDark,
+                      title: 'Analytics & activity',
+                      subtitle: 'Completion by department, and the full audit log',
+                      onTap: () => _push(context, const AnalyticsPage()),
+                    ),
+                  ),
+              ],
+
+              // ---------- you ----------
+              const SizedBox(height: GwdSpace.xl),
+              AppleStaggerItem(
+                index: next(),
+                child: const SectionHeader(title: 'You'),
               ),
-            ),
-
-            const SizedBox(height: GwdSpace.xxl),
-            AppleStaggerItem(
-              index: next(),
-              child: Center(
-                child: Text(
-                  '${session.clubName} · ${store.members.length} members',
-                  style: GwdType.caption
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+              AppleStaggerItem(
+                index: next(),
+                child: _Tile(
+                  icon: Icons.settings_outlined,
+                  tint: GwdColors.inkTertiaryOf(context),
+                  title: 'Account & settings',
+                  subtitle: me?.email ?? 'Server address, sign out',
+                  onTap: () => showProfileSheet(context),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: GwdSpace.xxl),
+              AppleStaggerItem(
+                index: next(),
+                child: Center(
+                  child: Text(
+                    '${session.clubName} · ${store.members.length} members',
+                    style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -258,8 +276,7 @@ class _ProfileHeader extends StatelessWidget {
                 Text(me.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.title2
-                        .copyWith(color: GwdColors.inkOf(context))),
+                    style: GwdType.title2.copyWith(color: GwdColors.inkOf(context))),
                 const SizedBox(height: 3),
                 Row(
                   children: [
@@ -270,8 +287,8 @@ class _ProfileHeader extends StatelessWidget {
                         child: Text(department.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GwdType.footnote.copyWith(
-                                color: GwdColors.inkTertiaryOf(context))),
+                            style:
+                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       ),
                     ],
                   ],
@@ -279,8 +296,7 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: 18, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -329,15 +345,12 @@ class _Tile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title,
-                      style: GwdType.headline
-                          .copyWith(color: GwdColors.inkOf(context))),
+                  Text(title, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                   const SizedBox(height: 1),
                   Text(subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
@@ -348,14 +361,11 @@ class _Tile extends StatelessWidget {
                   color: GwdColors.primaryRed,
                   borderRadius: BorderRadius.circular(GwdRadius.pill),
                 ),
-                child: Text('$badge',
-                    style: GwdType.caption
-                        .copyWith(color: Colors.white, fontSize: 9.5)),
+                child: Text('$badge', style: GwdType.micro.copyWith(color: Colors.white)),
               ),
               const SizedBox(width: GwdSpace.sm),
             ],
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),

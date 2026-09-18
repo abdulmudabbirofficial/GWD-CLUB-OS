@@ -238,8 +238,7 @@ class PrimaryButton extends StatelessWidget {
               children: [
                 if (icon != null) ...[
                   Icon(icon,
-                      size: 17,
-                      color: enabled ? Colors.white : GwdColors.inkTertiaryOf(context)),
+                      size: 17, color: enabled ? Colors.white : GwdColors.inkTertiaryOf(context)),
                   const SizedBox(width: GwdSpace.sm),
                 ],
                 Flexible(
@@ -427,9 +426,9 @@ class ErrorNote extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(GwdSpace.md),
         decoration: BoxDecoration(
-          color: GwdColors.criticalSoft,
+          color: GwdColors.tintOf(context, GwdColors.critical),
           borderRadius: BorderRadius.circular(GwdRadius.md),
-          border: Border.all(color: GwdColors.critical.withValues(alpha: 0.25)),
+          border: Border.all(color: GwdColors.tintBorderOf(context, GwdColors.critical)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

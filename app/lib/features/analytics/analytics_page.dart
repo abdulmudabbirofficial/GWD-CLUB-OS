@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -47,7 +48,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         _loading = false;
       });
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -60,87 +66,81 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Activity',
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Activity', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: _load,
-        child: _loading
-            ? Padding(
-                padding: EdgeInsets.symmetric(horizontal: gutter),
-                child: const SkeletonList(count: 4, height: 64),
-              )
-            : ListView(
-                padding:
-                    EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl),
-                children: [
-                  if (_error != null) ...[
-                    ErrorNote(message: _error!),
-                    const SizedBox(height: GwdSpace.lg),
-                  ],
-
-                  const SectionHeader(
-                    title: 'Completion by department',
-                    subtitle: 'Tasks finished against tasks created',
-                  ),
-                  if (_departments.isEmpty)
-                    const EmptyState(
-                      compact: true,
-                      icon: Icons.bar_chart_rounded,
-                      title: 'No data yet',
-                      message: 'Numbers appear once tasks start moving.',
-                    )
-                  else
-                    SurfaceCard(
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < _departments.length; i++) ...[
-                            if (i > 0)
-                              Divider(
-                                  height: GwdSpace.xl,
-                                  color: GwdColors.hairlineOf(context)),
-                            _DepartmentBar(
-                              name: '${_departments[i]['name']}',
-                              total: (_departments[i]['total'] as num?)?.toInt() ?? 0,
-                              completed:
-                                  (_departments[i]['completed'] as num?)?.toInt() ?? 0,
-                              rate: (_departments[i]['completionRate'] as num?)
-                                      ?.toInt() ??
-                                  0,
-                              avgHours:
-                                  (_departments[i]['avgCompletionHours'] as num?)
-                                      ?.toInt(),
-                              scale: maxTotal,
-                            ),
-                          ],
-                        ],
-                      ),
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: _load,
+          child: _loading
+              ? Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: const SkeletonList(count: 4, height: 64),
+                )
+              : ListView(
+                  padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl),
+                  children: [
+                    if (_error != null) ...[
+                      ErrorNote(message: _error!),
+                      const SizedBox(height: GwdSpace.lg),
+                    ],
+                    const SectionHeader(
+                      title: 'Completion by department',
+                      subtitle: 'Tasks finished against tasks created',
                     ),
-
-                  const SizedBox(height: GwdSpace.xxl),
-                  const SectionHeader(
-                    title: 'Activity log',
-                    subtitle: 'Who did what, most recent first',
-                  ),
-                  if (_audit.isEmpty)
-                    const EmptyState(
-                      compact: true,
-                      icon: Icons.history_rounded,
-                      title: 'Nothing logged yet',
-                      message: 'Actions are recorded here as they happen.',
-                    )
-                  else
-                    for (var i = 0; i < _audit.take(40).length; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                        child: AppleStaggerItem(
-                          index: i,
-                          child: _AuditRow(entry: _audit[i]),
+                    if (_departments.isEmpty)
+                      const EmptyState(
+                        compact: true,
+                        icon: Icons.bar_chart_rounded,
+                        title: 'No data yet',
+                        message: 'Numbers appear once tasks start moving.',
+                      )
+                    else
+                      SurfaceCard(
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < _departments.length; i++) ...[
+                              if (i > 0)
+                                Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
+                              _DepartmentBar(
+                                name: '${_departments[i]['name']}',
+                                total: (_departments[i]['total'] as num?)?.toInt() ?? 0,
+                                completed: (_departments[i]['completed'] as num?)?.toInt() ?? 0,
+                                rate: (_departments[i]['completionRate'] as num?)?.toInt() ?? 0,
+                                avgHours: (_departments[i]['avgCompletionHours'] as num?)?.toInt(),
+                                scale: maxTotal,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                ],
-              ),
+                    const SizedBox(height: GwdSpace.xxl),
+                    const SectionHeader(
+                      title: 'Activity log',
+                      subtitle: 'Who did what, most recent first',
+                    ),
+                    if (_audit.isEmpty)
+                      const EmptyState(
+                        compact: true,
+                        icon: Icons.history_rounded,
+                        title: 'Nothing logged yet',
+                        message: 'Actions are recorded here as they happen.',
+                      )
+                    else
+                      for (var i = 0; i < _audit.take(40).length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                          child: AppleStaggerItem(
+                            index: i,
+                            child: _AuditRow(entry: _audit[i]),
+                          ),
+                        ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -188,9 +188,7 @@ class _DepartmentBar extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final totalWidth = (total / scale).clamp(0.0, 1.0) * constraints.maxWidth;
-            final doneWidth = total == 0
-                ? 0.0
-                : (completed / total).clamp(0.0, 1.0) * totalWidth;
+            final doneWidth = total == 0 ? 0.0 : (completed / total).clamp(0.0, 1.0) * totalWidth;
             return SizedBox(
               height: 8,
               child: Stack(
@@ -271,8 +269,7 @@ class _AuditRow extends StatelessWidget {
     final when = DateTime.tryParse('${entry['createdAt']}')?.toLocal();
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: GwdSpace.md, vertical: GwdSpace.sm + 2),
+      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm + 2),
       decoration: BoxDecoration(
         color: GwdColors.surfaceOf(context),
         borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -285,13 +282,12 @@ class _AuditRow extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               text: TextSpan(
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                 children: [
                   TextSpan(
                     text: '${entry['actorName']} ',
-                    style: GwdType.footnote.copyWith(
-                        color: GwdColors.inkOf(context), fontWeight: FontWeight.w700),
+                    style: GwdType.footnote
+                        .copyWith(color: GwdColors.inkOf(context), fontWeight: FontWeight.w700),
                   ),
                   TextSpan(text: _labels[action] ?? action),
                 ],
@@ -302,8 +298,8 @@ class _AuditRow extends StatelessWidget {
             const SizedBox(width: GwdSpace.sm),
             Text(
               '${when.day}/${when.month}',
-              style: GwdType.caption.copyWith(
-                  color: GwdColors.inkTertiaryOf(context), letterSpacing: 0),
+              style: GwdType.caption
+                  .copyWith(color: GwdColors.inkTertiaryOf(context), letterSpacing: 0),
             ),
           ],
         ],

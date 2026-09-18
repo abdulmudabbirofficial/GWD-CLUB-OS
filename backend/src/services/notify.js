@@ -97,10 +97,6 @@ const COPY = {
     title: 'Lead approval pending',
     body: `${p.applicantName ?? 'A Lead'} is awaiting approval from the President.`,
   }),
-  eventReminder: (p) => ({
-    title: p.eventTitle ?? 'Upcoming event',
-    body: p.when ?? 'Coming up soon.',
-  }),
   pointsEarned: (p) => ({
     title: `+${p.points ?? 0} points`,
     body: p.reason ?? 'Nice work.',
@@ -125,10 +121,13 @@ const COPY = {
     title: `+${p.points ?? 0} points`,
     body: `${p.byName ?? 'Someone'} recognised you${p.reason ? `: ${p.reason}` : '.'}`,
   }),
-  scheduleAdded: (p) => ({
-    title: 'Added to the schedule',
-    body: p.entryTitle ?? 'Something new is on the club schedule.',
-  }),
+  // Deliberately no `scheduleAdded` and no `eventReminder`. Both existed here
+  // for months without a single caller, and wiring them would mean every new
+  // rehearsal paging the whole club automatically - which is precisely what
+  // broadcasts exist to do deliberately, with the compose sheet telling the
+  // sender how many people they are about to interrupt first. The schedule is
+  // a surface people pull: it live-syncs over the socket, and Home leads with
+  // what is on today.
 
   // --- events --------------------------------------------------------------
   eventCreated: (p) => ({
@@ -200,13 +199,23 @@ const COPY = {
   }),
 
   // --- people ---------------------------------------------------------------
-  memberRemoved: (p) => ({
-    title: 'Membership ended',
-    body: `${p.byName ?? 'A Director'} removed your account from ${p.clubName ?? 'the club'}.`,
-  }),
+  //
+  // There is deliberately no `memberRemoved` addressed to the person removed:
+  // `DELETE /api/users/:id` deletes their account and their notifications in
+  // the same request, so there would be nowhere to deliver it. What the club
+  // needs instead is for somebody to pick up the work they were carrying.
+  workReturnedToDepartment: (p) => {
+    const n = Number(p.count ?? 0);
+    return {
+      title: n === 1 ? '1 task needs a new owner' : `${n} tasks need a new owner`,
+      body: `${p.personName ?? 'Someone'} left ${p.departmentName ?? 'the department'}. `
+        + `Their open work is back in your list to hand out.`,
+    };
+  },
   departmentCreated: (p) => ({
     title: 'New department',
-    body: `${p.byName ?? 'Leadership'} added ${p.departmentName ?? 'a department'}.`,
+    body: `${p.byName ?? 'Leadership'} added ${p.departmentName ?? 'a department'}. `
+      + 'You can send work to it.',
   }),
   // --- meetings --------------------------------------------------------------
   meetingInvited: (p) => ({

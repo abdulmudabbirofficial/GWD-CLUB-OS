@@ -418,6 +418,33 @@ router.post('/', requireManage, async (request, response, next) => {
     const inserted = await col(C.departments).insertOne(doc);
     doc._id = inserted.insertedId;
     await audit(request.user._id, 'department.create', { name });
+
+    // Told to the tier that assigns work to departments, and nobody else.
+    // A new department changes where their work can go, so it is information
+    // they will act on; for a Member it would be a club-wide ping about an
+    // empty department they cannot use yet.
+    const assigners = await col(C.users)
+      .find(
+        {
+          role: { $in: [
+            ROLES.clubDirector, ROLES.facultyCoordinator,
+            ROLES.president, ROLES.vicePresident, ROLES.secretaryGeneral,
+          ] },
+          approvalStatus: 'approved',
+          _id: { $ne: request.user._id },
+        },
+        { projection: { _id: 1 } },
+      )
+      .toArray();
+
+    if (assigners.length > 0) {
+      await notify(assigners.map((u) => u._id), 'departmentCreated', {
+        departmentName: name,
+        departmentId: String(doc._id),
+        byName: request.user.name,
+      });
+    }
+
     response.status(201).json({ department: serialise(doc, 0) });
   } catch (error) {
     next(error);
@@ -493,6 +520,13 @@ router.put('/:id/lead', requireManage, async (request, response, next) => {
       });
     } else if (department.leadUserId) {
       await col(C.users).updateOne({ _id: department.leadUserId }, { $set: { role: ROLES.clubMember } });
+      // Told for the same reason as the replacement case above. Losing the
+      // Lead role silently means finding out when a button you used yesterday
+      // has gone, which reads as the app being broken rather than as a
+      // decision somebody made.
+      await notify(department.leadUserId, 'departmentChanged', {
+        message: `You are no longer the Lead of ${department.name}.`,
+      });
     }
 
     const updated = await col(C.departments).findOneAndUpdate(

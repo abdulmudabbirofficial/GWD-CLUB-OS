@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
 import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
+import '../../core/state/club_store.dart';
 
 /// Task detail.
 ///
@@ -32,6 +34,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   /// deliberately kept off it.
   ClubTask? _fetched;
 
+  ClubStore? _store;
+
   @override
   void initState() {
     super.initState();
@@ -39,7 +43,26 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Somebody else commenting on this task should appear without a refresh.
+    // The thread is fetched by this page rather than held in the store, so the
+    // store nudges with an id and the page decides whether it is about them —
+    // rebuilding every screen in the app for one comment would be absurd.
+    final store = AppScope.readStore(context);
+    if (identical(store, _store)) return;
+    _store?.commentsChangedFor.removeListener(_onCommentsChanged);
+    _store = store..commentsChangedFor.addListener(_onCommentsChanged);
+  }
+
+  void _onCommentsChanged() {
+    if (_store?.commentsChangedFor.value != widget.taskId) return;
+    _load();
+  }
+
+  @override
   void dispose() {
+    _store?.commentsChangedFor.removeListener(_onCommentsChanged);
     _comment.dispose();
     super.dispose();
   }
@@ -102,17 +125,21 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       return Scaffold(
         backgroundColor: GwdColors.canvasOf(context),
         appBar: AppBar(),
-        body: _loadingComments
-            ? const Padding(
-                padding: EdgeInsets.all(GwdSpace.xl),
-                child: SkeletonList(count: 3, height: 88),
-              )
-            : const EmptyState(
-                icon: Icons.search_off_rounded,
-                title: 'Task not found',
-                message:
-                    'It may have been removed, or you no longer have access to it.',
-              ),
+        // Capped on a wide window: rows stretching the full width of a
+        // desktop browser or a tablet are unreadable however nicely the
+        // type is set.
+        body: ContentWidth(
+          child: _loadingComments
+              ? const Padding(
+                  padding: EdgeInsets.all(GwdSpace.xl),
+                  child: SkeletonList(count: 3, height: 88),
+                )
+              : const EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'Task not found',
+                  message: 'It may have been removed, or you no longer have access to it.',
+                ),
+        ),
       );
     }
 
@@ -122,13 +149,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     // Director looking at somebody else's task saw no delete, even though the
     // server would have allowed it.
     final role = session.me?.role;
-    final isAssigner = task.assignedBy == session.me?.id
-        || role == ClubRole.clubDirector
-        || role == ClubRole.facultyCoordinator
-        || role == ClubRole.president
-        || (role == ClubRole.clubLead
-            && task.departmentId != null
-            && task.departmentId == session.me?.departmentId);
+    final isAssigner = task.assignedBy == session.me?.id ||
+        role == ClubRole.clubDirector ||
+        role == ClubRole.facultyCoordinator ||
+        role == ClubRole.president ||
+        (role == ClubRole.clubLead &&
+            task.departmentId != null &&
+            task.departmentId == session.me?.departmentId);
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     return Scaffold(
@@ -166,9 +193,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 if (task.dueLabel != null)
                   GwdChip(
                     label: task.dueLabel!.toUpperCase(),
-                    color: task.isOverdue
-                        ? GwdColors.critical
-                        : GwdColors.inkSecondaryOf(context),
+                    color: task.isOverdue ? GwdColors.critical : GwdColors.inkSecondaryOf(context),
                     icon: Icons.schedule_rounded,
                   ),
                 if (task.points > 0)
@@ -284,12 +309,11 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   onSubmitted: (_) => _submitComment(),
                   decoration: InputDecoration(
                     hintText: 'Add a comment…',
-                    hintStyle:
-                        GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    hintStyle: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     filled: true,
                     fillColor: GwdColors.sunkenOf(context),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: GwdSpace.lg, vertical: GwdSpace.md),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: GwdSpace.lg, vertical: GwdSpace.md),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(GwdRadius.pill),
                       borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
@@ -308,10 +332,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   width: 44,
                   height: 44,
                   alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                      color: GwdColors.primaryRed, shape: BoxShape.circle),
-                  child: const Icon(Icons.arrow_upward_rounded,
-                      size: 19, color: Colors.white),
+                  decoration:
+                      const BoxDecoration(color: GwdColors.primaryRed, shape: BoxShape.circle),
+                  child: const Icon(Icons.arrow_upward_rounded, size: 19, color: Colors.white),
                 ),
               ),
             ],
@@ -347,8 +370,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: GwdColors.critical)),
@@ -391,9 +413,7 @@ class _StatusTrack extends StatelessWidget {
                       height: i == active ? 30 : 22,
                       decoration: BoxDecoration(
                         color: i <= active
-                            ? (blocked && i == active
-                                ? GwdColors.warning
-                                : steps[i].tint)
+                            ? (blocked && i == active ? GwdColors.warning : steps[i].tint)
                             : GwdColors.sunkenOf(context),
                         shape: BoxShape.circle,
                       ),
@@ -411,12 +431,10 @@ class _StatusTrack extends StatelessWidget {
                 const SizedBox(height: 6),
                 AnimatedDefaultTextStyle(
                   duration: AppleDuration.standard,
-                  style: GwdType.caption.copyWith(
-                    fontSize: 9.5,
+                  style: GwdType.micro.copyWith(
                     letterSpacing: 0.3,
-                    color: i <= active
-                        ? GwdColors.inkOf(context)
-                        : GwdColors.inkTertiaryOf(context),
+                    color:
+                        i <= active ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
                   ),
                   child: Text(
                     blocked && i == active ? 'BLOCKED' : steps[i].label.toUpperCase(),
@@ -461,11 +479,9 @@ class _PersonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label,
-            style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+        Text(label, style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
         const Spacer(),
-        Text(you ? 'You' : name,
-            style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+        Text(you ? 'You' : name, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
       ],
     );
   }

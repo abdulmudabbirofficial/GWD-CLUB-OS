@@ -70,24 +70,29 @@ class _EventWorkspacePageState extends State<EventWorkspacePage>
       return Scaffold(
         backgroundColor: GwdColors.canvasOf(context),
         appBar: AppBar(),
-        body: _failed
-            ? EmptyState(
-                icon: Icons.wifi_off_rounded,
-                title: 'Could not open this event',
-                message: 'Check the connection and try again.',
-                action: SecondaryButton(
-                  label: 'Retry',
-                  icon: Icons.refresh_rounded,
-                  onPressed: () {
-                    setState(() => _failed = false);
-                    _load();
-                  },
+        // Capped on a wide window: rows stretching the full width of a
+        // desktop browser or a tablet are unreadable however nicely the
+        // type is set.
+        body: ContentWidth(
+          child: _failed
+              ? EmptyState(
+                  icon: Icons.wifi_off_rounded,
+                  title: 'Could not open this event',
+                  message: 'Check the connection and try again.',
+                  action: SecondaryButton(
+                    label: 'Retry',
+                    icon: Icons.refresh_rounded,
+                    onPressed: () {
+                      setState(() => _failed = false);
+                      _load();
+                    },
+                  ),
+                )
+              : const Padding(
+                  padding: EdgeInsets.all(GwdSpace.xl),
+                  child: SkeletonList(count: 4, height: 92),
                 ),
-              )
-            : const Padding(
-                padding: EdgeInsets.all(GwdSpace.xl),
-                child: SkeletonList(count: 4, height: 92),
-              ),
+        ),
       );
     }
 
@@ -104,8 +109,7 @@ class _EventWorkspacePageState extends State<EventWorkspacePage>
               child: _WorkspaceTabs(
                 controller: _tabs,
                 pendingApprovals: workspace.approvalsPending,
-                owedCount:
-                    store.financeFor(widget.eventId)?.awaitingDecision ?? 0,
+                owedCount: store.financeFor(widget.eventId)?.awaitingDecision ?? 0,
               ),
             ),
           ),
@@ -187,8 +191,7 @@ class _EventHeader extends StatelessWidget {
                     child: Opacity(
                       // Fade out well before it reaches the toolbar, so the two
                       // titles are never both legible.
-                      opacity: Curves.easeOut.transform(
-                          ((open - 0.35) / 0.65).clamp(0.0, 1.0)),
+                      opacity: Curves.easeOut.transform(((open - 0.35) / 0.65).clamp(0.0, 1.0)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -201,16 +204,15 @@ class _EventHeader extends StatelessWidget {
                               ],
                               Text(
                                 event.status.label.toUpperCase(),
-                                style:
-                                    GwdType.eyebrow.copyWith(color: Colors.white),
+                                style: GwdType.eyebrow.copyWith(color: Colors.white),
                               ),
                               Flexible(
                                 child: Text(
                                   '  ·  ${event.type.toUpperCase()}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GwdType.eyebrow.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.7)),
+                                  style: GwdType.eyebrow
+                                      .copyWith(color: Colors.white.withValues(alpha: 0.7)),
                                 ),
                               ),
                             ],
@@ -231,8 +233,8 @@ class _EventHeader extends StatelessWidget {
                             ].join('  ·  '),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GwdType.footnote.copyWith(
-                                color: Colors.white.withValues(alpha: 0.86)),
+                            style: GwdType.footnote
+                                .copyWith(color: Colors.white.withValues(alpha: 0.86)),
                           ),
                         ],
                       ),
@@ -248,8 +250,7 @@ class _EventHeader extends StatelessWidget {
                   height: kToolbarHeight,
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity:
-                          Curves.easeIn.transform((1 - (open / 0.35)).clamp(0.0, 1.0)),
+                      opacity: Curves.easeIn.transform((1 - (open / 0.35)).clamp(0.0, 1.0)),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -271,8 +272,7 @@ class _EventHeader extends StatelessWidget {
   }
 }
 
-Future<void> _showStatusSheet(
-    BuildContext context, ClubEvent event, String eventId) async {
+Future<void> _showStatusSheet(BuildContext context, ClubEvent event, String eventId) async {
   final store = AppScope.readStore(context);
   final messenger = ScaffoldMessenger.of(context);
 
@@ -299,8 +299,7 @@ Future<void> _showStatusSheet(
                     style: GwdType.body.copyWith(color: GwdColors.inkOf(sheetContext))),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
-                  await _applyStatus(
-                      context, store, messenger, eventId, event, status);
+                  await _applyStatus(context, store, messenger, eventId, event, status);
                 },
               ),
 
@@ -312,13 +311,13 @@ Future<void> _showStatusSheet(
               Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(sheetContext)),
               if (event.status != EventStatus.cancelled)
                 ListTile(
-                  leading: const Icon(Icons.event_busy_outlined,
-                      color: GwdColors.critical, size: 20),
+                  leading:
+                      const Icon(Icons.event_busy_outlined, color: GwdColors.critical, size: 20),
                   title: Text('Cancel this event',
                       style: GwdType.body.copyWith(color: GwdColors.critical)),
                   subtitle: Text('The work and paperwork are kept',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
+                      style:
+                          GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     await _confirmCancel(context, store, messenger, eventId, event);
@@ -331,8 +330,8 @@ Future<void> _showStatusSheet(
                   title: Text('Delete permanently',
                       style: GwdType.body.copyWith(color: GwdColors.critical)),
                   subtitle: Text('Removes its tasks, documents and bills too',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
+                      style:
+                          GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(sheetContext))),
                   onTap: () async {
                     Navigator.of(sheetContext).pop();
                     await _confirmPurge(context, store, messenger, eventId, event);
@@ -350,9 +349,9 @@ Future<void> _showStatusSheet(
 /// Cancelling is not the event lead's call — it discards work a lot of people
 /// did. Mirrors the server, which is the authority.
 bool _mayCancel(ClubRole? role) =>
-    role == ClubRole.clubDirector
-    || role == ClubRole.facultyCoordinator
-    || role == ClubRole.president;
+    role == ClubRole.clubDirector ||
+    role == ClubRole.facultyCoordinator ||
+    role == ClubRole.president;
 
 Future<void> _confirmCancel(
   BuildContext context,
@@ -372,21 +371,19 @@ Future<void> _confirmCancel(
         'Everyone on it is told. Its tasks, documents and expenses are kept, so '
         'nothing anybody already did is lost — and you can delete it outright '
         'afterwards if you want it gone.',
-        style: GwdType.callout
-            .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+        style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text('Keep it',
-              style: GwdType.callout
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+              style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text('Cancel the event',
-              style: GwdType.callout.copyWith(
-                  color: GwdColors.critical, fontWeight: FontWeight.w700)),
+              style:
+                  GwdType.callout.copyWith(color: GwdColors.critical, fontWeight: FontWeight.w700)),
         ),
       ],
     ),
@@ -419,21 +416,19 @@ Future<void> _confirmPurge(
       content: Text(
         'This also removes its tasks, its documents and its expense records. '
         'It cannot be undone.',
-        style: GwdType.callout
-            .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+        style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text('Keep the record',
-              style: GwdType.callout
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+              style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text('Delete',
-              style: GwdType.callout.copyWith(
-                  color: GwdColors.critical, fontWeight: FontWeight.w700)),
+              style:
+                  GwdType.callout.copyWith(color: GwdColors.critical, fontWeight: FontWeight.w700)),
         ),
       ],
     ),
@@ -470,8 +465,7 @@ Future<void> _applyStatus(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: GwdColors.surfaceOf(dialogContext),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(GwdRadius.xl)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
         title: Text('Not quite finished',
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
         content: Column(
@@ -479,17 +473,14 @@ Future<void> _applyStatus(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (openTasks > 0)
-              _ChecklistLine(
-                  label: '$openTasks ${openTasks == 1 ? 'task' : 'tasks'} still open'),
+              _ChecklistLine(label: '$openTasks ${openTasks == 1 ? 'task' : 'tasks'} still open'),
             if (pending > 0)
               _ChecklistLine(
-                  label:
-                      '$pending ${pending == 1 ? 'approval' : 'approvals'} awaiting sign-off'),
+                  label: '$pending ${pending == 1 ? 'approval' : 'approvals'} awaiting sign-off'),
             const SizedBox(height: GwdSpace.md),
             Text(
               'You can close it anyway — the work stays on the record either way.',
-              style: GwdType.footnote
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
             ),
           ],
         ),
@@ -497,14 +488,13 @@ Future<void> _applyStatus(
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text('Go back',
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text('Close it anyway',
-                style: GwdType.callout.copyWith(
-                    color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
+                style: GwdType.callout
+                    .copyWith(color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -527,13 +517,10 @@ class _ChecklistLine extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 5),
         child: Row(
           children: [
-            const Icon(Icons.radio_button_unchecked,
-                size: 13, color: GwdColors.warning),
+            const Icon(Icons.radio_button_unchecked, size: 13, color: GwdColors.warning),
             const SizedBox(width: GwdSpace.sm),
             Expanded(
-              child: Text(label,
-                  style:
-                      GwdType.callout.copyWith(color: GwdColors.inkOf(context))),
+              child: Text(label, style: GwdType.callout.copyWith(color: GwdColors.inkOf(context))),
             ),
           ],
         ),
@@ -588,8 +575,7 @@ class _WorkspaceTabs extends StatelessWidget {
                       borderRadius: BorderRadius.circular(GwdRadius.pill),
                     ),
                     child: Text('$pendingApprovals',
-                        style: GwdType.caption
-                            .copyWith(color: Colors.white, fontSize: 8.5)),
+                        style: GwdType.micro.copyWith(color: Colors.white)),
                   ),
                 ],
               ],
@@ -608,9 +594,7 @@ class _WorkspaceTabs extends StatelessWidget {
                       color: GwdColors.warning,
                       borderRadius: BorderRadius.circular(GwdRadius.pill),
                     ),
-                    child: Text('$owedCount',
-                        style: GwdType.caption
-                            .copyWith(color: Colors.white, fontSize: 8.5)),
+                    child: Text('$owedCount', style: GwdType.micro.copyWith(color: Colors.white)),
                   ),
                 ],
               ],
@@ -659,7 +643,6 @@ class _OverviewTab extends StatelessWidget {
           index: next(),
           child: _ProgressCard(workspace: workspace),
         ),
-
         if (event.description.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.lg),
           AppleStaggerItem(
@@ -672,7 +655,6 @@ class _OverviewTab extends StatelessWidget {
             ),
           ),
         ],
-
         if (workspace.deadlines.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(
@@ -689,7 +671,6 @@ class _OverviewTab extends StatelessWidget {
               ),
             ),
         ],
-
         const SizedBox(height: GwdSpace.xl),
         AppleStaggerItem(
           index: next(),
@@ -701,7 +682,6 @@ class _OverviewTab extends StatelessWidget {
           ),
         ),
         AppleStaggerItem(index: next(), child: _TeamStrip(workspace: workspace)),
-
         if (event.speakerName.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(
@@ -717,8 +697,8 @@ class _OverviewTab extends StatelessWidget {
                       color: event.bannerColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(GwdRadius.md),
                     ),
-                    child: Icon(Icons.record_voice_over_outlined,
-                        size: 18, color: event.bannerColor),
+                    child:
+                        Icon(Icons.record_voice_over_outlined, size: 18, color: event.bannerColor),
                   ),
                   const SizedBox(width: GwdSpace.md),
                   Expanded(
@@ -727,12 +707,11 @@ class _OverviewTab extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(event.speakerName,
-                            style: GwdType.headline
-                                .copyWith(color: GwdColors.inkOf(context))),
+                            style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                         if (event.externalOrganisation.isNotEmpty)
                           Text(event.externalOrganisation,
-                              style: GwdType.footnote.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.footnote
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                       ],
                     ),
                   ),
@@ -757,9 +736,7 @@ class _ProgressCard extends StatelessWidget {
     final days = event.daysAway;
 
     return SurfaceCard(
-      emphasis: event.status == EventStatus.ongoing
-          ? SurfaceEmphasis.live
-          : SurfaceEmphasis.quiet,
+      emphasis: event.status == EventStatus.ongoing ? SurfaceEmphasis.live : SurfaceEmphasis.quiet,
       accent: tint,
       child: Row(
         children: [
@@ -773,14 +750,11 @@ class _ProgressCard extends StatelessWidget {
                 AnimatedCounter(
                   value: event.progress,
                   suffix: '%',
-                  style: GwdType.numeric.copyWith(
-                      fontSize: 19, color: GwdColors.inkOf(context)),
+                  style: GwdType.numeric.copyWith(fontSize: 19, color: GwdColors.inkOf(context)),
                 ),
                 Text('done',
-                    style: GwdType.caption.copyWith(
-                        fontSize: 8.5,
-                        letterSpacing: 0.4,
-                        color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.micro
+                        .copyWith(letterSpacing: 0.4, color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
@@ -807,14 +781,12 @@ class _ProgressCard extends StatelessWidget {
                     _ when days == 1 => 'One day to go.',
                     _ => '$days days to go.',
                   },
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                 ),
                 if (workspace.approvalsPending > 0) ...[
                   const SizedBox(height: GwdSpace.sm),
                   GwdChip(
-                    label:
-                        '${workspace.approvalsPending} awaiting sign-off',
+                    label: '${workspace.approvalsPending} awaiting sign-off',
                     color: GwdColors.warning,
                     icon: Icons.hourglass_empty_rounded,
                     dense: true,
@@ -837,14 +809,11 @@ class _DeadlineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tint = deadline.overdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context);
     return SurfaceCard(
-      padding: const EdgeInsets.symmetric(
-          horizontal: GwdSpace.md, vertical: GwdSpace.md),
+      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
       child: Row(
         children: [
           Icon(
-            deadline.overdue
-                ? Icons.error_outline_rounded
-                : Icons.schedule_rounded,
+            deadline.overdue ? Icons.error_outline_rounded : Icons.schedule_rounded,
             size: 16,
             color: tint,
           ),
@@ -857,14 +826,10 @@ class _DeadlineRow extends StatelessWidget {
                 Text(deadline.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        GwdType.callout.copyWith(color: GwdColors.inkOf(context))),
+                    style: GwdType.callout.copyWith(color: GwdColors.inkOf(context))),
                 if (deadline.departmentName != null)
                   Text(deadline.departmentName!,
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
@@ -924,11 +889,9 @@ class _TeamStrip extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: GwdColors.primaryRed,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                                color: GwdColors.canvasOf(context), width: 1.5),
+                            border: Border.all(color: GwdColors.canvasOf(context), width: 1.5),
                           ),
-                          child: const Icon(Icons.star_rounded,
-                              size: 8, color: Colors.white),
+                          child: const Icon(Icons.star_rounded, size: 8, color: Colors.white),
                         ),
                       ),
                   ],
@@ -938,9 +901,7 @@ class _TeamStrip extends StatelessWidget {
                   person.name.split(' ').first,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.caption.copyWith(
-                    fontSize: 9.5,
-                    letterSpacing: 0,
+                  style: GwdType.micro.copyWith(
                     color: GwdColors.inkSecondaryOf(context),
                   ),
                 ),

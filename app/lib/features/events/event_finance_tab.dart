@@ -56,8 +56,7 @@ class _EventFinanceTabState extends State<EventFinanceTab> {
       return const EmptyState(
         icon: Icons.lock_outline_rounded,
         title: 'Not visible to you',
-        message:
-            'What an event costs is visible to department Leads and club '
+        message: 'What an event costs is visible to department Leads and club '
             'leadership. If you paid for something, ask your Lead to file it.',
       );
     }
@@ -99,16 +98,14 @@ class _EventFinanceTabState extends State<EventFinanceTab> {
           padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl + 40),
           children: [
             AppleStaggerItem(index: next(), child: _Summary(finance: finance)),
-
             if (pending.isNotEmpty) ...[
               const SizedBox(height: GwdSpace.xl),
               AppleStaggerItem(
                 index: next(),
                 child: SectionHeader(
                   title: 'Waiting on approval',
-                  subtitle: finance.canDecide
-                      ? 'Yours to decide'
-                      : 'With the President and Directors',
+                  subtitle:
+                      finance.canDecide ? 'Yours to decide' : 'With the President and Directors',
                 ),
               ),
               for (final bill in pending)
@@ -116,12 +113,10 @@ class _EventFinanceTabState extends State<EventFinanceTab> {
                   index: next(),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: _BillCard(
-                        eventId: widget.eventId, bill: bill, finance: finance),
+                    child: _BillCard(eventId: widget.eventId, bill: bill, finance: finance),
                   ),
                 ),
             ],
-
             if (owed.isNotEmpty) ...[
               const SizedBox(height: GwdSpace.xl),
               AppleStaggerItem(
@@ -136,12 +131,10 @@ class _EventFinanceTabState extends State<EventFinanceTab> {
                   index: next(),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: _BillCard(
-                        eventId: widget.eventId, bill: bill, finance: finance),
+                    child: _BillCard(eventId: widget.eventId, bill: bill, finance: finance),
                   ),
                 ),
             ],
-
             if (settled.isNotEmpty) ...[
               const SizedBox(height: GwdSpace.xl),
               AppleStaggerItem(
@@ -153,12 +146,10 @@ class _EventFinanceTabState extends State<EventFinanceTab> {
                   index: next(),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                    child: _BillCard(
-                        eventId: widget.eventId, bill: bill, finance: finance),
+                    child: _BillCard(eventId: widget.eventId, bill: bill, finance: finance),
                   ),
                 ),
             ],
-
             if (finance.bills.isEmpty)
               AppleStaggerItem(
                 index: next(),
@@ -212,12 +203,12 @@ class _Summary extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('SPENT',
-                        style: GwdType.eyebrow
-                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     const SizedBox(height: 3),
                     Text(formatRupees(finance.spent),
-                        style: GwdType.title1.merge(GwdType.numeric).copyWith(
-                            color: GwdColors.inkOf(context))),
+                        style: GwdType.title1
+                            .merge(GwdType.numeric)
+                            .copyWith(color: GwdColors.inkOf(context))),
                   ],
                 ),
               ),
@@ -240,10 +231,9 @@ class _Summary extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(formatRupees(finance.owed),
                         style: GwdType.title1.merge(GwdType.numeric).copyWith(
-                          color: finance.owed > 0
-                              ? GwdColors.warning
-                              : GwdColors.inkOf(context),
-                        )),
+                              color:
+                                  finance.owed > 0 ? GwdColors.warning : GwdColors.inkOf(context),
+                            )),
                   ],
                 ),
               ),
@@ -264,10 +254,7 @@ class _Summary extends StatelessWidget {
           Text(
             'A record of money already spent. Repayment happens however the club '
             'normally pays people — it is just noted here.',
-            style: GwdType.caption.copyWith(
-                fontSize: 9.5,
-                letterSpacing: 0,
-                color: GwdColors.inkTertiaryOf(context)),
+            style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
           ),
         ],
       ),
@@ -294,9 +281,7 @@ class _BillCard extends StatelessWidget {
 
     return SurfaceCard(
       padding: const EdgeInsets.all(GwdSpace.lg),
-      borderColor: status == BillStatus.pending
-          ? GwdColors.warning.withValues(alpha: 0.3)
-          : null,
+      borderColor: status == BillStatus.pending ? GwdColors.warning.withValues(alpha: 0.3) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -322,26 +307,22 @@ class _BillCard extends StatelessWidget {
                     Text(bill.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.headline
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                     const SizedBox(height: 2),
                     Text(
                       [bill.category, bill.dateLabel].join('  ·  '),
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: GwdSpace.sm),
               Text(bill.amountLabel,
-                  style: GwdType.title3.merge(GwdType.numeric).copyWith(
-                      color: GwdColors.inkOf(context))),
+                  style: GwdType.title3
+                      .merge(GwdType.numeric)
+                      .copyWith(color: GwdColors.inkOf(context))),
             ],
           ),
-
           const SizedBox(height: GwdSpace.md),
           Row(
             children: [
@@ -356,32 +337,25 @@ class _BillCard extends StatelessWidget {
                 child: Text('${bill.paidByName} paid',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
               ),
             ],
           ),
-
           if (bill.note.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.sm),
             Text(bill.note,
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
-
           if (bill.decisionNote.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text('“${bill.decisionNote}” — ${bill.decidedByName ?? 'leadership'}',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
-
           if (status == BillStatus.paid && bill.settlementRef.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text('Repaid — ${bill.settlementRef}',
                 style: GwdType.footnote.copyWith(color: GwdColors.success)),
           ],
-
           if (bill.hasReceipt) ...[
             const SizedBox(height: GwdSpace.md),
             PressableScale(
@@ -389,12 +363,10 @@ class _BillCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.receipt_outlined,
-                      size: 14, color: GwdColors.inkSecondaryOf(context)),
+                  Icon(Icons.receipt_outlined, size: 14, color: GwdColors.inkSecondaryOf(context)),
                   const SizedBox(width: 5),
                   Text('View receipt',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
                 ],
               ),
             ),
@@ -402,15 +374,13 @@ class _BillCard extends StatelessWidget {
             const SizedBox(height: GwdSpace.sm),
             Row(
               children: [
-                const Icon(Icons.info_outline_rounded,
-                    size: 13, color: GwdColors.warning),
+                const Icon(Icons.info_outline_rounded, size: 13, color: GwdColors.warning),
                 const SizedBox(width: 5),
                 Text('No receipt attached',
                     style: GwdType.footnote.copyWith(color: GwdColors.warning)),
               ],
             ),
           ],
-
           if (canDecide) ...[
             const SizedBox(height: GwdSpace.lg),
             Row(
@@ -435,7 +405,6 @@ class _BillCard extends StatelessWidget {
               ],
             ),
           ],
-
           if (canSettle) ...[
             const SizedBox(height: GwdSpace.lg),
             _Action(
@@ -485,9 +454,7 @@ class _Action extends StatelessWidget {
           children: [
             Icon(icon, size: 15, color: tint),
             const SizedBox(width: 6),
-            Text(label,
-                style: GwdType.callout
-                    .copyWith(color: tint, fontWeight: FontWeight.w600)),
+            Text(label, style: GwdType.callout.copyWith(color: tint, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -510,8 +477,7 @@ Future<void> _decide(
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: GwdColors.surfaceOf(dialogContext),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(GwdRadius.xl)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
       title: Text(approved ? 'Approve this expense?' : 'Decline it?',
           style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
       content: Column(
@@ -523,8 +489,7 @@ Future<void> _decide(
                 ? 'This records that you, by name, approved ${bill.amountLabel} '
                     'for "${bill.title}". ${bill.paidByName} can then be repaid.'
                 : 'Say why, so whoever filed it knows what to do next.',
-            style: GwdType.callout
-                .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+            style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
           ),
           const SizedBox(height: GwdSpace.lg),
           GwdField(
@@ -539,8 +504,7 @@ Future<void> _decide(
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text('Cancel',
-              style: GwdType.callout
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+              style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -579,8 +543,7 @@ Future<void> _settle(BuildContext context, String eventId, EventBill bill) async
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: GwdColors.surfaceOf(dialogContext),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(GwdRadius.xl)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
       title: Text('Already repaid?',
           style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
       content: Column(
@@ -591,8 +554,7 @@ Future<void> _settle(BuildContext context, String eventId, EventBill bill) async
             'This does not send anything — pay ${bill.paidByName} the '
             '${bill.amountLabel} however the club normally does, then note it '
             'here so the list stops showing a debt that no longer exists.',
-            style: GwdType.callout
-                .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+            style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
           ),
           const SizedBox(height: GwdSpace.lg),
           GwdField(
@@ -606,14 +568,13 @@ Future<void> _settle(BuildContext context, String eventId, EventBill bill) async
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
           child: Text('Not yet',
-              style: GwdType.callout
-                  .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+              style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text('Mark repaid',
-              style: GwdType.callout.copyWith(
-                  color: GwdColors.success, fontWeight: FontWeight.w700)),
+              style:
+                  GwdType.callout.copyWith(color: GwdColors.success, fontWeight: FontWeight.w700)),
         ),
       ],
     ),

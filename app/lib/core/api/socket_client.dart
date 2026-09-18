@@ -26,8 +26,7 @@ enum LiveStatus {
 /// here is already scoped — the client never has to filter for permission,
 /// only for relevance to the screen currently on top.
 class SocketClient {
-  SocketClient({required String Function() baseUrlProvider})
-      : _baseUrlProvider = baseUrlProvider;
+  SocketClient({required String Function() baseUrlProvider}) : _baseUrlProvider = baseUrlProvider;
 
   /// Resolved at connect time, so changing the server address reconnects to the
   /// new one instead of silently talking to the old.
@@ -95,9 +94,9 @@ class SocketClient {
       // A rejected token never becomes valid by trying again. Left retrying, it
       // reconnects roughly once a second, and every attempt rebuilds the whole
       // widget tree — which makes the UI feel frozen and swallows taps.
-      if (message.contains('Authentication')
-          || message.contains('Account not found')
-          || message.contains('awaiting approval')) {
+      if (message.contains('Authentication') ||
+          message.contains('Account not found') ||
+          message.contains('awaiting approval')) {
         status.value = LiveStatus.unauthorized;
         socket.dispose();
         _socket = null;

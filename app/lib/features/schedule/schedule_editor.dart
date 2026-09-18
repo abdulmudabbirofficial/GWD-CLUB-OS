@@ -93,15 +93,21 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       initialTime: TimeOfDay.fromDateTime(_date),
     );
     setState(() => _date = DateTime(
-          day.year, day.month, day.day,
-          time?.hour ?? _date.hour, time?.minute ?? _date.minute,
+          day.year,
+          day.month,
+          day.day,
+          time?.hour ?? _date.hour,
+          time?.minute ?? _date.minute,
         ));
   }
 
   Future<void> _save() async {
     final categoryId = _categoryId;
     if (categoryId == null || _title.text.trim().length < 2) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await AppScope.readStore(context).saveScheduleEntry(
         id: widget.existing?.id,
@@ -152,26 +158,23 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
             Expanded(
               child: ListView(
                 controller: controller,
-                padding: EdgeInsets.fromLTRB(
-                    GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
+                padding: EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
                 children: [
                   Row(
                     children: [
                       Text('WHAT IS IT',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const Spacer(),
                       if (store.capabilities.canManageDepartments)
                         PressableScale(
                           haptic: HapticStrength.selection,
                           onTap: () {
                             Navigator.of(context).pop();
-                            Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => const CategoryAdminPage()));
+                            Navigator.of(context)
+                                .push(MaterialPageRoute(builder: (_) => const CategoryAdminPage()));
                           },
                           child: Text('Manage',
-                              style: GwdType.footnote
-                                  .copyWith(color: GwdColors.primaryRed)),
+                              style: GwdType.footnote.copyWith(color: GwdColors.primaryRed)),
                         ),
                     ],
                   ),
@@ -179,8 +182,7 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
                   if (categories.isEmpty)
                     Text(
                       'No categories yet. The President can add some from Manage.',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                     )
                   else
                     Wrap(
@@ -311,8 +313,20 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
   }
 
   String _whenLabel() {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     final time =
         '${_date.hour.toString().padLeft(2, '0')}:${_date.minute.toString().padLeft(2, '0')}';
     final now = DateTime.now();
@@ -341,8 +355,7 @@ class _CategoryChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppleDuration.fast,
         curve: AppleCurves.standard,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.sm + 1),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm + 1),
         decoration: BoxDecoration(
           color: selected ? category.tint : GwdColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -354,8 +367,7 @@ class _CategoryChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(category.iconData,
-                size: 14,
-                color: selected ? Colors.white : GwdColors.inkSecondaryOf(context)),
+                size: 14, color: selected ? Colors.white : GwdColors.inkSecondaryOf(context)),
             const SizedBox(width: 6),
             Text(
               category.name,
@@ -402,8 +414,7 @@ class _Disclosure extends StatelessWidget {
             AnimatedRotation(
               duration: AppleDuration.fast,
               turns: open ? 0.125 : 0,
-              child: Icon(Icons.add_rounded,
-                  size: 17, color: GwdColors.inkSecondaryOf(context)),
+              child: Icon(Icons.add_rounded, size: 17, color: GwdColors.inkSecondaryOf(context)),
             ),
             const SizedBox(width: GwdSpace.md),
             Expanded(
@@ -411,11 +422,9 @@ class _Disclosure extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label,
-                      style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+                  Text(label, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                   Text(hint,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
@@ -463,8 +472,8 @@ class _Picker<T> extends StatelessWidget {
                 onTap: () => onChanged(value),
                 child: AnimatedContainer(
                   duration: AppleDuration.fast,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: GwdSpace.md, vertical: GwdSpace.sm),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm),
                   decoration: BoxDecoration(
                     color: value == selected
                         ? (tintOf?.call(value) ?? GwdColors.inkOf(context))
@@ -490,9 +499,7 @@ class _Picker<T> extends StatelessWidget {
                       Text(
                         labelOf(value),
                         style: GwdType.footnote.copyWith(
-                          color: value == selected
-                              ? Colors.white
-                              : GwdColors.inkOf(context),
+                          color: value == selected ? Colors.white : GwdColors.inkOf(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),

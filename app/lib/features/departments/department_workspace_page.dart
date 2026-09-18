@@ -41,8 +41,7 @@ class _DepartmentWorkspacePageState extends State<DepartmentWorkspacePage> {
 
   Future<void> _load() async {
     try {
-      final json = await AppScope.readStore(context)
-          .departmentWorkspace(widget.departmentId);
+      final json = await AppScope.readStore(context).departmentWorkspace(widget.departmentId);
       if (mounted) setState(() => _data = json);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -59,27 +58,32 @@ class _DepartmentWorkspacePageState extends State<DepartmentWorkspacePage> {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(title: Text(department?.name ?? 'Department')),
-      body: _error != null
-          ? EmptyState(
-              icon: Icons.lock_outline_rounded,
-              title: 'Cannot open this',
-              message: _error!,
-            )
-          : _data == null
-              ? const Padding(
-                  padding: EdgeInsets.all(GwdSpace.xl),
-                  child: SkeletonList(count: 4, height: 88),
-                )
-              : RefreshIndicator(
-                  color: GwdColors.primaryRed,
-                  onRefresh: _load,
-                  child: _Body(
-                    data: _data!,
-                    tint: tint,
-                    gutter: gutter,
-                    departmentId: widget.departmentId,
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: _error != null
+            ? EmptyState(
+                icon: Icons.lock_outline_rounded,
+                title: 'Cannot open this',
+                message: _error!,
+              )
+            : _data == null
+                ? const Padding(
+                    padding: EdgeInsets.all(GwdSpace.xl),
+                    child: SkeletonList(count: 4, height: 88),
+                  )
+                : RefreshIndicator(
+                    color: GwdColors.primaryRed,
+                    onRefresh: _load,
+                    child: _Body(
+                      data: _data!,
+                      tint: tint,
+                      gutter: gutter,
+                      departmentId: widget.departmentId,
+                    ),
                   ),
-                ),
+      ),
     );
   }
 }
@@ -125,7 +129,6 @@ class _Body extends StatelessWidget {
             overdue: (progress['overdue'] as num?)?.toInt() ?? 0,
           ),
         ),
-
         if (lead != null) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(index: next(), child: const SectionHeader(title: 'Lead')),
@@ -134,7 +137,6 @@ class _Body extends StatelessWidget {
             child: _PersonRow(person: lead, isLead: true),
           ),
         ],
-
         if (events.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(
@@ -153,7 +155,6 @@ class _Body extends StatelessWidget {
               ),
             ),
         ],
-
         if (help.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(
@@ -172,16 +173,14 @@ class _Body extends StatelessWidget {
               ),
             ),
         ],
-
         if (work.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.xl),
           AppleStaggerItem(
             index: next(),
             child: SectionHeader(
               title: 'Open work',
-              subtitle: work.length == 1
-                  ? 'One thing on the go'
-                  : '${work.length} things on the go',
+              subtitle:
+                  work.length == 1 ? 'One thing on the go' : '${work.length} things on the go',
             ),
           ),
           for (final task in work.take(20))
@@ -193,7 +192,6 @@ class _Body extends StatelessWidget {
               ),
             ),
         ],
-
         const SizedBox(height: GwdSpace.xl),
         AppleStaggerItem(
           index: next(),
@@ -262,8 +260,7 @@ class _ProgressCard extends StatelessWidget {
                 child: AnimatedCounter(
                   value: rate,
                   suffix: '%',
-                  style: GwdType.numeric
-                      .copyWith(fontSize: 17, color: GwdColors.inkOf(context)),
+                  style: GwdType.numeric.copyWith(fontSize: 17, color: GwdColors.inkOf(context)),
                 ),
               ),
               const SizedBox(width: GwdSpace.lg),
@@ -279,19 +276,15 @@ class _ProgressCard extends StatelessWidget {
                         (_, 1) => 'One task left',
                         _ => '$remaining tasks left',
                       },
-                      style: GwdType.title3
-                          .copyWith(color: GwdColors.inkOf(context)),
+                      style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                     ),
                     const SizedBox(height: 2),
                     Text('$completed of $assigned finished',
-                        style: GwdType.footnote.copyWith(
-                            color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     if (overdue > 0) ...[
                       const SizedBox(height: GwdSpace.sm),
                       GwdChip(
-                        label: overdue == 1
-                            ? '1 past its date'
-                            : '$overdue past their dates',
+                        label: overdue == 1 ? '1 past its date' : '$overdue past their dates',
                         color: GwdColors.warning,
                         icon: Icons.schedule_rounded,
                         dense: true,
@@ -305,8 +298,7 @@ class _ProgressCard extends StatelessWidget {
           if (description.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.lg),
             Text(description,
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
         ],
       ),
@@ -348,25 +340,21 @@ class _EventSlice extends StatelessWidget {
                     Text(event['name'] as String? ?? 'Event',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.headline
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                     Text(
                       [
                         if (event['isOrganiser'] == true) 'Organising' else 'Supporting',
                         if (date != null) '${date.day}/${date.month}',
                       ].join('  ·  '),
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
               ),
               Text(
                 total == 0 ? '—' : '$done/$total',
-                style: GwdType.numeric.copyWith(
-                    fontSize: 13, color: GwdColors.inkSecondaryOf(context)),
+                style: GwdType.numeric
+                    .copyWith(fontSize: 13, color: GwdColors.inkSecondaryOf(context)),
               ),
             ],
           ),
@@ -375,8 +363,7 @@ class _EventSlice extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 15),
               child: Text(event['notes'] as String,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
             ),
           ],
         ],
@@ -407,17 +394,12 @@ class _WorkRow extends StatelessWidget {
         ),
         if (task['assigneeName'] != null) ...[
           Text((task['assigneeName'] as String).split(' ').first,
-              style: GwdType.caption.copyWith(
-                  fontSize: 9.5,
-                  letterSpacing: 0,
-                  color: GwdColors.inkTertiaryOf(context))),
+              style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context))),
           const SizedBox(width: GwdSpace.sm),
         ],
         if (due != null)
           Text('${due.day}/${due.month}',
-              style: GwdType.caption.copyWith(
-                fontSize: 9.5,
-                letterSpacing: 0,
+              style: GwdType.micro.copyWith(
                 color: overdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
               )),
       ],
@@ -450,8 +432,7 @@ class _HelpRow extends StatelessWidget {
           ),
           if (helpers > 0)
             Text(helpers == 1 ? '1 helping' : '$helpers helping',
-                style: GwdType.caption.copyWith(
-                    fontSize: 9.5, letterSpacing: 0, color: GwdColors.success)),
+                style: GwdType.micro.copyWith(color: GwdColors.success)),
         ],
       ),
     );
@@ -485,18 +466,14 @@ class _PersonRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(name,
-                    style: GwdType.headline
-                        .copyWith(color: GwdColors.inkOf(context))),
+                Text(name, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                 const SizedBox(height: 1),
                 Text(ClubRole.fromWire(person['role'] as String?).title,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: 18, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -536,8 +513,7 @@ class _RosterLocked extends StatelessWidget {
               count == 1
                   ? 'One person here. Individual records are kept within the department.'
                   : '$count people here. Individual records are kept within the department.',
-              style: GwdType.footnote
-                  .copyWith(color: GwdColors.inkTertiaryOf(context)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
             ),
           ),
         ],

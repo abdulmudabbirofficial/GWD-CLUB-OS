@@ -102,16 +102,14 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
 
     // Only people in the chosen department, because that is who the server will
     // actually accept — offering the whole club here just produces a refusal.
-    final candidates =
-        store.members.where((m) => m.departmentId == _departmentId).toList();
+    final candidates = store.members.where((m) => m.departmentId == _departmentId).toList();
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -125,8 +123,7 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
                   subtitle: 'Leave it unassigned and somebody can pick it up.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -138,10 +135,8 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Text('DEPARTMENT',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       Wrap(
                         spacing: GwdSpace.sm,
@@ -159,15 +154,13 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
                         ],
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Text('WHO (OPTIONAL)',
-                          style: GwdType.eyebrow
-                              .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                       const SizedBox(height: GwdSpace.sm),
                       if (candidates.isEmpty)
                         Text('Nobody in that department yet.',
-                            style: GwdType.footnote.copyWith(
-                                color: GwdColors.inkTertiaryOf(context)))
+                            style:
+                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
                       else
                         Wrap(
                           spacing: GwdSpace.sm,
@@ -177,31 +170,26 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
                               _Tag(
                                 label: m.firstName,
                                 selected: _assignee == m.id,
-                                onTap: () => setState(() =>
-                                    _assignee = _assignee == m.id ? null : m.id),
+                                onTap: () =>
+                                    setState(() => _assignee = _assignee == m.id ? null : m.id),
                               ),
                           ],
                         ),
                       const SizedBox(height: GwdSpace.lg),
-
                       Row(
                         children: [
                           Expanded(
                             child: _MiniPicker(
                               label: 'Due',
-                              value: _due == null
-                                  ? 'No date'
-                                  : '${_due!.day}/${_due!.month}',
+                              value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
                               icon: Icons.event_rounded,
                               muted: _due == null,
                               onTap: () async {
                                 final picked = await showDatePicker(
                                   context: context,
                                   initialDate: _due ?? DateTime.now(),
-                                  firstDate: DateTime.now()
-                                      .subtract(const Duration(days: 30)),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 365)),
+                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
                                 );
                                 if (picked != null) setState(() => _due = picked);
                               },
@@ -226,14 +214,12 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
                         ],
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       GwdField(
                         label: 'Notes',
                         controller: _description,
                         maxLines: 3,
                         hint: 'Anything the person picking this up should know.',
                       ),
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -270,8 +256,7 @@ class _Tag extends StatelessWidget {
       haptic: HapticStrength.selection,
       child: AnimatedContainer(
         duration: AppleDuration.fast,
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.sm),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm),
         decoration: BoxDecoration(
           color: selected ? GwdColors.primaryRed : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.sm),
@@ -308,8 +293,7 @@ class _MiniPicker extends StatelessWidget {
       onTap: onTap,
       pressedScale: 0.97,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.md),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
         decoration: BoxDecoration(
           color: GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -324,16 +308,12 @@ class _MiniPicker extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(label.toUpperCase(),
-                      style: GwdType.eyebrow.copyWith(
-                          fontSize: 8.5,
-                          color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.microLabel.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   Text(value,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GwdType.footnote.copyWith(
-                        color: muted
-                            ? GwdColors.inkTertiaryOf(context)
-                            : GwdColors.inkOf(context),
+                        color: muted ? GwdColors.inkTertiaryOf(context) : GwdColors.inkOf(context),
                       )),
                 ],
               ),

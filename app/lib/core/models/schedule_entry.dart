@@ -4,7 +4,12 @@ import 'schedule_category.dart';
 
 /// Where a content post is going.
 enum MarketingPlatform {
-  instagram, linkedin, youtube, x, whatsapp, other;
+  instagram,
+  linkedin,
+  youtube,
+  x,
+  whatsapp,
+  other;
 
   static MarketingPlatform fromWire(String? v) => switch (v) {
         'linkedin' => MarketingPlatform.linkedin,
@@ -26,7 +31,12 @@ enum MarketingPlatform {
 }
 
 enum MarketingFormat {
-  post, reel, story, carousel, video, article;
+  post,
+  reel,
+  story,
+  carousel,
+  video,
+  article;
 
   static MarketingFormat fromWire(String? v) => switch (v) {
         'reel' => MarketingFormat.reel,
@@ -57,7 +67,10 @@ enum MarketingFormat {
 }
 
 enum MarketingStage {
-  planned, inProduction, ready, published;
+  planned,
+  inProduction,
+  ready,
+  published;
 
   static MarketingStage fromWire(String? v) => switch (v) {
         'inProduction' => MarketingStage.inProduction,
@@ -159,6 +172,7 @@ class ScheduleEntry {
     if (isDeadline) return assignedTo == userId;
     return rsvps.contains(userId);
   }
+
   Color get tint => hexToColor(categoryColorHex);
   IconData get icon => iconFor(categoryIcon);
 
@@ -187,12 +201,8 @@ class ScheduleEntry {
         platform: json['platform'] == null
             ? null
             : MarketingPlatform.fromWire(json['platform'] as String?),
-        format: json['format'] == null
-            ? null
-            : MarketingFormat.fromWire(json['format'] as String?),
-        stage: json['stage'] == null
-            ? null
-            : MarketingStage.fromWire(json['stage'] as String?),
+        format: json['format'] == null ? null : MarketingFormat.fromWire(json['format'] as String?),
+        stage: json['stage'] == null ? null : MarketingStage.fromWire(json['stage'] as String?),
         taskId: json['taskId'] as String?,
         taskStatus: json['taskStatus'] as String?,
         ownerName: json['ownerName'] as String?,

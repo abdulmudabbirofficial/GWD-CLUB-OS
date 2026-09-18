@@ -106,6 +106,14 @@ const scheduleIconChoices = <String, String>{
 };
 
 const schedulePalette = <String>[
-  '#DC2626', '#334155', '#7C3AED', '#B45309', '#0891B2',
-  '#15803D', '#BE123C', '#4338CA', '#A16207', '#0F766E',
+  '#DC2626',
+  '#334155',
+  '#7C3AED',
+  '#B45309',
+  '#0891B2',
+  '#15803D',
+  '#BE123C',
+  '#4338CA',
+  '#A16207',
+  '#0F766E',
 ];

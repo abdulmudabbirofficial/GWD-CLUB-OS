@@ -46,8 +46,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
     super.dispose();
   }
 
-  bool get _canSend =>
-      _title.text.trim().length >= 3 && _message.text.trim().length >= 3 && !_busy;
+  bool get _canSend => _title.text.trim().length >= 3 && _message.text.trim().length >= 3 && !_busy;
 
   /// How many people this actually reaches, computed from what we already know
   /// so the number is honest before the send, not after.
@@ -57,16 +56,17 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
     final others = store.members.where((m) => m.id != me?.id);
     return switch (_audience) {
       AlertAudience.club => others.length,
-      AlertAudience.department =>
-        others.where((m) => m.departmentId == me?.departmentId).length,
-      AlertAudience.leadership =>
-        others.where((m) => m.role != ClubRole.clubMember).length,
+      AlertAudience.department => others.where((m) => m.departmentId == me?.departmentId).length,
+      AlertAudience.leadership => others.where((m) => m.role != ClubRole.clubMember).length,
     };
   }
 
   Future<void> _send() async {
     if (!_canSend) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final reach = await AppScope.readStore(context).sendAlert(
         title: _title.text.trim(),
@@ -95,8 +95,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
     final reach = _reach();
 
     // Urgent is reserved, so the word keeps meaning something.
-    final canUseUrgent =
-        (me?.role.isSupervisor ?? false) || me?.role == ClubRole.president;
+    final canUseUrgent = (me?.role.isSupervisor ?? false) || me?.role == ClubRole.president;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.88,
@@ -117,8 +116,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
             Expanded(
               child: ListView(
                 controller: controller,
-                padding: EdgeInsets.fromLTRB(
-                    GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
+                padding: EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl + inset),
                 children: [
                   GwdField(
                     label: 'Subject',
@@ -137,8 +135,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
 
                   const SizedBox(height: GwdSpace.xl),
                   Text('WHO GETS IT',
-                      style: GwdType.eyebrow
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   Row(
                     children: [
@@ -159,8 +156,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
 
                   const SizedBox(height: GwdSpace.xl),
                   Text('URGENCY',
-                      style: GwdType.eyebrow
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   Row(
                     children: [
@@ -199,8 +195,8 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
                             reach == 0
                                 ? 'Nobody in that audience yet.'
                                 : 'This will interrupt $reach ${reach == 1 ? 'person' : 'people'} right now.',
-                            style: GwdType.footnote
-                                .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                            style:
+                                GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                           ),
                         ),
                       ],
@@ -226,8 +222,7 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
                   Center(
                     child: Text(
                       'Sent as ${me?.name ?? 'you'} · ${me?.role.title ?? ''}',
-                      style: GwdType.caption
-                          .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ),
                 ],
@@ -276,8 +271,7 @@ class _Choice extends StatelessWidget {
           children: [
             if (icon != null) ...[
               Icon(icon,
-                  size: 13,
-                  color: selected ? Colors.white : GwdColors.inkSecondaryOf(context)),
+                  size: 13, color: selected ? Colors.white : GwdColors.inkSecondaryOf(context)),
               const SizedBox(width: 4),
             ],
             Flexible(

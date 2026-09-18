@@ -30,6 +30,12 @@ $port = 4100
 $dbName = 'gwd_club_os_smoke'
 $mongosh = 'D:\dev\gwd-toolchain\mongosh\bin\mongosh.exe'
 
+# The LOCAL replica set, always. Overriding only MONGODB_DB is not isolation:
+# .env points MONGODB_URI at Atlas, so a throwaway database name alone puts the
+# whole suite on the live cluster and leaves it there - the cleanup below drops
+# from 127.0.0.1 and would never touch it. This line is the isolation.
+$localUri = 'mongodb://127.0.0.1:27018/?replicaSet=rs0&directConnection=true'
+
 if (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) {
     throw "Port $port is already in use; a previous isolated run may still be up."
 }
@@ -39,6 +45,7 @@ Write-Host "  Starting a throwaway API on $port against '$dbName'..." -Foregroun
 
 $env:PORT = "$port"
 $env:MONGODB_DB = $dbName
+$env:MONGODB_URI = $localUri
 $outLog = Join-Path $backend 'smoke-server.log'
 $errLog = Join-Path $backend 'smoke-server.err.log'
 
@@ -73,7 +80,7 @@ try {
     }
 } finally {
     if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-    Remove-Item Env:\PORT, Env:\MONGODB_DB, Env:\SMOKE_BASE -ErrorAction SilentlyContinue
+    Remove-Item Env:\PORT, Env:\MONGODB_DB, Env:\MONGODB_URI, Env:\SMOKE_BASE -ErrorAction SilentlyContinue
 
     if (-not $Keep -and (Test-Path $mongosh)) {
         & $mongosh --quiet --eval 'db.dropDatabase()' `

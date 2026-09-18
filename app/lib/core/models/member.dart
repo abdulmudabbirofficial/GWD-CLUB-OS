@@ -108,8 +108,7 @@ class Member {
   /// The executive tier has no department by design, and their office already
   /// names itself — "President" needs no qualifier and "President of the club"
   /// only adds noise.
-  String positionLine(String? departmentName) =>
-      positionLineFor(role, departmentName);
+  String positionLine(String? departmentName) => positionLineFor(role, departmentName);
 
   factory Member.fromJson(Map<String, dynamic> json) => Member(
         id: json['id'] as String,
@@ -158,7 +157,8 @@ class Member {
     ClubRole? role,
     ApprovalStatus? approvalStatus,
     bool? mustSetName,
-  }) => Member(
+  }) =>
+      Member(
         id: id,
         name: name ?? this.name,
         role: role ?? this.role,

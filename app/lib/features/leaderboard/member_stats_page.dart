@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,6 +11,7 @@ import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
+import '../../core/models/meeting.dart';
 import '../../core/models/member.dart';
 
 /// One member's full record.
@@ -30,8 +31,7 @@ class MemberStatsPage extends StatefulWidget {
   /// comes from the server either way; passing the member only saves a blank
   /// frame while it loads.
   const MemberStatsPage({super.key, this.member, this.userId})
-      : assert(member != null || userId != null,
-            'MemberStatsPage needs a member or a userId.');
+      : assert(member != null || userId != null, 'MemberStatsPage needs a member or a userId.');
 
   final Member? member;
   final String? userId;
@@ -43,6 +43,7 @@ class MemberStatsPage extends StatefulWidget {
 class _MemberStatsPageState extends State<MemberStatsPage> {
   Map<String, dynamic>? _stats;
   Map<String, dynamic>? _department;
+  AttendanceRecord? _attendance;
   Member? _full;
   List<Map<String, dynamic>> _recent = const [];
   bool _loading = true;
@@ -64,6 +65,8 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       setState(() {
         _stats = (json['stats'] as Map?)?.cast<String, dynamic>();
         _department = (json['department'] as Map?)?.cast<String, dynamic>();
+        final attendance = (json['attendance'] as Map?)?.cast<String, dynamic>();
+        _attendance = attendance == null ? null : AttendanceRecord.fromJson(attendance);
         final user = (json['user'] as Map?)?.cast<String, dynamic>();
         if (user != null) _full = Member.fromJson(user);
         _recent = ((json['recentTasks'] as List?) ?? [])
@@ -81,7 +84,12 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
         });
       }
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -132,14 +140,12 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
               ? const EmptyState(
                   icon: Icons.lock_outline_rounded,
                   title: 'Not visible to you',
-                  message:
-                      'You can open members of your own department, and the club\'s '
+                  message: 'You can open members of your own department, and the club\'s '
                       'leadership. Other departments show their overall progress '
                       'instead.',
                 )
               : ListView(
-                  padding:
-                      EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
+                  padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
                   children: [
                     // ---------- identity ----------
                     FluidReveal(
@@ -164,12 +170,9 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                 // say "LEAD" next to a separate department
                                 // name, which made the reader assemble the
                                 // sentence themselves.
-                                Text(
-                                    member.positionLine(
-                                        _department?['name'] as String?),
-                                    style: GwdType.callout.copyWith(
-                                        color:
-                                            GwdColors.inkSecondaryOf(context))),
+                                Text(member.positionLine(_department?['name'] as String?),
+                                    style: GwdType.callout
+                                        .copyWith(color: GwdColors.inkSecondaryOf(context))),
                               ],
                             ),
                           ),
@@ -180,14 +183,15 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                     FluidReveal(
                       index: 1,
                       child: Text(member.role.remit,
-                          style: GwdType.callout
-                              .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                          style:
+                              GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
                     ),
 
                     const SizedBox(height: GwdSpace.xxl),
 
                     if (_loading)
-                      const Center(child: Padding(
+                      const Center(
+                          child: Padding(
                         padding: EdgeInsets.all(GwdSpace.xxl),
                         child: BracketLoader(),
                       ))
@@ -210,8 +214,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                     : () => _open('mailto:${member.email}'),
                               ),
                               if ((member.phone ?? '').isNotEmpty) ...[
-                                Divider(height: GwdSpace.xl,
-                                    color: GwdColors.hairlineOf(context)),
+                                Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
                                 _ContactRow(
                                   icon: Icons.phone_outlined,
                                   label: 'Phone',
@@ -219,10 +222,9 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                   onTap: () => _open('tel:${member.phone}'),
                                 ),
                               ],
-                              if (_department?['leadName'] != null
-                                  && _department?['isLead'] != true) ...[
-                                Divider(height: GwdSpace.xl,
-                                    color: GwdColors.hairlineOf(context)),
+                              if (_department?['leadName'] != null &&
+                                  _department?['isLead'] != true) ...[
+                                Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
                                 _ContactRow(
                                   icon: Icons.flag_outlined,
                                   label: 'Reports to',
@@ -255,8 +257,8 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                     child: AnimatedCounter(
                                       value: rate,
                                       suffix: '%',
-                                      style: GwdType.title3
-                                          .copyWith(color: GwdColors.inkOf(context)),
+                                      style:
+                                          GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                                     ),
                                   ),
                                   const SizedBox(width: GwdSpace.lg),
@@ -266,15 +268,15 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text('$completed of $assigned done',
-                                            style: GwdType.title3.copyWith(
-                                                color: GwdColors.inkOf(context))),
+                                            style: GwdType.title3
+                                                .copyWith(color: GwdColors.inkOf(context))),
                                         const SizedBox(height: 4),
                                         Text(
                                           ranked
                                               ? 'Steadily getting through it'
                                               : 'Still early — not much assigned yet',
-                                          style: GwdType.footnote.copyWith(
-                                              color: GwdColors.inkTertiaryOf(context)),
+                                          style: GwdType.footnote
+                                              .copyWith(color: GwdColors.inkTertiaryOf(context)),
                                         ),
                                       ],
                                     ),
@@ -282,17 +284,15 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                 ],
                               ),
                               if (member.role.earnsPoints) ...[
-                                Divider(height: GwdSpace.xl,
-                                    color: GwdColors.hairlineOf(context)),
+                                Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
                                 Row(
                                   children: [
                                     Icon(Icons.auto_awesome_outlined,
-                                        size: 15,
-                                        color: GwdColors.inkTertiaryOf(context)),
+                                        size: 15, color: GwdColors.inkTertiaryOf(context)),
                                     const SizedBox(width: GwdSpace.md),
                                     Text('Points',
-                                        style: GwdType.callout.copyWith(
-                                            color: GwdColors.inkTertiaryOf(context))),
+                                        style: GwdType.callout
+                                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
                                     const Spacer(),
                                     AnimatedCounter(
                                       value: member.points,
@@ -303,17 +303,15 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                 ),
                               ],
                               if (((s?['assignedByThem'] as num?)?.toInt() ?? 0) > 0) ...[
-                                Divider(height: GwdSpace.xl,
-                                    color: GwdColors.hairlineOf(context)),
+                                Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
                                 Row(
                                   children: [
                                     Icon(Icons.outbox_outlined,
-                                        size: 15,
-                                        color: GwdColors.inkTertiaryOf(context)),
+                                        size: 15, color: GwdColors.inkTertiaryOf(context)),
                                     const SizedBox(width: GwdSpace.md),
                                     Text('Handed out to others',
-                                        style: GwdType.callout.copyWith(
-                                            color: GwdColors.inkTertiaryOf(context))),
+                                        style: GwdType.callout
+                                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
                                     const Spacer(),
                                     Text('${s!['assignedByThem']}',
                                         style: GwdType.headline
@@ -341,8 +339,8 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                               const SizedBox(width: GwdSpace.md),
                               Expanded(
                                 child: Text('Typically finishes in',
-                                    style: GwdType.callout.copyWith(
-                                        color: GwdColors.inkSecondaryOf(context))),
+                                    style: GwdType.callout
+                                        .copyWith(color: GwdColors.inkSecondaryOf(context))),
                               ),
                               Text('${s!['avgCompletionHours']}h',
                                   style: GwdType.headline
@@ -353,6 +351,23 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         ),
                       ],
 
+                      // ---------- meetings ----------
+                      // Only once there is something to say. A "0 of 0" row on
+                      // a member who has never been invited to a meeting reads
+                      // like an accusation.
+                      if (_attendance != null &&
+                          (_attendance!.invited > 0 || _attendance!.upcoming > 0)) ...[
+                        const SizedBox(height: GwdSpace.xxl),
+                        const BrandedSectionHeader(
+                          title: 'Meetings',
+                          subtitle: 'Counted only from meetings somebody marked',
+                        ),
+                        FluidReveal(
+                          index: 5,
+                          child: _AttendanceCard(record: _attendance!),
+                        ),
+                      ],
+
                       // ---------- recent work ----------
                       if (_recent.isNotEmpty) ...[
                         const SizedBox(height: GwdSpace.xxl),
@@ -360,8 +375,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         for (var i = 0; i < _recent.length; i++)
                           Padding(
                             padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                            child: AppleStaggerItem(
-                                index: i, child: _RecentRow(task: _recent[i])),
+                            child: AppleStaggerItem(index: i, child: _RecentRow(task: _recent[i])),
                           ),
                       ] else if (assigned == 0) ...[
                         const SizedBox(height: GwdSpace.xl),
@@ -427,8 +441,8 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                                   Expanded(
                                     child: Text(
                                       '${member.firstName} says they cannot sign in.',
-                                      style: GwdType.footnote.copyWith(
-                                          color: GwdColors.inkSecondaryOf(context)),
+                                      style: GwdType.footnote
+                                          .copyWith(color: GwdColors.inkSecondaryOf(context)),
                                     ),
                                   ),
                                 ],
@@ -446,10 +460,10 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                       // Removing somebody is a Director's call alone — it is
                       // the one action that can take the President out. Kept at
                       // the very bottom, quiet, and two confirmations deep.
-                      if (session.me?.role == ClubRole.clubDirector
-                          && member.id != session.me?.id
-                          && member.role != ClubRole.clubDirector
-                          && member.role != ClubRole.facultyCoordinator) ...[
+                      if (session.me?.role == ClubRole.clubDirector &&
+                          member.id != session.me?.id &&
+                          member.role != ClubRole.clubDirector &&
+                          member.role != ClubRole.facultyCoordinator) ...[
                         const SizedBox(height: GwdSpace.md),
                         SecondaryButton(
                           label: 'Remove from the club',
@@ -499,12 +513,10 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
             final valid = controller.text.trim().length >= 2;
             return AlertDialog(
               backgroundColor: GwdColors.surfaceOf(dialogContext),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(GwdRadius.xl)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
               title: Text(
                 member.mustSetName ? 'Who is this?' : 'Change their name',
-                style:
-                    GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext)),
+                style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext)),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -515,8 +527,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         ? 'This account was created before anyone held it, so it '
                             'still shows ${member.role.title} instead of a person.'
                         : 'They will be told their name was changed.',
-                    style: GwdType.callout
-                        .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+                    style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
                   ),
                   const SizedBox(height: GwdSpace.lg),
                   GwdField(
@@ -537,18 +548,16 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
                   child: Text('Cancel',
-                      style: GwdType.callout.copyWith(
-                          color: GwdColors.inkSecondaryOf(dialogContext))),
+                      style:
+                          GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
                 ),
                 TextButton(
-                  onPressed: valid
-                      ? () => Navigator.of(dialogContext).pop(controller.text.trim())
-                      : null,
+                  onPressed:
+                      valid ? () => Navigator.of(dialogContext).pop(controller.text.trim()) : null,
                   child: Text('Save',
                       style: GwdType.callout.copyWith(
-                        color: valid
-                            ? GwdColors.primaryRed
-                            : GwdColors.inkTertiaryOf(dialogContext),
+                        color:
+                            valid ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(dialogContext),
                         fontWeight: FontWeight.w700,
                       )),
                 ),
@@ -591,11 +600,9 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
           final matches = typed.text.trim().toLowerCase() == expected.toLowerCase();
           return AlertDialog(
             backgroundColor: GwdColors.surfaceOf(dialogContext),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(GwdRadius.xl)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
             title: Text('Remove ${member.displayName}?',
-                style: GwdType.title3
-                    .copyWith(color: GwdColors.inkOf(dialogContext))),
+                style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -604,8 +611,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                   'They lose access immediately and cannot sign in again.\n\n'
                   'Their work is kept: anything they were carrying goes back to '
                   'their department to be handed out again.',
-                  style: GwdType.callout
-                      .copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
                 ),
                 const SizedBox(height: GwdSpace.lg),
                 GwdField(
@@ -620,17 +626,14 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
                 child: Text('Keep them',
-                    style: GwdType.callout.copyWith(
-                        color: GwdColors.inkSecondaryOf(dialogContext))),
+                    style:
+                        GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
               ),
               TextButton(
-                onPressed:
-                    matches ? () => Navigator.of(dialogContext).pop(true) : null,
+                onPressed: matches ? () => Navigator.of(dialogContext).pop(true) : null,
                 child: Text('Remove',
                     style: GwdType.callout.copyWith(
-                      color: matches
-                          ? GwdColors.critical
-                          : GwdColors.inkTertiaryOf(dialogContext),
+                      color: matches ? GwdColors.critical : GwdColors.inkTertiaryOf(dialogContext),
                       fontWeight: FontWeight.w700,
                     )),
               ),
@@ -668,28 +671,25 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: GwdColors.surfaceOf(dialogContext),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
         title: Text('Reset ${member.firstName}’s password?',
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
         content: Text(
           'Their current password stops working immediately. You will be given a '
           'temporary one to pass on, and they will be asked to choose their own.',
-          style:
-              GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
+          style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text('Cancel',
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text('Reset it',
-                style: GwdType.callout.copyWith(
-                    color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
+                style: GwdType.callout
+                    .copyWith(color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -703,8 +703,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: GwdColors.surfaceOf(dialogContext),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(GwdRadius.xl)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(GwdRadius.xl)),
           title: Text('Give this to ${member.firstName}',
               style: GwdType.title3.copyWith(color: GwdColors.inkOf(dialogContext))),
           content: Column(
@@ -720,16 +719,16 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                 child: SelectableText(
                   temporary,
                   textAlign: TextAlign.center,
-                  style: GwdType.title3.merge(GwdType.numeric).copyWith(
-                      color: GwdColors.inkOf(dialogContext), letterSpacing: 1.5),
+                  style: GwdType.title3
+                      .merge(GwdType.numeric)
+                      .copyWith(color: GwdColors.inkOf(dialogContext), letterSpacing: 1.5),
                 ),
               ),
               const SizedBox(height: GwdSpace.md),
               Text(
                 'It is not shown again. They will be asked to pick their own '
                 'password the first time they sign in with it.',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(dialogContext)),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(dialogContext)),
               ),
             ],
           ),
@@ -743,14 +742,13 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                 );
               },
               child: Text('Copy',
-                  style: GwdType.callout.copyWith(
-                      color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
+                  style: GwdType.callout
+                      .copyWith(color: GwdColors.primaryRed, fontWeight: FontWeight.w700)),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text('Done',
-                  style: GwdType.callout
-                      .copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(dialogContext))),
             ),
           ],
         ),
@@ -787,8 +785,7 @@ class _ContactRow extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: GwdColors.inkTertiaryOf(context)),
         const SizedBox(width: GwdSpace.md),
-        Text(label,
-            style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+        Text(label, style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
         const SizedBox(width: GwdSpace.md),
         Expanded(
           child: Text(
@@ -812,6 +809,104 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
+/// Somebody's attendance, derived from the meetings themselves.
+///
+/// The rate is nullable on purpose: "nothing recorded yet" and "came to none of
+/// them" are different facts, and rendering the first as 0% puts a failing
+/// figure on somebody who has done nothing wrong.
+class _AttendanceCard extends StatelessWidget {
+  const _AttendanceCard({required this.record});
+  final AttendanceRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final rate = record.rate;
+
+    return SurfaceCard(
+      emphasis: SurfaceEmphasis.raised,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              if (rate != null) ...[
+                ProgressArc(
+                  progress: rate / 100,
+                  color: _tint(rate),
+                  size: 74,
+                  child: AnimatedCounter(
+                    value: rate,
+                    suffix: '%',
+                    style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
+                  ),
+                ),
+                const SizedBox(width: GwdSpace.lg),
+              ] else ...[
+                Container(
+                  width: 74,
+                  height: 74,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: GwdColors.sunkenOf(context),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.groups_2_outlined,
+                      size: 26, color: GwdColors.inkTertiaryOf(context)),
+                ),
+                const SizedBox(width: GwdSpace.lg),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      rate == null
+                          ? 'Nothing recorded yet'
+                          : '${record.attended} of ${record.invited} attended',
+                      style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      rate == null
+                          ? 'No meeting they were asked to has had its '
+                              'attendance taken.'
+                          : record.absent == 0
+                              ? 'Has not missed one'
+                              : 'Missed ${record.absent}',
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (record.upcoming > 0) ...[
+            Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
+            Row(
+              children: [
+                Icon(Icons.event_available_outlined,
+                    size: 15, color: GwdColors.inkTertiaryOf(context)),
+                const SizedBox(width: GwdSpace.md),
+                Text('Expected at',
+                    style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                const Spacer(),
+                Text(record.upcoming == 1 ? '1 coming up' : '${record.upcoming} coming up',
+                    style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Color _tint(int rate) {
+    if (rate >= 80) return GwdColors.success;
+    if (rate >= 50) return GwdColors.info;
+    return GwdColors.warning;
+  }
+}
+
 class _Breakdown extends StatelessWidget {
   const _Breakdown({required this.stats});
   final Map<String, dynamic> stats;
@@ -826,8 +921,7 @@ class _Breakdown extends StatelessWidget {
       ('Pending', n('pending'), GwdColors.inkTertiaryOf(context), Icons.radio_button_unchecked),
       if (n('blocked') > 0)
         ('Blocked', n('blocked'), GwdColors.warning, Icons.report_problem_outlined),
-      if (n('overdue') > 0)
-        ('Overdue', n('overdue'), GwdColors.critical, Icons.schedule_rounded),
+      if (n('overdue') > 0) ('Overdue', n('overdue'), GwdColors.critical, Icons.schedule_rounded),
     ];
 
     final total = n('assigned');
@@ -844,8 +938,7 @@ class _Breakdown extends StatelessWidget {
                 SizedBox(
                   width: 88,
                   child: Text(rows[i].$1,
-                      style: GwdType.callout
-                          .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                      style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
                 ),
                 Expanded(
                   child: TweenAnimationBuilder<double>(
@@ -961,7 +1054,10 @@ class _AwardSheetState extends State<_AwardSheet> {
   }
 
   Future<void> _award() async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final store = AppScope.readStore(context);
       final navigator = Navigator.of(context);
@@ -969,11 +1065,15 @@ class _AwardSheetState extends State<_AwardSheet> {
       await store.awardPoints(widget.member.id, _points, _reason.text.trim());
       navigator.pop();
       messenger.showSnackBar(SnackBar(
-        content: Text(
-            '$_points point${_points == 1 ? '' : 's'} to ${widget.member.firstName}.'),
+        content: Text('$_points point${_points == 1 ? '' : 's'} to ${widget.member.firstName}.'),
       ));
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _busy = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _busy = false;
+        });
+      }
     }
   }
 
@@ -994,13 +1094,11 @@ class _AwardSheetState extends State<_AwardSheet> {
           children: [
             SheetHeader(title: 'Recognise ${member.firstName}', subtitle: member.role.title),
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+              padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
               child: Column(
                 children: [
                   Text('HOW MANY POINTS',
-                      style: GwdType.eyebrow
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   Row(
                     children: [
@@ -1013,8 +1111,7 @@ class _AwardSheetState extends State<_AwardSheet> {
                               onTap: () => setState(() => _points = n),
                               child: AnimatedContainer(
                                 duration: AppleDuration.fast,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: GwdSpace.md),
+                                padding: const EdgeInsets.symmetric(vertical: GwdSpace.md),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: _points == n
@@ -1028,9 +1125,7 @@ class _AwardSheetState extends State<_AwardSheet> {
                                   ),
                                 ),
                                 child: Text('+$n',
-                                    style: GwdType.headline
-                                        .merge(GwdType.numeric)
-                                        .copyWith(
+                                    style: GwdType.headline.merge(GwdType.numeric).copyWith(
                                           color: _points == n
                                               ? Colors.white
                                               : GwdColors.inkOf(context),

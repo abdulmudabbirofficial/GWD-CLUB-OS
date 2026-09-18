@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -25,38 +26,42 @@ class ApprovalsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Approvals',
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Approvals', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadPendingApprovals(),
-        child: requests.isEmpty
-            ? ListView(
-                children: const [
-                  SizedBox(height: 80),
-                  EmptyState(
-                    icon: Icons.how_to_reg_outlined,
-                    title: 'Nobody waiting',
-                    message:
-                        'When someone requests access to your department, they appear here for you to approve.',
-                  ),
-                ],
-              )
-            : ListView.builder(
-                padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl),
-                itemCount: requests.length,
-                itemBuilder: (context, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                  child: AppleStaggerItem(
-                    index: i,
-                    child: _ApprovalCard(
-                      key: ValueKey(requests[i].id),
-                      request: requests[i],
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadPendingApprovals(),
+          child: requests.isEmpty
+              ? ListView(
+                  children: const [
+                    SizedBox(height: 80),
+                    EmptyState(
+                      icon: Icons.how_to_reg_outlined,
+                      title: 'Nobody waiting',
+                      message:
+                          'When someone requests access to your department, they appear here for you to approve.',
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl),
+                  itemCount: requests.length,
+                  itemBuilder: (context, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                    child: AppleStaggerItem(
+                      index: i,
+                      child: _ApprovalCard(
+                        key: ValueKey(requests[i].id),
+                        request: requests[i],
+                      ),
                     ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -122,8 +127,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       // Lead", the same phrasing the club will use for them
                       // once they are in.
                       positionLineFor(request.requestedRole, request.departmentName),
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
@@ -272,8 +276,7 @@ class _NameThisAccountState extends State<_NameThisAccount> {
             widget.hint == null
                 ? 'This account was created before anyone held it.'
                 : 'Who is taking ${widget.hint}?',
-            style: GwdType.footnote
-                .copyWith(color: GwdColors.inkSecondaryOf(context)),
+            style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
           ),
           const SizedBox(height: GwdSpace.sm),
           Row(

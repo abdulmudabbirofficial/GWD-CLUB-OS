@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 /// Task status.
 ///
 /// The board reads To do → In progress → Review → Done. `review` is optional:
@@ -96,12 +98,12 @@ enum TaskStatus {
       };
 
   IconData get icon => switch (this) {
-        TaskStatus.pending => Icons.radio_button_unchecked,
-        TaskStatus.inProgress => Icons.timelapse_rounded,
-        TaskStatus.review => Icons.rate_review_outlined,
-        TaskStatus.completed => Icons.check_circle_rounded,
-        TaskStatus.blocked => Icons.report_problem_outlined,
-        TaskStatus.cancelled => Icons.cancel_outlined,
+        TaskStatus.pending => GwdIcons.notStarted,
+        TaskStatus.inProgress => GwdIcons.inProgress,
+        TaskStatus.review => GwdIcons.inReview,
+        TaskStatus.completed => GwdIcons.done,
+        TaskStatus.blocked => GwdIcons.blocked,
+        TaskStatus.cancelled => GwdIcons.cancelled,
       };
 
   bool get isOpen =>
@@ -188,8 +190,7 @@ class ClubTask {
         completedAt: _date(json['completedAt']),
       );
 
-  bool get isOverdue =>
-      dueDate != null && status.isOpen && dueDate!.isBefore(DateTime.now());
+  bool get isOverdue => dueDate != null && status.isOpen && dueDate!.isBefore(DateTime.now());
 
   /// "today", "tomorrow", "in 3 days", "2 days ago" — short enough for a chip.
   String? get dueLabel {
@@ -208,7 +209,8 @@ class ClubTask {
     return 'Due ${due.day}/${due.month}';
   }
 
-  ClubTask copyWith({TaskStatus? status, String? title, String? description, DateTime? dueDate}) => ClubTask(
+  ClubTask copyWith({TaskStatus? status, String? title, String? description, DateTime? dueDate}) =>
+      ClubTask(
         id: id,
         title: title ?? this.title,
         description: description ?? this.description,
@@ -247,6 +249,7 @@ class TaskComment {
         authorId: json['authorId'] as String? ?? '',
         authorName: json['authorName'] as String? ?? 'Unknown',
         body: json['body'] as String? ?? '',
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
+        createdAt:
+            DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
       );
 }

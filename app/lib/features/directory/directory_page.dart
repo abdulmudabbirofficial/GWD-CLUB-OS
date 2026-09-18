@@ -99,13 +99,13 @@ class _DirectoryPageState extends State<DirectoryPage> {
                 style: GwdType.body.copyWith(color: GwdColors.inkOf(context)),
                 decoration: InputDecoration(
                   hintText: 'Search members',
-                  hintStyle:
-                      GwdType.body.copyWith(color: GwdColors.inkTertiaryOf(context)),
-                  prefixIcon: Icon(Icons.search_rounded,
-                      size: 19, color: GwdColors.inkTertiaryOf(context)),
+                  hintStyle: GwdType.body.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  prefixIcon:
+                      Icon(Icons.search_rounded, size: 19, color: GwdColors.inkTertiaryOf(context)),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
+                          tooltip: 'Clear the search',
                           icon: const Icon(Icons.close_rounded, size: 17),
                           onPressed: () {
                             _search.clear();
@@ -166,8 +166,7 @@ class _Grouped extends StatelessWidget {
     int next() => step++;
 
     return ListView(
-      padding:
-          EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
+      padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
       children: [
         if (offices.isNotEmpty) ...[
           AppleStaggerItem(
@@ -187,7 +186,6 @@ class _Grouped extends StatelessWidget {
                 ),
               ),
         ],
-
         const SizedBox(height: GwdSpace.xl),
         AppleStaggerItem(
           index: next(),
@@ -209,7 +207,6 @@ class _Grouped extends StatelessWidget {
               ),
             ),
           ),
-
         if (departments.isEmpty && offices.isEmpty)
           const EmptyState(
             icon: Icons.person_search_outlined,
@@ -248,8 +245,7 @@ class _DepartmentTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(GwdRadius.md),
             ),
             child: Text(department.initials,
-                style: GwdType.caption
-                    .copyWith(color: tint, fontSize: 13, letterSpacing: 0)),
+                style: GwdType.caption.copyWith(color: tint, fontSize: 13, letterSpacing: 0)),
           ),
           const SizedBox(width: GwdSpace.md),
           Expanded(
@@ -260,8 +256,7 @@ class _DepartmentTile extends StatelessWidget {
                 Text(department.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.headline
-                        .copyWith(color: GwdColors.inkOf(context))),
+                    style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                 const SizedBox(height: 1),
                 Text(
                   [
@@ -271,16 +266,13 @@ class _DepartmentTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GwdType.footnote.copyWith(
-                    color: lead == null
-                        ? GwdColors.warning
-                        : GwdColors.inkTertiaryOf(context),
+                    color: lead == null ? GwdColors.warning : GwdColors.inkTertiaryOf(context),
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: 18, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );
@@ -417,8 +409,7 @@ class MemberRow extends StatelessWidget {
                   subtitle ?? member.positionLine(department?.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),
@@ -432,8 +423,7 @@ class MemberRow extends StatelessWidget {
           ],
           RoleBadge(role: member.role, dense: true),
           const SizedBox(width: GwdSpace.xs),
-          Icon(Icons.chevron_right_rounded,
-              size: 18, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );

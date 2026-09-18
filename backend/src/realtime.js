@@ -126,10 +126,23 @@ function serialiseTask(task) {
 }
 
 function serialiseNotification(n) {
+  // Rendered here as well as in the REST list, from the same copy table FCM
+  // uses. Without it a notification arriving over the socket had no title or
+  // body at all, so a client could show a live alert for it only by re-fetching
+  // the list - and the one that skipped the re-fetch showed "GWD Club" and an
+  // empty line. Same event, same words, whichever way it arrives.
+  //
+  // Required lazily: `services/notify` reaches for the FCM client at load, and
+  // pulling that in at the top of the realtime layer makes module init order
+  // matter for no reason.
+  const { render } = require('./services/notify');
+  const { title, body } = render(n.type, n.payload);
   return {
     id: idOf(n._id),
     userId: idOf(n.userId),
     type: n.type,
+    title,
+    body,
     payload: n.payload ?? {},
     read: Boolean(n.read),
     createdAt: n.createdAt,
@@ -318,6 +331,50 @@ function startWatchers() {
       },
     },
     {
+      // A task's thread. Two people working the same task should see each
+      // other type — without this, a comment only appeared after a manual
+      // refresh, which is how a conversation turns into two monologues.
+      //
+      // The body never rides the socket: only the id of the task that changed.
+      // Whether this viewer may read that task is the route's decision, and
+      // broadcasting comment text to `room.club` would hand every member every
+      // thread in the club.
+      name: C.comments,
+      handler: (change) => {
+        const doc = change.fullDocument;
+        const taskId = idOf(doc?.taskId);
+        if (!taskId) return;
+        emitTo([room.club], 'comment:changed', {
+          taskId,
+          removed: change.operationType === 'delete',
+        });
+      },
+    },
+    {
+      // Event money. Same rule as documents: the fact, never the figures.
+      // On the day of an event a Lead is filing expenses while the President
+      // approves them, and "still owed" going stale is exactly the number
+      // people are standing there asking about.
+      name: C.eventBills,
+      handler: (change) => {
+        const doc = change.fullDocument;
+        emitTo([room.club], 'bill:changed', {
+          id: idOf(change.documentKey?._id),
+          eventId: idOf(doc?.eventId),
+          removed: change.operationType === 'delete',
+        });
+      },
+    },
+    {
+      // Schedule categories are managed data, and retiring one has to reach
+      // every open client: otherwise a past entry keeps rendering with a name
+      // and colour that no longer exist anywhere.
+      name: C.scheduleCategories,
+      handler: () => {
+        emitTo([room.club], 'category:changed', {});
+      },
+    },
+    {
       name: C.helpRequests,
       handler: (change) => {
         const id = idOf(change.documentKey?._id);
@@ -332,6 +389,41 @@ function startWatchers() {
           status: doc.status,
           departmentId: idOf(doc.departmentId),
         });
+      },
+    },
+    {
+      name: C.meetings,
+      handler: (change) => {
+        const id = idOf(change.documentKey?._id);
+        if (change.operationType === 'delete') {
+          emitTo([room.club], 'meeting:deleted', { id });
+          return;
+        }
+        const doc = change.fullDocument;
+        if (!doc) return;
+
+        // Addressed to the people actually in the room, plus leadership who
+        // watch for clashes. A meeting is not club-wide news — sending it to
+        // everybody would light up forty phones for a four-person sync.
+        const audience = [
+          room.leadership,
+          ...(doc.participants ?? []).map((p) => room.user(idOf(p.userId))),
+        ];
+
+        emitTo(
+          audience,
+          change.operationType === 'insert' ? 'meeting:created' : 'meeting:updated',
+          {
+            id,
+            status: doc.status,
+            date: doc.date,
+            title: doc.title,
+            // Attendance is what every profile figure is derived from, so a
+            // client that sees this knows to refresh those too.
+            attendanceRecorded: (doc.participants ?? [])
+              .some((p) => p.status && p.status !== 'invited'),
+          },
+        );
       },
     },
     {

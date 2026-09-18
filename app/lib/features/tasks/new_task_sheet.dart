@@ -89,8 +89,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   /// In request mode a Lead can address another **department** instead of a
   /// person — "Technical needs Production on the stage rig". The ask lands on
   /// that department's Lead, who decides whether to take it or pass it on.
-  bool get _requestingDepartment =>
-      _requestMode && _selectedDepartment != null;
+  bool get _requestingDepartment => _requestMode && _selectedDepartment != null;
 
   bool get _canSubmit {
     if (_busy || _title.text.trim().length < 2) return false;
@@ -149,8 +148,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       if (_toDepartment) {
-        final department = _targets.departments
-            .firstWhere((d) => d.id == _selectedDepartment);
+        final department = _targets.departments.firstWhere((d) => d.id == _selectedDepartment);
         messenger.showSnackBar(SnackBar(
           content: Text(department.leadName == null
               ? 'Sent to ${department.name}. They have no Lead yet — the '
@@ -189,8 +187,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -208,8 +205,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                           : 'Pick who in your department takes this on.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -224,7 +220,6 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                         ),
                         const SizedBox(height: GwdSpace.lg),
                       ],
-
                       GwdField(
                         label: 'What needs doing',
                         controller: _title,
@@ -233,7 +228,6 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       if (_loading)
                         const SkeletonList(count: 2, height: 54)
                       else if (_toDepartment)
@@ -247,26 +241,24 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                         // first — that is the unit the work is described in.
                         // Picking one clears any person, and vice versa: an ask
                         // goes to one place.
-                        if (_requestMode &&
-                            _targets.requestableDepartments.isNotEmpty) ...[
+                        if (_requestMode && _targets.requestableDepartments.isNotEmpty) ...[
                           Text('ASK A DEPARTMENT',
-                              style: GwdType.eyebrow.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.eyebrow
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                           const SizedBox(height: GwdSpace.sm),
                           _DepartmentPicker(
                             departments: _targets.requestableDepartments,
                             selected: _selectedDepartment,
                             onChanged: (id) => setState(() {
-                              _selectedDepartment =
-                                  _selectedDepartment == id ? null : id;
+                              _selectedDepartment = _selectedDepartment == id ? null : id;
                               _selectedPeople.clear();
                             }),
                           ),
                           if (people.isNotEmpty) ...[
                             const SizedBox(height: GwdSpace.lg),
                             Text('OR ASK A PERSON',
-                                style: GwdType.eyebrow.copyWith(
-                                    color: GwdColors.inkTertiaryOf(context))),
+                                style: GwdType.eyebrow
+                                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
                             const SizedBox(height: GwdSpace.sm),
                           ],
                         ],
@@ -290,7 +282,6 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                             }),
                           ),
                       ],
-
                       const SizedBox(height: GwdSpace.lg),
                       if (!_requestMode) ...[
                         _PointPicker(
@@ -301,15 +292,12 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                         ),
                         const SizedBox(height: GwdSpace.lg),
                       ],
-
                       Row(
                         children: [
                           Expanded(
                             child: _MiniPicker(
                               label: 'Due',
-                              value: _due == null
-                                  ? 'No date'
-                                  : '${_due!.day}/${_due!.month}',
+                              value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
                               icon: Icons.event_rounded,
                               muted: _due == null,
                               onTap: _pickDue,
@@ -336,14 +324,12 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                         ],
                       ),
                       const SizedBox(height: GwdSpace.lg),
-
                       GwdField(
                         label: 'Notes',
                         controller: _description,
                         maxLines: 3,
                         hint: 'Anything the person doing this should know.',
                       ),
-
                       if (_error != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         ErrorNote(message: _error!),
@@ -405,8 +391,7 @@ class _ModeSwitch extends StatelessWidget {
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(GwdRadius.sm),
                     boxShadow: isRequest == requestMode
-                        ? GwdShadow.resting(
-                            Theme.of(context).brightness == Brightness.dark)
+                        ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
                         : null,
                   ),
                   child: Text(
@@ -415,8 +400,7 @@ class _ModeSwitch extends StatelessWidget {
                       color: isRequest == requestMode
                           ? GwdColors.inkOf(context)
                           : GwdColors.inkTertiaryOf(context),
-                      fontWeight:
-                          isRequest == requestMode ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isRequest == requestMode ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),
@@ -484,8 +468,14 @@ class _DepartmentRow extends StatelessWidget {
 
   Color get _tint {
     const palette = [
-      Color(0xFFDC2626), Color(0xFF0B0B0F), Color(0xFF9F1239), Color(0xFF334155),
-      Color(0xFFB45309), Color(0xFF15803D), Color(0xFF1D4ED8), Color(0xFF6D28D9),
+      Color(0xFFDC2626),
+      Color(0xFF0B0B0F),
+      Color(0xFF9F1239),
+      Color(0xFF334155),
+      Color(0xFFB45309),
+      Color(0xFF15803D),
+      Color(0xFF1D4ED8),
+      Color(0xFF6D28D9),
     ];
     final seed = department.colorSeed ?? department.id;
     var hash = 0;
@@ -508,9 +498,7 @@ class _DepartmentRow extends StatelessWidget {
         curve: AppleCurves.standard,
         padding: const EdgeInsets.all(GwdSpace.md),
         decoration: BoxDecoration(
-          color: selected
-              ? _tint.withValues(alpha: 0.10)
-              : GwdColors.sunkenOf(context),
+          color: selected ? _tint.withValues(alpha: 0.10) : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
           border: Border.all(
             color: selected ? _tint.withValues(alpha: 0.45) : Colors.transparent,
@@ -534,8 +522,7 @@ class _DepartmentRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(department.name,
-                      style: GwdType.headline
-                          .copyWith(color: GwdColors.inkOf(context))),
+                      style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                   const SizedBox(height: 1),
                   Text(
                     hasLead
@@ -544,9 +531,7 @@ class _DepartmentRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GwdType.footnote.copyWith(
-                      color: hasLead
-                          ? GwdColors.inkTertiaryOf(context)
-                          : GwdColors.warning,
+                      color: hasLead ? GwdColors.inkTertiaryOf(context) : GwdColors.warning,
                     ),
                   ),
                 ],
@@ -583,9 +568,7 @@ class _PeoplePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     if (people.isEmpty) {
       return Text(
-        requestMode
-            ? 'Nobody to ask right now.'
-            : 'Nobody in your department yet.',
+        requestMode ? 'Nobody to ask right now.' : 'Nobody in your department yet.',
         style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
       );
     }
@@ -631,11 +614,11 @@ class _PeoplePicker extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: GwdColors.primaryRed,
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: GwdColors.surfaceOf(context), width: 1.5),
+                                  border:
+                                      Border.all(color: GwdColors.surfaceOf(context), width: 1.5),
                                 ),
-                                child: const Icon(Icons.check_rounded,
-                                    size: 9, color: Colors.white),
+                                child:
+                                    const Icon(Icons.check_rounded, size: 9, color: Colors.white),
                               ),
                             ),
                         ],
@@ -646,9 +629,7 @@ class _PeoplePicker extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
+                        style: GwdType.micro.copyWith(
                           color: isSelected
                               ? GwdColors.inkOf(context)
                               : GwdColors.inkTertiaryOf(context),
@@ -727,16 +708,13 @@ class _PointPicker extends StatelessWidget {
                           '${values[i]}',
                           style: GwdType.numeric.copyWith(
                             fontSize: 19,
-                            color: values[i] == selected
-                                ? Colors.white
-                                : GwdColors.inkOf(context),
+                            color: values[i] == selected ? Colors.white : GwdColors.inkOf(context),
                           ),
                         ),
                         const SizedBox(height: 1),
                         Text(
                           _labels[values[i]] ?? 'pts',
-                          style: GwdType.caption.copyWith(
-                            fontSize: 9,
+                          style: GwdType.micro.copyWith(
                             letterSpacing: 0.2,
                             color: values[i] == selected
                                 ? Colors.white.withValues(alpha: 0.85)
@@ -777,8 +755,7 @@ class _MiniPicker extends StatelessWidget {
       onTap: onTap,
       pressedScale: 0.97,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            horizontal: GwdSpace.md, vertical: GwdSpace.md),
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
         decoration: BoxDecoration(
           color: GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
@@ -793,15 +770,12 @@ class _MiniPicker extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(label.toUpperCase(),
-                      style: GwdType.eyebrow.copyWith(
-                          fontSize: 8.5, color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.microLabel.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   Text(value,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GwdType.footnote.copyWith(
-                        color: muted
-                            ? GwdColors.inkTertiaryOf(context)
-                            : GwdColors.inkOf(context),
+                        color: muted ? GwdColors.inkTertiaryOf(context) : GwdColors.inkOf(context),
                       )),
                 ],
               ),

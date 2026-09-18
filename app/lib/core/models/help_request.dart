@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 /// Help & collaboration.
 ///
 /// Two verbs: "I need help" and "I can help". A club's real failure mode is not
@@ -46,7 +48,7 @@ enum HelpStatus {
         HelpStatus.open => Icons.pan_tool_outlined,
         HelpStatus.assigned => Icons.handshake_outlined,
         HelpStatus.inProgress => Icons.bolt_rounded,
-        HelpStatus.resolved => Icons.check_circle_rounded,
+        HelpStatus.resolved => GwdIcons.done,
       };
 }
 
@@ -119,8 +121,7 @@ class HelpRequest {
   bool get isFull => spotsLeft != null && spotsLeft! <= 0;
 
   /// Past its deadline and still not sorted.
-  bool get isLate =>
-      neededBy != null && isOpen && neededBy!.isBefore(DateTime.now());
+  bool get isLate => neededBy != null && isOpen && neededBy!.isBefore(DateTime.now());
 
   /// "in 3 hours", "tomorrow", "in 2 days" — how a person would say it.
   String get whenNeeded {
@@ -151,8 +152,8 @@ class HelpRequest {
         eventId: json['eventId'] as String?,
         eventName: json['eventName'] as String?,
         createdByName: json['createdByName'] as String? ?? 'Member',
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
-            DateTime.now(),
+        createdAt:
+            DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
         helpers: ((json['helpers'] as List?) ?? const [])
             .whereType<Map>()
             .map((e) => HelpOffer.fromJson(e.cast<String, dynamic>()))

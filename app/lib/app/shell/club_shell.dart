@@ -1,11 +1,23 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
+import '../../core/models/app_notification.dart';
+import '../../features/alerts/alerts_page.dart';
+import '../../features/approvals/approvals_page.dart';
 import '../../features/auth/change_password_sheet.dart';
 import '../../features/auth/set_name_sheet.dart';
 import '../../features/club/more_page.dart';
 import '../../features/departments/departments_hub_page.dart';
+import '../../features/directory/directory_page.dart';
+import '../../features/events/event_workspace_page.dart';
 import '../../features/events/events_page.dart';
+import '../../features/help/help_page.dart';
 import '../../features/home/home_page.dart';
+import '../../features/leaderboard/leaderboard_page.dart';
+import '../../features/meetings/meeting_detail_page.dart';
+import '../../features/meetings/meetings_page.dart';
+import '../../features/profile/profile_sheet.dart';
 import '../../features/tasks/task_detail_page.dart';
 import '../../features/tasks/tasks_page.dart';
 import '../app_scope.dart';
@@ -54,6 +66,22 @@ class ClubShell extends StatefulWidget {
     return state._back();
   }
 
+  /// Follow a notification to whatever it is about.
+  ///
+  /// It lives on the shell rather than in the alerts page because most
+  /// destinations are **tabs**, and `Navigator.of(context)` inside a page can
+  /// only push — it cannot change which tab is showing. Doing it here means one
+  /// implementation serves the notification list, a live toast and an FCM tap
+  /// alike, instead of three that drift.
+  ///
+  /// Returns false when there was nowhere to go, so the caller can leave the
+  /// row alone rather than animating a navigation that never happened.
+  static bool open(NotificationTarget target) {
+    final state = _shellKey.currentState;
+    if (state == null) return false;
+    return state._open(target);
+  }
+
   @override
   State<ClubShell> createState() => _ClubShellState();
 }
@@ -94,12 +122,80 @@ class _ClubShellState extends State<ClubShell> {
     }
   }
 
-  void _openTask(String taskId) {
-    final store = AppScope.readStore(context);
-    if (!store.tasks.any((t) => t.id == taskId)) return;
-    _navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: taskId)),
-    );
+  /// Tab indices, named. `pages` below must stay in this order.
+  static const _home = 0;
+  static const _events = 1;
+  static const _work = 2;
+  static const _departments = 3;
+  static const _more = 4;
+
+  /// Push a detail page onto the inner navigator, landing on a sensible tab
+  /// first so backing out of it leaves somebody somewhere coherent.
+  void _push(int tab, Widget page) {
+    _selectTab(tab);
+    _navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => page));
+  }
+
+  bool _open(NotificationTarget target) {
+    switch (target.kind) {
+      case NotificationTargetKind.none:
+        return false;
+
+      // --- specific things, by id ------------------------------------------
+      case NotificationTargetKind.task:
+        // Deliberately not gated on the task already being in the store, unlike
+        // `_openTask` above: a notification frequently arrives for work this
+        // client has not loaded yet, and the detail page fetches by id anyway.
+        // Silently doing nothing is the worst possible answer to a tap.
+        _push(_work, TaskDetailPage(taskId: target.id!));
+        return true;
+      case NotificationTargetKind.meeting:
+        _push(_more, MeetingDetailPage(meetingId: target.id!));
+        return true;
+      case NotificationTargetKind.event:
+        _push(_events, EventWorkspacePage(eventId: target.id!));
+        return true;
+      case NotificationTargetKind.help:
+        _push(_more, const HelpPage());
+        return true;
+
+      // --- the screen that lists its kind ----------------------------------
+      case NotificationTargetKind.approvals:
+        _push(_more, const ApprovalsPage());
+        return true;
+      case NotificationTargetKind.directory:
+        _push(_more, const DirectoryPage());
+        return true;
+      case NotificationTargetKind.helpBoard:
+        _push(_more, const HelpPage());
+        return true;
+      case NotificationTargetKind.meetings:
+        _push(_more, const MeetingsPage());
+        return true;
+      case NotificationTargetKind.recognition:
+        _push(_more, const LeaderboardPage());
+        return true;
+      case NotificationTargetKind.departments:
+        _selectTab(_departments);
+        return true;
+      case NotificationTargetKind.profile:
+        _selectTab(_more);
+        showProfileSheet(context);
+        return true;
+
+      // --- tabs -------------------------------------------------------------
+      case NotificationTargetKind.myWork:
+      case NotificationTargetKind.incoming:
+      case NotificationTargetKind.requests:
+        // All three live on the Work tab, which owns its own scopes. Landing
+        // on the tab is the honest answer: deep-linking to a filter somebody
+        // then cannot get out of is worse than showing them the list.
+        _selectTab(_work);
+        return true;
+      case NotificationTargetKind.broadcasts:
+        _push(_more, const AlertsPage());
+        return true;
+    }
   }
 
   /// Detail pages live on the inner navigator so the tab bar never disappears.
@@ -125,8 +221,8 @@ class _ClubShellState extends State<ClubShell> {
       navigator.pop();
       return true;
     }
-    if (_index != 0) {
-      setState(() => _index = 0);
+    if (_index != _home) {
+      setState(() => _index = _home);
       return true;
     }
     return false; // on Home with nothing stacked — let it close
@@ -151,19 +247,37 @@ class _ClubShellState extends State<ClubShell> {
           badge: store.eventsOngoing.length, accentBadge: true),
       NavItem(Icons.check_circle_outline, Icons.check_circle_rounded, 'Work',
           badge: store.myTasks.where((t) => t.status.isOpen).length),
-      const NavItem(
-          Icons.workspaces_outline, Icons.workspaces_rounded, 'Departments'),
+      const NavItem(Icons.workspaces_outline, Icons.workspaces_rounded, 'Departments'),
       NavItem(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
-          badge: store.unreadNotifications + store.pendingApprovals.length,
-          accentBadge: true),
+          badge: store.unreadNotifications + store.pendingApprovals.length, accentBadge: true),
     ];
 
-    final body = Navigator(
-      key: _navigatorKey,
-      onGenerateRoute: (_) => MaterialPageRoute(
-        builder: (_) => FluidTabSwitcher(
-          index: _index,
-          child: KeyedSubtree(key: ValueKey(_index), child: pages[_index]),
+    // Tell everything inside the shell how tall the bar over it is.
+    //
+    // `extendBody` lets the content scroll under the frosted bar, which is
+    // what gives the blur something to blur — but it also means the inner
+    // pages' own Scaffolds no longer have that space reserved for them, so
+    // their floating action buttons floated *underneath* it. Folding the bar's
+    // height into the inherited bottom padding fixes every one of them at
+    // once: a Scaffold sizes its FAB against exactly this, and `SafeArea`
+    // reads it too, so nothing has to know the shell exists.
+    final barHeight = layout.usesRail ? 0.0 : _ClubNavBar.height;
+    final media = MediaQuery.of(context);
+
+    final body = MediaQuery(
+      data: media.copyWith(
+        padding: media.padding.copyWith(bottom: media.padding.bottom + barHeight),
+        viewPadding: media.viewPadding.copyWith(
+          bottom: media.viewPadding.bottom + barHeight,
+        ),
+      ),
+      child: Navigator(
+        key: _navigatorKey,
+        onGenerateRoute: (_) => MaterialPageRoute(
+          builder: (_) => FluidTabSwitcher(
+            index: _index,
+            child: KeyedSubtree(key: ValueKey(_index), child: pages[_index]),
+          ),
         ),
       ),
     );
@@ -172,9 +286,14 @@ class _ClubShellState extends State<ClubShell> {
     // consulted, so main.dart owns it and calls ClubShell.handleBack().
     return LiveToastHost(
       store: store,
-      onOpenTask: _openTask,
+      onOpen: _open,
       child: Scaffold(
         backgroundColor: GwdColors.canvasOf(context),
+        // The content runs under the frosted bar rather than stopping above
+        // it, which is the only way the blur has anything to blur. Pages
+        // already end their scrolls with a GwdSpace.xxxl tail, so nothing
+        // important comes to rest underneath.
+        extendBody: true,
         body: layout.usesRail
             ? Row(
                 children: [
@@ -197,8 +316,7 @@ class _ClubShellState extends State<ClubShell> {
 }
 
 class NavItem {
-  const NavItem(this.icon, this.activeIcon, this.label,
-      {this.badge = 0, this.accentBadge = false});
+  const NavItem(this.icon, this.activeIcon, this.label, {this.badge = 0, this.accentBadge = false});
   final IconData icon;
   final IconData activeIcon;
   final String label;
@@ -235,8 +353,7 @@ class _ClubNavRail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: EdgeInsets.fromLTRB(
-                  extended ? GwdSpace.lg : GwdSpace.md, GwdSpace.xl,
+              padding: EdgeInsets.fromLTRB(extended ? GwdSpace.lg : GwdSpace.md, GwdSpace.xl,
                   extended ? GwdSpace.lg : GwdSpace.md, GwdSpace.xl),
               child: extended
                   ? const GwdWordmark(compact: true)
@@ -295,15 +412,13 @@ class _RailButton extends StatelessWidget {
           duration: AppleDuration.standard,
           curve: AppleCurves.standard,
           padding: EdgeInsets.symmetric(
-              horizontal: extended ? GwdSpace.md : GwdSpace.sm,
-              vertical: GwdSpace.md),
+              horizontal: extended ? GwdSpace.md : GwdSpace.sm, vertical: GwdSpace.md),
           decoration: BoxDecoration(
             color: selected ? GwdColors.primaryRed : Colors.transparent,
             borderRadius: BorderRadius.circular(GwdRadius.md),
           ),
           child: Row(
-            mainAxisAlignment:
-                extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: extended ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
               Stack(
                 clipBehavior: Clip.none,
@@ -342,32 +457,61 @@ class _RailButton extends StatelessWidget {
 class _ClubNavBar extends StatelessWidget {
   const _ClubNavBar({required this.index, required this.items, required this.onChanged});
 
+  /// The bar's own height, excluding the system inset it sits on.
+  ///
+  /// Public to the library so the shell can reserve exactly this much bottom
+  /// padding for the pages underneath — two places agreeing on one number
+  /// rather than a literal copied into both and drifting.
+  static const height = 60.0;
+
   final int index;
   final List<NavItem> items;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: GwdColors.surfaceOf(context),
-        border: Border(top: BorderSide(color: GwdColors.hairlineOf(context))),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: _NavButton(
-                    item: items[i],
-                    selected: i == index,
-                    onTap: () => onChanged(i),
-                  ),
-                ),
-            ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Frosted, not opaque.
+    //
+    // The bar sits *over* the content rather than beside it, so the list
+    // scrolling underneath stays faintly visible through it. That is the cue
+    // that tells somebody the page continues past the bar — an opaque slab
+    // reads as the end of the page, and it is most of the difference between
+    // chrome that feels attached to the app and chrome that feels stuck on.
+    //
+    // The blur is clipped to the bar's own rect: an unbounded BackdropFilter
+    // samples the whole layer tree and is one of the few genuinely expensive
+    // things you can put on a screen that repaints on every scroll frame.
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            // Translucent enough to frost, opaque enough that a dense list
+            // scrolling under it never makes the labels hard to read.
+            color: GwdColors.surfaceOf(context).withValues(alpha: isDark ? 0.72 : 0.80),
+            border: Border(
+              top: BorderSide(color: GwdColors.hairlineOf(context).withValues(alpha: 0.9)),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: height,
+              child: Row(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    Expanded(
+                      child: _NavButton(
+                        item: items[i],
+                        selected: i == index,
+                        onTap: () => onChanged(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -420,9 +564,8 @@ class _NavButton extends StatelessWidget {
             const SizedBox(height: 3),
             AnimatedDefaultTextStyle(
               duration: AppleDuration.fast,
-              style: GwdType.caption.copyWith(
+              style: GwdType.micro.copyWith(
                 color: color,
-                fontSize: 9,
                 letterSpacing: 0.1,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               ),
@@ -468,10 +611,8 @@ class _Badge extends StatelessWidget {
       child: Text(
         item.badge > 99 ? '99+' : '${item.badge}',
         textAlign: TextAlign.center,
-        style: GwdType.caption.copyWith(
+        style: GwdType.micro.copyWith(
           color: selected ? GwdColors.primaryRed : Colors.white,
-          fontSize: 8.5,
-          letterSpacing: 0,
         ),
       ),
     );

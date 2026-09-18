@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
@@ -93,115 +94,115 @@ class _SignUpPageState extends State<SignUpPage> {
           tooltip: 'Back to sign in',
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: GwdSpace.gutter(MediaQuery.sizeOf(context).width),
-              vertical: GwdSpace.lg,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AppleStaggerItem(
-                    index: 0,
-                    child: Text('Request access',
-                        style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
-                  ),
-                  const SizedBox(height: GwdSpace.xs),
-                  AppleStaggerItem(
-                    index: 1,
-                    child: Text(
-                      'Your request goes to ${_role.approverLabel} for approval.',
-                      style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
-                    ),
-                  ),
-                  const SizedBox(height: GwdSpace.xxl),
-
-                  AppleStaggerItem(
-                    index: 2,
-                    child: GwdField(
-                      label: 'Full name',
-                      controller: _name,
-                      hint: 'Aisha Khan',
-                      textInputAction: TextInputAction.next,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(height: GwdSpace.lg),
-                  AppleStaggerItem(
-                    index: 3,
-                    child: GwdField(
-                      label: 'Email',
-                      controller: _email,
-                      hint: 'you@college.edu',
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ),
-                  const SizedBox(height: GwdSpace.lg),
-                  AppleStaggerItem(
-                    index: 4,
-                    child: GwdField(
-                      label: 'Phone number',
-                      controller: _phone,
-                      hint: '+91 98765 43210',
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ),
-                  const SizedBox(height: GwdSpace.lg),
-                  AppleStaggerItem(
-                    index: 5,
-                    child: GwdField(
-                      label: 'Password',
-                      controller: _password,
-                      obscure: true,
-                      hint: 'At least 8 characters',
-                      textInputAction: TextInputAction.done,
-                    ),
-                  ),
-
-                  const SizedBox(height: GwdSpace.xl),
-                  AppleStaggerItem(
-                    index: 6,
-                    child: _RolePicker(
-                      value: _role,
-                      onChanged: (role) => setState(() {
-                        _role = role;
-                        if (!role.hasDepartment) _department = null;
-                      }),
-                    ),
-                  ),
-
-                  if (_role.hasDepartment) ...[
-                    const SizedBox(height: GwdSpace.xl),
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: GwdSpace.gutter(MediaQuery.sizeOf(context).width),
+                vertical: GwdSpace.lg,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     AppleStaggerItem(
-                      index: 7,
-                      child: _DepartmentPicker(
-                        departments: _departments,
-                        loading: _loadingDepartments,
-                        value: _department,
-                        onChanged: (d) => setState(() => _department = d),
+                      index: 0,
+                      child: Text('Request access',
+                          style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+                    ),
+                    const SizedBox(height: GwdSpace.xs),
+                    AppleStaggerItem(
+                      index: 1,
+                      child: Text(
+                        'Your request goes to ${_role.approverLabel} for approval.',
+                        style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
                       ),
                     ),
-                  ],
-
-                  if (session.error != null) ...[
+                    const SizedBox(height: GwdSpace.xxl),
+                    AppleStaggerItem(
+                      index: 2,
+                      child: GwdField(
+                        label: 'Full name',
+                        controller: _name,
+                        hint: 'Aisha Khan',
+                        textInputAction: TextInputAction.next,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
                     const SizedBox(height: GwdSpace.lg),
-                    ErrorNote(message: session.error!),
+                    AppleStaggerItem(
+                      index: 3,
+                      child: GwdField(
+                        label: 'Email',
+                        controller: _email,
+                        hint: 'you@college.edu',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    AppleStaggerItem(
+                      index: 4,
+                      child: GwdField(
+                        label: 'Phone number',
+                        controller: _phone,
+                        hint: '+91 98765 43210',
+                        keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    AppleStaggerItem(
+                      index: 5,
+                      child: GwdField(
+                        label: 'Password',
+                        controller: _password,
+                        obscure: true,
+                        hint: 'At least 8 characters',
+                        textInputAction: TextInputAction.done,
+                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.xl),
+                    AppleStaggerItem(
+                      index: 6,
+                      child: _RolePicker(
+                        value: _role,
+                        onChanged: (role) => setState(() {
+                          _role = role;
+                          if (!role.hasDepartment) _department = null;
+                        }),
+                      ),
+                    ),
+                    if (_role.hasDepartment) ...[
+                      const SizedBox(height: GwdSpace.xl),
+                      AppleStaggerItem(
+                        index: 7,
+                        child: _DepartmentPicker(
+                          departments: _departments,
+                          loading: _loadingDepartments,
+                          value: _department,
+                          onChanged: (d) => setState(() => _department = d),
+                        ),
+                      ),
+                    ],
+                    if (session.error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: session.error!),
+                    ],
+                    const SizedBox(height: GwdSpace.xxl),
+                    PrimaryButton(
+                      label: 'Send request',
+                      busy: session.busy,
+                      onPressed: _canSubmit ? _submit : null,
+                    ),
+                    const SizedBox(height: GwdSpace.xxl),
                   ],
-
-                  const SizedBox(height: GwdSpace.xxl),
-                  PrimaryButton(
-                    label: 'Send request',
-                    busy: session.busy,
-                    onPressed: _canSubmit ? _submit : null,
-                  ),
-                  const SizedBox(height: GwdSpace.xxl),
-                ],
+                ),
               ),
             ),
           ),
@@ -239,14 +240,10 @@ class _RolePicker extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: GwdSpace.md + 2, vertical: GwdSpace.sm + 2),
                   decoration: BoxDecoration(
-                    color: role == value
-                        ? GwdColors.primaryRed
-                        : GwdColors.surfaceOf(context),
+                    color: role == value ? GwdColors.primaryRed : GwdColors.surfaceOf(context),
                     borderRadius: BorderRadius.circular(GwdRadius.md),
                     border: Border.all(
-                      color: role == value
-                          ? GwdColors.primaryRed
-                          : GwdColors.hairlineOf(context),
+                      color: role == value ? GwdColors.primaryRed : GwdColors.hairlineOf(context),
                     ),
                   ),
                   child: Row(
@@ -340,15 +337,15 @@ class _DepartmentPicker extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(department.name,
-                                    style: GwdType.headline
-                                        .copyWith(color: GwdColors.inkOf(context))),
+                                    style:
+                                        GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                                 if (department.description.isNotEmpty)
                                   Text(
                                     department.description,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: GwdType.footnote.copyWith(
-                                        color: GwdColors.inkTertiaryOf(context)),
+                                    style: GwdType.footnote
+                                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
                                   ),
                               ],
                             ),

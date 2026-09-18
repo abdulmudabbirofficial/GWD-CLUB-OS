@@ -105,8 +105,7 @@ class _SetNameSheetState extends State<_SetNameSheet> {
       child: Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(context),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
         ),
         child: SafeArea(
           top: false,
@@ -122,8 +121,7 @@ class _SetNameSheetState extends State<_SetNameSheet> {
                       : 'How the rest of the club sees you.',
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -153,13 +151,10 @@ class _SetNameSheetState extends State<_SetNameSheet> {
                       if (me != null) ...[
                         const SizedBox(height: GwdSpace.lg),
                         _PreviewCard(
-                          name: _name.text.trim().isEmpty
-                              ? 'Your name'
-                              : _name.text.trim(),
+                          name: _name.text.trim().isEmpty ? 'Your name' : _name.text.trim(),
                           faded: _name.text.trim().isEmpty,
                           me: me,
-                          department:
-                              AppScope.sessionOf(context).department?.name,
+                          department: AppScope.sessionOf(context).department?.name,
                         ),
                       ],
 
@@ -179,8 +174,8 @@ class _SetNameSheetState extends State<_SetNameSheet> {
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(false),
                           child: Text('Cancel',
-                              style: GwdType.callout.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context))),
+                              style: GwdType.callout
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
                         ),
                       ],
                     ],
@@ -248,15 +243,12 @@ class _PreviewCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: GwdType.body.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: faded
-                        ? GwdColors.inkTertiaryOf(context)
-                        : GwdColors.inkOf(context),
+                    color: faded ? GwdColors.inkTertiaryOf(context) : GwdColors.inkOf(context),
                   ),
                 ),
                 Text(
                   me.positionLine(department),
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),
@@ -267,8 +259,7 @@ class _PreviewCard extends StatelessWidget {
   }
 
   static String _initialsOf(String value) {
-    final words =
-        value.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words = value.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.isEmpty) return '?';
     if (words.length == 1) {
       final w = words.first;

@@ -265,13 +265,19 @@ router.post('/', async (request, response, next) => {
         });
       }
       if (docs.length > 0) {
-        await col(C.tasks).insertMany(docs);
+        const inserted = await col(C.tasks).insertMany(docs);
+        docs.forEach((d, i) => { d._id = inserted.insertedIds[i]; });
         taskCount += docs.length;
-        // Tell the people who actually got something.
-        const assignees = docs.map((d) => d.assignedTo).filter(Boolean);
-        for (const who of assignees) {
-          if (String(who) === String(actor._id)) continue;
-          await notify(who, 'taskAssigned', { taskTitle: name, byName: actor.name });
+        // Tell the people who actually got something, and carry the id of the
+        // task each of them got so the notification opens it.
+        for (const doc of docs) {
+          if (!doc.assignedTo || String(doc.assignedTo) === String(actor._id)) continue;
+          await notify(doc.assignedTo, 'taskAssigned', {
+            taskTitle: doc.title ?? name,
+            byName: actor.name,
+            taskId: String(doc._id),
+            eventId: String(event._id),
+          });
         }
       }
     }
@@ -483,10 +489,12 @@ router.post('/:id/tasks', async (request, response, next) => {
       completedAt: null,
     };
     const inserted = await col(C.tasks).insertOne(task);
+    task._id = inserted.insertedId;
 
     if (task.assignedTo && String(task.assignedTo) !== String(request.user._id)) {
       await notify(task.assignedTo, 'taskAssigned', {
         taskTitle: title, byName: request.user.name,
+        taskId: String(task._id), eventId: String(id),
       });
     }
     await audit(request.user._id, 'event.task.create', {
@@ -539,7 +547,10 @@ router.post('/:id/tasks/:taskId/claim', async (request, response, next) => {
       $set: { assignedTo: target, updatedAt: new Date() },
     });
     if (!claimingForSelf) {
-      await notify(target, 'taskAssigned', { taskTitle: task.title, byName: request.user.name });
+      await notify(target, 'taskAssigned', {
+        taskTitle: task.title, byName: request.user.name,
+        taskId: String(taskId), eventId: String(id),
+      });
     }
     await audit(request.user._id, 'event.task.claim', {
       eventId: String(id), taskId: String(taskId), userId: String(target),
@@ -836,6 +847,34 @@ router.delete('/:id', async (request, response, next) => {
     // paperwork may still be needed.
     await col(C.events).updateOne({ _id: id }, { $set: { status: 'cancelled', updatedAt: new Date() } });
     await audit(actor._id, 'event.cancel', { eventId: String(id), name: event.name });
+
+    // Tell everyone who was working on it. Cancelling means "stop", and the
+    // event simply vanishing from the list is not how somebody halfway through
+    // building a set should find out. The audience is deliberately wider than
+    // at creation: anybody still carrying an open task on this event is
+    // included even if they were never named on the team, because they are
+    // exactly the person about to waste an afternoon.
+    const stillWorking = await col(C.tasks)
+      .find(
+        { eventId: id, status: { $nin: ['completed', 'cancelled'] }, assignedTo: { $ne: null } },
+        { projection: { assignedTo: 1 } },
+      )
+      .toArray();
+
+    const audience = [...new Set([
+      ...(event.teamUserIds ?? []).map(String),
+      ...(event.leadUserId ? [String(event.leadUserId)] : []),
+      ...stillWorking.map((t) => String(t.assignedTo)),
+    ])].filter((who) => who !== String(actor._id));
+
+    if (audience.length > 0) {
+      await notify(audience.map((who) => new ObjectId(who)), 'eventCancelled', {
+        eventName: event.name,
+        eventId: String(id),
+        byName: actor.name,
+      });
+    }
+
     return response.json({ ok: true, deleted: false });
   } catch (error) {
     next(error);

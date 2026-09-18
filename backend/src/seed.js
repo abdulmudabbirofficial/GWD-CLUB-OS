@@ -65,6 +65,17 @@ async function upsertPerson({ name, email, password }, role) {
     points: 0,
     approvalStatus: 'approved',
     passwordHash: await hashPassword(password),
+    // The password came out of a config file, so it is a *handover* credential,
+    // not a private one: .env gets copied to a laptop, pasted into a hosting
+    // dashboard, and read aloud when the account changes hands. Treating it as
+    // permanent left the club's most privileged accounts — three Directors, the
+    // Faculty Coordinator and the President — standing on a secret that several
+    // people have seen, indefinitely. The department Leads were already handled
+    // this way; these were not.
+    //
+    // Only on insert, like `mustSetName`: somebody who has already chosen their
+    // own password must not be asked again every time the server restarts.
+    mustChangePassword: true,
     avatarColor: avatarColorFor(email),
     createdAt: new Date(),
     lastLoginAt: null,

@@ -17,6 +17,24 @@ router.use(authenticate, requireApproved);
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
 /**
+ * Fold a stored "HH:MM" onto a date.
+ *
+ * Meetings keep the day and the time in separate fields, so a meeting at 17:00
+ * has a `date` of midnight. Home sorts its strip by date, so without this every
+ * meeting sorts to the top of the day and shows "00:00".
+ */
+const withTime = (date, hhmm) => {
+  const base = new Date(date);
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm ?? '');
+  if (!match) return base;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return base;
+  base.setHours(hours, minutes, 0, 0);
+  return base;
+};
+
+/**
  * Everything Home needs, in one request.
  *
  * Home carries more than it used to — today's schedule, weekly progress,
@@ -68,6 +86,22 @@ router.get('/home', async (request, response, next) => {
           { status: { $nin: ['completed', 'cancelled'] } },
         ],
       })
+      .limit(8)
+      .toArray();
+
+    // Meetings this person is actually expected at today.
+    //
+    // Deliberately narrowed to their own invitations even for leadership, who
+    // can see every meeting on the Meetings screen: Home answers "what should
+    // *I* do now", and a President's Home filling up with three departments'
+    // internal catch-ups is how the strip stops being read.
+    const todayMeetings = await col(C.meetings)
+      .find({
+        date: { $gte: today, $lt: tomorrow },
+        status: { $ne: 'cancelled' },
+        'participants.userId': user._id,
+      })
+      .sort({ date: 1 })
       .limit(8)
       .toArray();
 
@@ -175,6 +209,20 @@ router.get('/home', async (request, response, next) => {
           date: t.dueDate,
           taskId: String(t._id),
           status: t.status,
+        })),
+        ...todayMeetings.map((m) => ({
+          id: `meeting:${m._id}`,
+          kind: 'meeting',
+          categoryName: 'Meeting',
+          categoryIcon: 'meeting',
+          categoryColor: '#2563EB',
+          title: m.title,
+          // The start time is what somebody needs off this row, and it is
+          // stored separately from the date — so it is folded in here rather
+          // than left to the client to notice the date is midnight.
+          date: withTime(m.date, m.startTime),
+          location: m.venue ?? '',
+          meetingId: String(m._id),
         })),
       ].sort((a, b) => new Date(a.date) - new Date(b.date)),
       // Departments carry their headline progress, not just a member count — a

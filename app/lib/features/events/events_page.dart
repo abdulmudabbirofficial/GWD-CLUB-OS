@@ -54,72 +54,77 @@ class _EventsPageState extends State<EventsPage> {
       floatingActionButton: store.canCreateEvents
           ? _CreateEventButton(onPressed: () => CreateEventFlow.open(context))
           : null,
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadEvents(),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, 96),
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: GwdSpace.lg),
-                child: AppleStaggerItem(
-                  index: next(),
-                  child: _Header(
-                    upcoming: upcoming.length,
-                    ongoing: ongoing.length,
-                    completed: completed.length,
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadEvents(),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, 96),
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: GwdSpace.lg),
+                  child: AppleStaggerItem(
+                    index: next(),
+                    child: _Header(
+                      upcoming: upcoming.length,
+                      ongoing: ongoing.length,
+                      completed: completed.length,
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // Anything live gets the full width and the brand colour. This is
-            // the one moment the club genuinely needs to look at together.
-            if (ongoing.isNotEmpty) ...[
+              // Anything live gets the full width and the brand colour. This is
+              // the one moment the club genuinely needs to look at together.
+              if (ongoing.isNotEmpty) ...[
+                const SizedBox(height: GwdSpace.xl),
+                for (final event in ongoing)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                      child: _HappeningNowCard(
+                        event: event,
+                        onTap: () => _open(context, event),
+                      ),
+                    ),
+                  ),
+              ],
+
               const SizedBox(height: GwdSpace.xl),
-              for (final event in ongoing)
-                AppleStaggerItem(
-                  index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                    child: _HappeningNowCard(
-                      event: event,
-                      onTap: () => _open(context, event),
-                    ),
-                  ),
+              AppleStaggerItem(
+                index: next(),
+                child: _GroupSwitcher(
+                  index: tab,
+                  counts: [upcoming.length, ongoing.length, completed.length],
+                  onChanged: (value) => setState(() => _tab = value),
                 ),
-            ],
-
-            const SizedBox(height: GwdSpace.xl),
-            AppleStaggerItem(
-              index: next(),
-              child: _GroupSwitcher(
-                index: tab,
-                counts: [upcoming.length, ongoing.length, completed.length],
-                onChanged: (value) => setState(() => _tab = value),
               ),
-            ),
-            const SizedBox(height: GwdSpace.lg),
+              const SizedBox(height: GwdSpace.lg),
 
-            if (!store.hasLoadedOnce)
-              const SkeletonList(count: 3, height: 108)
-            else if (visible.isEmpty)
-              _emptyFor(context, tab, store.canCreateEvents)
-            else
-              for (final event in visible)
-                AppleStaggerItem(
-                  index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                    child: EventCard(
-                      event: event,
-                      onTap: () => _open(context, event),
+              if (!store.hasLoadedOnce)
+                const SkeletonList(count: 3, height: 108)
+              else if (visible.isEmpty)
+                _emptyFor(context, tab, store.canCreateEvents)
+              else
+                for (final event in visible)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                      child: EventCard(
+                        event: event,
+                        onTap: () => _open(context, event),
+                      ),
                     ),
                   ),
-                ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -140,8 +145,7 @@ class _EventsPageState extends State<EventsPage> {
         2 => const EmptyState(
             icon: Icons.history_rounded,
             title: 'No finished events yet',
-            message:
-                'Once an event wraps up it moves here, with its work and paperwork intact.',
+            message: 'Once an event wraps up it moves here, with its work and paperwork intact.',
           ),
         _ => EmptyState(
             icon: Icons.event_available_outlined,
@@ -190,11 +194,9 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Events',
-            style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+        Text('Events', style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
         const SizedBox(height: 2),
-        Text(line,
-            style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+        Text(line, style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
       ],
     );
   }
@@ -241,8 +243,7 @@ class _GroupSwitcher extends StatelessWidget {
                     color: i == index ? GwdColors.surfaceOf(context) : Colors.transparent,
                     borderRadius: BorderRadius.circular(GwdRadius.sm),
                     boxShadow: i == index
-                        ? GwdShadow.resting(
-                            Theme.of(context).brightness == Brightness.dark)
+                        ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
                         : null,
                   ),
                   child: Row(
@@ -261,8 +262,7 @@ class _GroupSwitcher extends StatelessWidget {
                         const SizedBox(width: 5),
                         Text(
                           '${counts[i]}',
-                          style: GwdType.caption.copyWith(
-                            fontSize: 9.5,
+                          style: GwdType.micro.copyWith(
                             color: i == index
                                 ? GwdColors.primaryRed
                                 : GwdColors.inkTertiaryOf(context),
@@ -322,8 +322,7 @@ class _HappeningNowCard extends StatelessWidget {
                 if (event.timeLabel.isNotEmpty)
                   Text(
                     event.timeLabel,
-                    style: GwdType.footnote
-                        .copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                    style: GwdType.footnote.copyWith(color: Colors.white.withValues(alpha: 0.85)),
                   ),
               ],
             ),
@@ -338,16 +337,14 @@ class _HappeningNowCard extends StatelessWidget {
               const SizedBox(height: GwdSpace.xs),
               Row(
                 children: [
-                  Icon(Icons.place_outlined,
-                      size: 13, color: Colors.white.withValues(alpha: 0.8)),
+                  Icon(Icons.place_outlined, size: 13, color: Colors.white.withValues(alpha: 0.8)),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       event.venue,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.callout
-                          .copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                      style: GwdType.callout.copyWith(color: Colors.white.withValues(alpha: 0.9)),
                     ),
                   ),
                 ],
@@ -367,8 +364,7 @@ class _HappeningNowCard extends StatelessWidget {
               const SizedBox(height: GwdSpace.sm),
               Text(
                 '${event.taskCompleted} of ${event.taskCount} done',
-                style: GwdType.footnote
-                    .copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                style: GwdType.footnote.copyWith(color: Colors.white.withValues(alpha: 0.9)),
               ),
             ],
           ],
@@ -412,8 +408,8 @@ class EventCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      GwdSpace.lg, GwdSpace.lg, GwdSpace.lg, GwdSpace.lg),
+                  padding:
+                      const EdgeInsets.fromLTRB(GwdSpace.lg, GwdSpace.lg, GwdSpace.lg, GwdSpace.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -425,8 +421,7 @@ class EventCard extends StatelessWidget {
                               event.name,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: GwdType.title3
-                                  .copyWith(color: GwdColors.inkOf(context)),
+                              style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                             ),
                           ),
                           const SizedBox(width: GwdSpace.sm),
@@ -461,8 +456,18 @@ class _DateBlock extends StatelessWidget {
   final bool muted;
 
   static const _months = [
-    'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
   ];
 
   @override
@@ -476,7 +481,7 @@ class _DateBlock extends StatelessWidget {
         children: [
           Text(
             _months[event.date.month - 1],
-            style: GwdType.eyebrow.copyWith(color: tint, fontSize: 9.5),
+            style: GwdType.microLabel.copyWith(color: tint),
           ),
           const SizedBox(height: 1),
           Text(
@@ -485,17 +490,6 @@ class _DateBlock extends StatelessWidget {
               fontSize: 30,
               height: 1,
               color: GwdColors.inkOf(context),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            event.whenLabel,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GwdType.caption.copyWith(
-              fontSize: 9,
-              letterSpacing: 0,
-              color: GwdColors.inkTertiaryOf(context),
             ),
           ),
         ],
@@ -511,14 +505,22 @@ class _MetaLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bits = <String>[
+      // How far away it is, first: on a list of things coming up it is the
+      // part somebody is actually scanning for. It used to live inside the
+      // date block, where 46px of column turned "Next week" into "Next w..."
+      // and "In 3 weeks" into "In 3 we...".
+      if (event.whenLabel.isNotEmpty) event.whenLabel,
       if (event.organizingDepartmentName != null) event.organizingDepartmentName!,
       if (event.venue.isNotEmpty) event.venue,
       if (event.timeLabel.isNotEmpty) event.timeLabel,
     ];
     if (bits.isEmpty) return const SizedBox.shrink();
+    // Two lines, because four facts do not fit on one at phone width and the
+    // single-line version was cutting the time off every card — "10:00 – 16:…"
+    // tells nobody when to turn up.
     return Text(
       bits.join('  ·  '),
-      maxLines: 1,
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
     );
@@ -593,8 +595,7 @@ class _CreateEventButton extends StatelessWidget {
               child: Icon(Icons.add_rounded, size: 16, color: Colors.white),
             ),
             const SizedBox(width: GwdSpace.md),
-            Text('Plan an event',
-                style: GwdType.headline.copyWith(color: Colors.white)),
+            Text('Plan an event', style: GwdType.headline.copyWith(color: Colors.white)),
           ],
         ),
       ),

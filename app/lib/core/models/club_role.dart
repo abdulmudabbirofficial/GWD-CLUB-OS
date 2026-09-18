@@ -80,8 +80,7 @@ extension ClubRoleDetails on ClubRole {
 
   /// Supervisors oversee the club rather than compete inside it: no points, no
   /// leaderboard. They can still award points.
-  bool get isSupervisor =>
-      this == ClubRole.clubDirector || this == ClubRole.facultyCoordinator;
+  bool get isSupervisor => this == ClubRole.clubDirector || this == ClubRole.facultyCoordinator;
 
   bool get earnsPoints => !isSupervisor;
   bool get onLeaderboard => !isSupervisor;
@@ -94,8 +93,7 @@ extension ClubRoleDetails on ClubRole {
   /// Anyone with people reporting to them can raise the club.
   bool get canBroadcast => this != ClubRole.clubMember;
 
-  bool get canManageDepartments =>
-      isSupervisor || this == ClubRole.president;
+  bool get canManageDepartments => isSupervisor || this == ClubRole.president;
 
   bool get canViewAudit => isSupervisor || this == ClubRole.president;
 
@@ -110,20 +108,14 @@ extension ClubRoleDetails on ClubRole {
       ];
 
   /// Does this role belong to a department? Executives sit above them.
-  bool get hasDepartment =>
-      this == ClubRole.clubMember || this == ClubRole.clubLead;
+  bool get hasDepartment => this == ClubRole.clubMember || this == ClubRole.clubLead;
 
   /// Who reviews a signup for this role — the honest line on the pending
   /// screen, so the applicant knows who they are waiting on.
   String get approverLabel => switch (this) {
-        ClubRole.clubDirector ||
-        ClubRole.facultyCoordinator =>
-          'no approval needed',
+        ClubRole.clubDirector || ClubRole.facultyCoordinator => 'no approval needed',
         ClubRole.president => 'the Club Directors',
-        ClubRole.vicePresident ||
-        ClubRole.secretaryGeneral ||
-        ClubRole.clubLead =>
-          'the President',
+        ClubRole.vicePresident || ClubRole.secretaryGeneral || ClubRole.clubLead => 'the President',
         ClubRole.clubMember => 'your department Lead',
       };
 

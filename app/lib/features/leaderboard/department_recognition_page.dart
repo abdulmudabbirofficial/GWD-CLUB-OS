@@ -52,8 +52,8 @@ class DepartmentRecognitionPage extends StatelessWidget {
       return Scaffold(
         backgroundColor: GwdColors.canvasOf(context),
         appBar: AppBar(
-          title: Text('Department',
-              style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+          title:
+              Text('Department', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
         ),
         body: const EmptyState(
           icon: Icons.workspaces_outline,
@@ -82,8 +82,7 @@ class DepartmentRecognitionPage extends StatelessWidget {
         },
         child: ContentWidth(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(
-                layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
+            padding: EdgeInsets.fromLTRB(layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
             children: [
               // ---------- the headline numbers ----------
               AppleStaggerItem(
@@ -175,8 +174,7 @@ class DepartmentRecognitionPage extends StatelessWidget {
                 'Ordered by points earned, which is the figure the Lead '
                 'calibrated when they handed each task out. Nothing here ranks '
                 'one department against another.',
-                style: GwdType.footnote
-                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
               ),
             ],
           ),
@@ -230,15 +228,13 @@ class _Headline extends StatelessWidget {
                     Text(group.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.title3
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
                     Text(
                       totals.people == 0
                           ? 'Nobody here yet'
                           : '${totals.people} '
                               '${totals.people == 1 ? 'person' : 'people'}',
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
@@ -290,8 +286,7 @@ class _Stat extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GwdType.caption.copyWith(
-                  fontSize: 8.5, color: GwdColors.inkTertiaryOf(context))),
+              style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context))),
         ],
       ),
     );
@@ -333,8 +328,7 @@ class _WaitingNote extends StatelessWidget {
               count == 1
                   ? '1 task is waiting to be handed out.'
                   : '$count tasks are waiting to be handed out.',
-              style: GwdType.footnote
-                  .copyWith(color: GwdColors.inkSecondaryOf(context)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
             ),
           ),
         ],

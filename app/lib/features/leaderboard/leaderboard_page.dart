@@ -58,8 +58,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Recognition',
-            style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Recognition', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       body: RefreshIndicator(
         color: GwdColors.primaryRed,
@@ -79,8 +78,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   ? const EmptyState(
                       icon: Icons.volunteer_activism_outlined,
                       title: 'Nothing to show yet',
-                      message:
-                          'Once tasks start being handed out and finished, each '
+                      message: 'Once tasks start being handed out and finished, each '
                           'department’s progress shows up here.',
                     )
                   : ListView(
@@ -96,10 +94,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         if (store.departmentProgress.length >= 2) ...[
                           const SizedBox(height: GwdSpace.lg),
                           SurfaceCard(
-                            padding: const EdgeInsets.fromLTRB(GwdSpace.md,
-                                GwdSpace.lg, GwdSpace.md, GwdSpace.md),
-                            child: ClubProgressChart(
-                                departments: store.departmentProgress),
+                            padding: const EdgeInsets.fromLTRB(
+                                GwdSpace.md, GwdSpace.lg, GwdSpace.md, GwdSpace.md),
+                            child: ClubProgressChart(departments: store.departmentProgress),
                           ),
                         ],
 
@@ -113,8 +110,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: _DepartmentTile(
                                 group: groups[i],
                                 progress: store.departmentProgress
-                                    .where((p) =>
-                                        p.departmentId == groups[i].departmentId)
+                                    .where((p) => p.departmentId == groups[i].departmentId)
                                     .cast<DepartmentProgress?>()
                                     .firstWhere((p) => true, orElse: () => null),
                                 mine: groups[i].departmentId == me?.departmentId,
@@ -160,8 +156,7 @@ class _Preamble extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.favorite_outline_rounded,
-              size: 16, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.favorite_outline_rounded, size: 16, color: GwdColors.inkTertiaryOf(context)),
           const SizedBox(width: GwdSpace.md),
           Expanded(
             child: Text(
@@ -169,8 +164,7 @@ class _Preamble extends StatelessWidget {
               'Marketing member are not doing the same job, so comparing them says '
               'nothing. Tasks are worth 1, 3 or 5 points, set by the Lead when they '
               'hand the work out.',
-              style: GwdType.footnote
-                  .copyWith(color: GwdColors.inkSecondaryOf(context)),
+              style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
             ),
           ),
         ],
@@ -218,14 +212,12 @@ class _DepartmentTile extends StatelessWidget {
       onTap: () {
         if (prefersReducedMotion(context)) {
           Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) =>
-                DepartmentRecognitionPage(departmentId: group.departmentId),
+            builder: (_) => DepartmentRecognitionPage(departmentId: group.departmentId),
           ));
           return;
         }
         Navigator.of(context).push(CircularClipRoute(
-          builder: (_) =>
-              DepartmentRecognitionPage(departmentId: group.departmentId),
+          builder: (_) => DepartmentRecognitionPage(departmentId: group.departmentId),
           expandFrom: context,
           curve: AppleCurves.enter,
           reverseCurve: AppleCurves.exit,
@@ -251,22 +243,19 @@ class _DepartmentTile extends StatelessWidget {
                 Text(group.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+                    style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
                 const SizedBox(height: 1),
                 Text(
                   // Factual, never comparative.
                   switch ((totals.people, totals.completed)) {
                     (0, _) => 'Nobody here yet',
                     (_, 0) => '${totals.people} people · nothing finished yet',
-                    (_, final done) =>
-                      '${totals.people} people · $done finished · '
-                          '${totals.points} points',
+                    (_, final done) => '${totals.people} people · $done finished · '
+                        '${totals.points} points',
                   },
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),
@@ -276,23 +265,18 @@ class _DepartmentTile extends StatelessWidget {
           if (waiting > 0) ...[
             const SizedBox(width: GwdSpace.sm),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: GwdSpace.sm, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: GwdSpace.sm, vertical: 3),
               decoration: BoxDecoration(
                 color: GwdColors.primaryRed.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(GwdRadius.sm),
               ),
               child: Text('$waiting waiting',
-                  style: GwdType.caption.copyWith(
-                      fontSize: 9.5,
-                      letterSpacing: 0,
-                      color: GwdColors.primaryRed)),
+                  style: GwdType.micro.copyWith(color: GwdColors.primaryRed)),
             ),
           ],
 
           const SizedBox(width: GwdSpace.xs),
-          Icon(Icons.chevron_right_rounded,
-              size: 20, color: GwdColors.inkTertiaryOf(context)),
+          Icon(Icons.chevron_right_rounded, size: 20, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
     );

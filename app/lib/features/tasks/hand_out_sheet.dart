@@ -61,9 +61,8 @@ class _HandOutSheetState extends State<_HandOutSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       messenger.showSnackBar(SnackBar(
-        content: Text(_selected == meId
-            ? 'Yours now.'
-            : 'Passed to ${store.memberName(_selected)}.'),
+        content:
+            Text(_selected == meId ? 'Yours now.' : 'Passed to ${store.memberName(_selected)}.'),
       ));
     } on ApiException catch (e) {
       setState(() {
@@ -82,17 +81,14 @@ class _HandOutSheetState extends State<_HandOutSheet> {
     // Only this department's members. The server enforces it too; this just
     // avoids offering something that would be refused.
     final candidates = store.members
-        .where((m) =>
-            m.departmentId == widget.task.departmentId &&
-            m.role == ClubRole.clubMember)
+        .where((m) => m.departmentId == widget.task.departmentId && m.role == ClubRole.clubMember)
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
     return Container(
       decoration: BoxDecoration(
         color: GwdColors.surfaceOf(context),
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
       ),
       child: SafeArea(
         top: false,
@@ -106,15 +102,13 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                 subtitle: 'Sent to your department. Who takes it on?',
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (widget.task.description.isNotEmpty) ...[
                       Text(widget.task.description,
-                          style: GwdType.body.copyWith(
-                              color: GwdColors.inkSecondaryOf(context))),
+                          style: GwdType.body.copyWith(color: GwdColors.inkSecondaryOf(context))),
                       const SizedBox(height: GwdSpace.lg),
                     ],
 
@@ -128,21 +122,18 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                     const SizedBox(height: GwdSpace.lg),
 
                     Text('OR PASS IT TO',
-                        style: GwdType.eyebrow
-                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     const SizedBox(height: GwdSpace.sm),
                     if (candidates.isEmpty)
                       Text('Nobody else in your department yet.',
-                          style: GwdType.footnote.copyWith(
-                              color: GwdColors.inkTertiaryOf(context)))
+                          style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
                     else
                       SizedBox(
                         height: 86,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: candidates.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(width: GwdSpace.md),
+                          separatorBuilder: (_, __) => const SizedBox(width: GwdSpace.md),
                           itemBuilder: (context, i) {
                             final member = candidates[i];
                             final isSelected = _selected == member.id;
@@ -187,9 +178,7 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                                       member.firstName,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: GwdType.caption.copyWith(
-                                        fontSize: 9.5,
-                                        letterSpacing: 0,
+                                      style: GwdType.micro.copyWith(
                                         color: isSelected
                                             ? GwdColors.inkOf(context)
                                             : GwdColors.inkTertiaryOf(context),
@@ -205,12 +194,10 @@ class _HandOutSheetState extends State<_HandOutSheet> {
 
                     const SizedBox(height: GwdSpace.lg),
                     Text('WHAT IS IT WORTH',
-                        style: GwdType.eyebrow
-                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     const SizedBox(height: 3),
                     Text('You know this work better than whoever sent it.',
-                        style: GwdType.footnote
-                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     const SizedBox(height: GwdSpace.sm),
                     Row(
                       children: [
@@ -224,14 +211,12 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                               child: AnimatedContainer(
                                 duration: AppleDuration.fast,
                                 curve: AppleCurves.standard,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: GwdSpace.md),
+                                padding: const EdgeInsets.symmetric(vertical: GwdSpace.md),
                                 decoration: BoxDecoration(
                                   color: _values[i] == _points
                                       ? GwdColors.primaryRed
                                       : GwdColors.sunkenOf(context),
-                                  borderRadius:
-                                      BorderRadius.circular(GwdRadius.md),
+                                  borderRadius: BorderRadius.circular(GwdRadius.md),
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -246,8 +231,7 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                                     const SizedBox(height: 1),
                                     Text(
                                       _labels[_values[i]]!,
-                                      style: GwdType.caption.copyWith(
-                                        fontSize: 9,
+                                      style: GwdType.micro.copyWith(
                                         letterSpacing: 0.2,
                                         color: _values[i] == _points
                                             ? Colors.white.withValues(alpha: 0.85)
@@ -269,9 +253,7 @@ class _HandOutSheetState extends State<_HandOutSheet> {
                     ],
                     const SizedBox(height: GwdSpace.xl),
                     PrimaryButton(
-                      label: _selected == me?.id && _selected != null
-                          ? 'I’ll do it'
-                          : 'Pass it on',
+                      label: _selected == me?.id && _selected != null ? 'I’ll do it' : 'Pass it on',
                       icon: Icons.arrow_forward_rounded,
                       busy: _busy,
                       onPressed: _selected == null ? null : _submit,
@@ -302,14 +284,11 @@ class _SelfOption extends StatelessWidget {
         duration: AppleDuration.fast,
         padding: const EdgeInsets.all(GwdSpace.md),
         decoration: BoxDecoration(
-          color: selected
-              ? GwdColors.primaryRed.withValues(alpha: 0.10)
-              : GwdColors.sunkenOf(context),
+          color:
+              selected ? GwdColors.primaryRed.withValues(alpha: 0.10) : GwdColors.sunkenOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
           border: Border.all(
-            color: selected
-                ? GwdColors.primaryRed.withValues(alpha: 0.4)
-                : Colors.transparent,
+            color: selected ? GwdColors.primaryRed.withValues(alpha: 0.4) : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -317,24 +296,19 @@ class _SelfOption extends StatelessWidget {
           children: [
             Icon(Icons.pan_tool_alt_outlined,
                 size: 18,
-                color: selected
-                    ? GwdColors.primaryRed
-                    : GwdColors.inkTertiaryOf(context)),
+                color: selected ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(context)),
             const SizedBox(width: GwdSpace.md),
             Expanded(
               child: Text('I’ll take this one myself',
                   style: GwdType.headline.copyWith(
-                    color: selected
-                        ? GwdColors.primaryRed
-                        : GwdColors.inkOf(context),
+                    color: selected ? GwdColors.primaryRed : GwdColors.inkOf(context),
                   )),
             ),
             AnimatedScale(
               scale: selected ? 1 : 0,
               duration: AppleDuration.fast,
               curve: AppleCurves.overshoot,
-              child: const Icon(Icons.check_circle_rounded,
-                  size: 20, color: GwdColors.primaryRed),
+              child: const Icon(Icons.check_circle_rounded, size: 20, color: GwdColors.primaryRed),
             ),
           ],
         ),

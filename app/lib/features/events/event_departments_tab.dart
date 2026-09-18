@@ -90,8 +90,7 @@ Future<void> _addDepartment(
   EventWorkspace workspace,
 ) async {
   final used = workspace.departments.map((d) => d.departmentId).toSet();
-  final available =
-      store.departments.where((d) => d.active && !used.contains(d.id)).toList();
+  final available = store.departments.where((d) => d.active && !used.contains(d.id)).toList();
   final messenger = ScaffoldMessenger.of(context);
 
   if (available.isEmpty) {
@@ -122,8 +121,7 @@ Future<void> _addDepartment(
                 leading: Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(
-                      color: d.tint, borderRadius: BorderRadius.circular(3)),
+                  decoration: BoxDecoration(color: d.tint, borderRadius: BorderRadius.circular(3)),
                 ),
                 title: Text(d.name,
                     style: GwdType.body.copyWith(color: GwdColors.inkOf(sheetContext))),
@@ -200,8 +198,7 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                   color: tint,
                   child: Text(
                     d.total == 0 ? '–' : '${d.progress}',
-                    style: GwdType.numeric.copyWith(
-                        fontSize: 12, color: GwdColors.inkOf(context)),
+                    style: GwdType.numeric.copyWith(fontSize: 12, color: GwdColors.inkOf(context)),
                   ),
                 ),
                 const SizedBox(width: GwdSpace.md),
@@ -211,8 +208,7 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(d.name,
-                          style: GwdType.headline
-                              .copyWith(color: GwdColors.inkOf(context))),
+                          style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                       const SizedBox(height: 1),
                       Text(line,
                           style: GwdType.footnote.copyWith(
@@ -232,7 +228,6 @@ class _DepartmentCardState extends State<_DepartmentCard> {
               ],
             ),
           ),
-
           if (d.notes.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.md),
             Container(
@@ -243,11 +238,9 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                 borderRadius: BorderRadius.circular(GwdRadius.md),
               ),
               child: Text(d.notes,
-                  style: GwdType.callout
-                      .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
             ),
           ],
-
           AnimatedSize(
             duration: AppleDuration.standard,
             curve: AppleCurves.standard,
@@ -260,16 +253,15 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                       children: [
                         if (widget.tasks.isEmpty)
                           Text('No work listed for them yet.',
-                              style: GwdType.footnote.copyWith(
-                                  color: GwdColors.inkTertiaryOf(context)))
+                              style: GwdType.footnote
+                                  .copyWith(color: GwdColors.inkTertiaryOf(context)))
                         else
                           for (final task in widget.tasks)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 7),
                               child: Row(
                                 children: [
-                                  Icon(task.status.icon,
-                                      size: 14, color: task.status.tint),
+                                  Icon(task.status.icon, size: 14, color: task.status.tint),
                                   const SizedBox(width: GwdSpace.sm),
                                   Expanded(
                                     child: Text(
@@ -280,27 +272,20 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                                         color: task.status == TaskStatus.completed
                                             ? GwdColors.inkTertiaryOf(context)
                                             : GwdColors.inkOf(context),
-                                        decoration:
-                                            task.status == TaskStatus.completed
-                                                ? TextDecoration.lineThrough
-                                                : null,
-                                        decorationColor:
-                                            GwdColors.inkTertiaryOf(context),
+                                        decoration: task.status == TaskStatus.completed
+                                            ? TextDecoration.lineThrough
+                                            : null,
+                                        decorationColor: GwdColors.inkTertiaryOf(context),
                                       ),
                                     ),
                                   ),
                                   if (task.assigneeName != null)
                                     Text(task.assigneeName!.split(' ').first,
-                                        style: GwdType.caption.copyWith(
-                                            fontSize: 9.5,
-                                            letterSpacing: 0,
-                                            color: GwdColors.inkTertiaryOf(context)))
+                                        style: GwdType.micro
+                                            .copyWith(color: GwdColors.inkTertiaryOf(context)))
                                   else
                                     Text('unclaimed',
-                                        style: GwdType.caption.copyWith(
-                                            fontSize: 9.5,
-                                            letterSpacing: 0,
-                                            color: GwdColors.warning)),
+                                        style: GwdType.micro.copyWith(color: GwdColors.warning)),
                                 ],
                               ),
                             ),

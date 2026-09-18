@@ -59,8 +59,7 @@ class LeadCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: tint,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                          color: GwdColors.surfaceOf(context), width: 1.5),
+                      border: Border.all(color: GwdColors.surfaceOf(context), width: 1.5),
                     ),
                     child: const Icon(Icons.star_rounded, size: 8, color: Colors.white),
                   ),
@@ -84,18 +83,14 @@ class LeadCard extends StatelessWidget {
                   Text('Lead · earns from everything the department finishes',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
             AnimatedCounter(
               value: lead.points,
               suffix: ' pts',
-              style: GwdType.callout
-                  .copyWith(color: tint, fontWeight: FontWeight.w700),
+              style: GwdType.callout.copyWith(color: tint, fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -146,11 +141,8 @@ class RecognitionMemberRow extends StatelessWidget {
                             : GwdColors.inkOf(context))),
                 const SizedBox(height: 2),
                 Text(
-                  assigned == 0
-                      ? 'nothing assigned yet'
-                      : '$completed of $assigned done',
-                  style: GwdType.footnote
-                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                  assigned == 0 ? 'nothing assigned yet' : '$completed of $assigned done',
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ],
             ),
@@ -162,9 +154,8 @@ class RecognitionMemberRow extends StatelessWidget {
             value: member.points,
             suffix: ' pts',
             style: GwdType.callout.copyWith(
-              color: member.points > 0
-                  ? GwdColors.inkOf(context)
-                  : GwdColors.inkTertiaryOf(context),
+              color:
+                  member.points > 0 ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
               fontWeight: FontWeight.w700,
             ),
           ),

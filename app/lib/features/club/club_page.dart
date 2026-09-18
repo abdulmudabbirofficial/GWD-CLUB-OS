@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../analytics/analytics_page.dart';
@@ -34,122 +35,125 @@ class ClubPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadAll(silent: true),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxxl),
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: GwdSpace.lg),
-                child: AppleStaggerItem(
-                  index: next(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(session.clubName,
-                          style: GwdType.largeTitle
-                              .copyWith(color: GwdColors.inkOf(context))),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${store.members.length} members · ${departments.length} departments',
-                        style: GwdType.callout
-                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
-                      ),
-                    ],
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadAll(silent: true),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxxl),
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: GwdSpace.lg),
+                  child: AppleStaggerItem(
+                    index: next(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(session.clubName,
+                            style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${store.members.length} members · ${departments.length} departments',
+                          style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // ---------- people ----------
-            const SizedBox(height: GwdSpace.xxl),
-            AppleStaggerItem(index: next(), child: const SectionHeader(title: 'People')),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.people_outline_rounded,
-                tint: GwdColors.primaryRed,
-                title: 'Member directory',
-                subtitle: 'Everyone in the club, by department',
-                onTap: () => _push(context, const DirectoryPage()),
-              ),
-            ),
-            if (caps.onLeaderboard || caps.canViewAudit)
+              // ---------- people ----------
+              const SizedBox(height: GwdSpace.xxl),
+              AppleStaggerItem(index: next(), child: const SectionHeader(title: 'People')),
               AppleStaggerItem(
                 index: next(),
                 child: _Tile(
-                  icon: Icons.leaderboard_outlined,
-                  tint: GwdColors.warning,
-                  title: 'Leaderboard',
-                  subtitle: 'One point per completed task',
-                  onTap: () => _push(context, const LeaderboardPage()),
+                  icon: Icons.people_outline_rounded,
+                  tint: GwdColors.primaryRed,
+                  title: 'Member directory',
+                  subtitle: 'Everyone in the club, by department',
+                  onTap: () => _push(context, const DirectoryPage()),
                 ),
               ),
-            if (store.pendingApprovals.isNotEmpty)
-              AppleStaggerItem(
-                index: next(),
-                child: _Tile(
-                  icon: Icons.how_to_reg_outlined,
-                  tint: GwdColors.success,
-                  title: 'Approvals',
-                  subtitle: 'People waiting to join',
-                  badge: store.pendingApprovals.length,
-                  onTap: () => _push(context, const ApprovalsPage()),
+              if (caps.onLeaderboard || caps.canViewAudit)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.leaderboard_outlined,
+                    tint: GwdColors.warning,
+                    title: 'Leaderboard',
+                    subtitle: 'One point per completed task',
+                    onTap: () => _push(context, const LeaderboardPage()),
+                  ),
                 ),
-              ),
+              if (store.pendingApprovals.isNotEmpty)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.how_to_reg_outlined,
+                    tint: GwdColors.success,
+                    title: 'Approvals',
+                    subtitle: 'People waiting to join',
+                    badge: store.pendingApprovals.length,
+                    onTap: () => _push(context, const ApprovalsPage()),
+                  ),
+                ),
 
-            // ---------- structure ----------
-            const SizedBox(height: GwdSpace.xl),
-            AppleStaggerItem(
-              index: next(),
-              child: const SectionHeader(
-                  title: 'Structure', subtitle: 'How the club is organised'),
-            ),
-            AppleStaggerItem(
-              index: next(),
-              child: _Tile(
-                icon: Icons.account_tree_outlined,
-                tint: GwdColors.primaryRed,
-                title: 'Club structure',
-                subtitle: 'Executive, departments, Leads and members',
-                onTap: () => _push(context, const StructurePage()),
-              ),
-            ),
-            if (caps.canManageDepartments)
-              AppleStaggerItem(
-                index: next(),
-                child: _Tile(
-                  icon: Icons.workspaces_outline,
-                  tint: GwdColors.info,
-                  title: 'Manage departments',
-                  subtitle: 'Create, rename and assign Leads',
-                  onTap: () => _push(context, const DepartmentsPage()),
-                ),
-              ),
-
-            // ---------- oversight ----------
-            if (caps.canViewAudit) ...[
+              // ---------- structure ----------
               const SizedBox(height: GwdSpace.xl),
               AppleStaggerItem(
                 index: next(),
-                child: const SectionHeader(
-                    title: 'Oversight', subtitle: 'Visible to supervisors and the President'),
+                child:
+                    const SectionHeader(title: 'Structure', subtitle: 'How the club is organised'),
               ),
               AppleStaggerItem(
                 index: next(),
                 child: _Tile(
-                  icon: Icons.insights_outlined,
-                  tint: GwdColors.rubyDark,
-                  title: 'Analytics & activity',
-                  subtitle: 'Completion by department, and the full audit log',
-                  onTap: () => _push(context, const AnalyticsPage()),
+                  icon: Icons.account_tree_outlined,
+                  tint: GwdColors.primaryRed,
+                  title: 'Club structure',
+                  subtitle: 'Executive, departments, Leads and members',
+                  onTap: () => _push(context, const StructurePage()),
                 ),
               ),
+              if (caps.canManageDepartments)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.workspaces_outline,
+                    tint: GwdColors.info,
+                    title: 'Manage departments',
+                    subtitle: 'Create, rename and assign Leads',
+                    onTap: () => _push(context, const DepartmentsPage()),
+                  ),
+                ),
+
+              // ---------- oversight ----------
+              if (caps.canViewAudit) ...[
+                const SizedBox(height: GwdSpace.xl),
+                AppleStaggerItem(
+                  index: next(),
+                  child: const SectionHeader(
+                      title: 'Oversight', subtitle: 'Visible to supervisors and the President'),
+                ),
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.insights_outlined,
+                    tint: GwdColors.rubyDark,
+                    title: 'Analytics & activity',
+                    subtitle: 'Completion by department, and the full audit log',
+                    onTap: () => _push(context, const AnalyticsPage()),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -201,14 +205,12 @@ class _Tile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title,
-                      style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+                  Text(title, style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                   const SizedBox(height: 1),
                   Text(subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.footnote
-                          .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                 ],
               ),
             ),
@@ -219,13 +221,11 @@ class _Tile extends StatelessWidget {
                   color: GwdColors.primaryRed,
                   borderRadius: BorderRadius.circular(GwdRadius.pill),
                 ),
-                child: Text('$badge',
-                    style: GwdType.caption.copyWith(color: Colors.white, fontSize: 9.5)),
+                child: Text('$badge', style: GwdType.micro.copyWith(color: Colors.white)),
               ),
               const SizedBox(width: GwdSpace.sm),
             ],
-            Icon(Icons.chevron_right_rounded,
-                size: 18, color: GwdColors.inkTertiaryOf(context)),
+            Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
           ],
         ),
       ),

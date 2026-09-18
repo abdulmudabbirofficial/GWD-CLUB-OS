@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/models/app_notification.dart';
 import '../../core/state/club_store.dart';
 import '../theme/apple_motion.dart';
 import '../theme/gwd_theme.dart';
@@ -17,12 +18,16 @@ class LiveToastHost extends StatefulWidget {
     super.key,
     required this.store,
     required this.child,
-    this.onOpenTask,
+    this.onOpen,
   });
 
   final ClubStore store;
   final Widget child;
-  final void Function(String taskId)? onOpenTask;
+
+  /// Follow the toast to whatever it is about. Was `onOpenTask(String)`, which
+  /// meant a toast about a meeting, a help request or a document was a dead
+  /// tap — the only kind that went anywhere was a task.
+  final void Function(NotificationTarget target)? onOpen;
 
   @override
   State<LiveToastHost> createState() => _LiveToastHostState();
@@ -101,10 +106,11 @@ class _LiveToastHostState extends State<LiveToastHost> {
                         widget.store.dismissToast(toasts[i].id);
                       },
                       onOpen: () {
-                        final taskId = toasts[i].taskId;
+                        final target = toasts[i].target;
+                        final opens = toasts[i].opensSomething;
                         _timers.remove(toasts[i].id)?.cancel();
                         widget.store.dismissToast(toasts[i].id);
-                        if (taskId != null) widget.onOpenTask?.call(taskId);
+                        if (opens) widget.onOpen?.call(target);
                       },
                     ),
                 ],

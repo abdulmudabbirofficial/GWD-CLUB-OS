@@ -64,64 +64,64 @@ class _HelpPageState extends State<HelpPage> {
             children: [
               const Icon(Icons.pan_tool_alt_outlined, size: 17, color: Colors.white),
               const SizedBox(width: GwdSpace.sm),
-              Text('I need help',
-                  style: GwdType.headline.copyWith(color: Colors.white)),
+              Text('I need help', style: GwdType.headline.copyWith(color: Colors.white)),
             ],
           ),
         ),
       ),
-      appBar: widget.embedded
-          ? null
-          : AppBar(title: const Text('Help & collaboration')),
-      body: RefreshIndicator(
-        color: GwdColors.primaryRed,
-        onRefresh: () => store.loadHelp(),
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 96),
-          children: [
-            AppleStaggerItem(
-              index: next(),
-              child: _Switcher(
-                showResolved: _showResolved,
-                openCount: open.length,
-                resolvedCount: resolved.length,
-                onChanged: (value) => setState(() => _showResolved = value),
-              ),
-            ),
-            const SizedBox(height: GwdSpace.lg),
-
-            if (visible.isEmpty)
+      appBar: widget.embedded ? null : AppBar(title: const Text('Help & collaboration')),
+      // Capped on a wide window: rows stretching the full width of a
+      // desktop browser or a tablet are unreadable however nicely the
+      // type is set.
+      body: ContentWidth(
+        child: RefreshIndicator(
+          color: GwdColors.primaryRed,
+          onRefresh: () => store.loadHelp(),
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, 96),
+            children: [
               AppleStaggerItem(
                 index: next(),
-                child: _showResolved
-                    ? const EmptyState(
-                        icon: Icons.check_circle_outline_rounded,
-                        title: 'Nothing sorted yet',
-                        message: 'Requests move here once the person who asked closes them.',
-                      )
-                    : EmptyState(
-                        icon: Icons.volunteer_activism_outlined,
-                        title: 'Nobody needs a hand',
-                        message:
-                            'When someone gets stuck, their ask lands here and anybody '
-                            'in the club can pick it up.',
-                        action: SecondaryButton(
-                          label: 'Ask for help',
-                          icon: Icons.pan_tool_alt_outlined,
-                          onPressed: () => showAskForHelpSheet(context),
-                        ),
-                      ),
-              )
-            else
-              for (final request in visible)
+                child: _Switcher(
+                  showResolved: _showResolved,
+                  openCount: open.length,
+                  resolvedCount: resolved.length,
+                  onChanged: (value) => setState(() => _showResolved = value),
+                ),
+              ),
+              const SizedBox(height: GwdSpace.lg),
+              if (visible.isEmpty)
                 AppleStaggerItem(
                   index: next(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                    child: HelpCard(request: request),
+                  child: _showResolved
+                      ? const EmptyState(
+                          icon: Icons.check_circle_outline_rounded,
+                          title: 'Nothing sorted yet',
+                          message: 'Requests move here once the person who asked closes them.',
+                        )
+                      : EmptyState(
+                          icon: Icons.volunteer_activism_outlined,
+                          title: 'Nobody needs a hand',
+                          message: 'When someone gets stuck, their ask lands here and anybody '
+                              'in the club can pick it up.',
+                          action: SecondaryButton(
+                            label: 'Ask for help',
+                            icon: Icons.pan_tool_alt_outlined,
+                            onPressed: () => showAskForHelpSheet(context),
+                          ),
+                        ),
+                )
+              else
+                for (final request in visible)
+                  AppleStaggerItem(
+                    index: next(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                      child: HelpCard(request: request),
+                    ),
                   ),
-                ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -202,9 +202,7 @@ class _Segment extends StatelessWidget {
           children: [
             Text(label,
                 style: GwdType.callout.copyWith(
-                  color: selected
-                      ? GwdColors.canvasOf(context)
-                      : GwdColors.inkSecondaryOf(context),
+                  color: selected ? GwdColors.canvasOf(context) : GwdColors.inkSecondaryOf(context),
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 )),
             if (count > 0) ...[
@@ -267,8 +265,7 @@ class HelpCard extends StatelessWidget {
                     Text(request.title,
                         maxLines: compact ? 2 : 3,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.headline
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                     const SizedBox(height: 2),
                     Text(
                       [
@@ -278,27 +275,21 @@ class HelpCard extends StatelessWidget {
                       ].join('  ·  '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GwdType.caption.copyWith(
-                          fontSize: 9.5,
-                          letterSpacing: 0,
-                          color: GwdColors.inkTertiaryOf(context)),
+                      style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-
           if (!compact && request.description.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.md),
             Text(request.description,
-                style: GwdType.callout
-                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context))),
           ],
-
-          if (request.skills.isNotEmpty
-              || request.eventName != null
-              || request.neededBy != null) ...[
+          if (request.skills.isNotEmpty ||
+              request.eventName != null ||
+              request.neededBy != null) ...[
             const SizedBox(height: GwdSpace.md),
             Wrap(
               spacing: 5,
@@ -309,9 +300,7 @@ class HelpCard extends StatelessWidget {
                 if (request.neededBy != null)
                   GwdChip(
                     label: request.whenNeeded,
-                    color: request.isLate
-                        ? GwdColors.critical
-                        : GwdColors.inkSecondaryOf(context),
+                    color: request.isLate ? GwdColors.critical : GwdColors.inkSecondaryOf(context),
                     icon: Icons.schedule_rounded,
                     dense: true,
                   ),
@@ -348,21 +337,18 @@ class HelpCard extends StatelessWidget {
               ],
             ),
           ],
-
           if (request.helpers.isNotEmpty) ...[
             const SizedBox(height: GwdSpace.md),
             Row(
               children: [
-                const Icon(Icons.handshake_outlined,
-                    size: 13, color: GwdColors.success),
+                const Icon(Icons.handshake_outlined, size: 13, color: GwdColors.success),
                 const SizedBox(width: 5),
                 Expanded(
                   child: Text(
                     request.helpers.length == 1
                         ? '${request.helpers.first.name.split(' ').first} is on it'
                         : '${request.helpers.length} people are on it',
-                    style:
-                        GwdType.footnote.copyWith(color: GwdColors.success),
+                    style: GwdType.footnote.copyWith(color: GwdColors.success),
                   ),
                 ),
               ],
@@ -371,25 +357,21 @@ class HelpCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 18, top: 2),
                 child: Text('“${helper.note}”',
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ),
           ],
-
           if (!compact) ...[
             const SizedBox(height: GwdSpace.lg),
             _Actions(
               request: request,
               onOffer: () => _run(
                   messenger, () => store.offerHelp(request.id), 'Thanks — they have been told.'),
-              onWithdraw: () => _run(
-                  messenger, () => store.withdrawOffer(request.id), 'Stepped back.'),
-              onResolve: () => _run(
-                  messenger,
-                  () => store.setHelpStatus(request.id, HelpStatus.resolved),
-                  'Marked sorted.'),
-              onDelete: () => _run(
-                  messenger, () => store.withdrawHelpRequest(request.id), 'Withdrawn.'),
+              onWithdraw: () =>
+                  _run(messenger, () => store.withdrawOffer(request.id), 'Stepped back.'),
+              onResolve: () => _run(messenger,
+                  () => store.setHelpStatus(request.id, HelpStatus.resolved), 'Marked sorted.'),
+              onDelete: () =>
+                  _run(messenger, () => store.withdrawHelpRequest(request.id), 'Withdrawn.'),
             ),
           ],
         ],
@@ -433,8 +415,7 @@ class _Actions extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle_rounded, size: 14, color: GwdColors.success),
           const SizedBox(width: 5),
-          Text('Sorted',
-              style: GwdType.footnote.copyWith(color: GwdColors.success)),
+          Text('Sorted', style: GwdType.footnote.copyWith(color: GwdColors.success)),
         ],
       );
     }
@@ -527,8 +508,7 @@ class _Action extends StatelessWidget {
               child: Text(label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GwdType.callout
-                      .copyWith(color: tint, fontWeight: FontWeight.w600)),
+                  style: GwdType.callout.copyWith(color: tint, fontWeight: FontWeight.w600)),
             ),
           ],
         ),

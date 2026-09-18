@@ -48,9 +48,19 @@ class _MyOverviewPageState extends State<MyOverviewPage> {
         _loading = false;
       });
     } on ApiException catch (e) {
-      if (mounted) setState(() { _error = e.message; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
     } catch (error) {
-      if (mounted) setState(() { _error = '$error'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = '$error';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -95,8 +105,7 @@ class _MyOverviewPageState extends State<MyOverviewPage> {
                           EmptyState(
                             icon: Icons.outbox_outlined,
                             title: 'You have not given out any work yet',
-                            message:
-                                'Once you assign something, this is where you '
+                            message: 'Once you assign something, this is where you '
                                 'see how it is going without opening each person.',
                           ),
                         ])
@@ -108,25 +117,20 @@ class _MyOverviewPageState extends State<MyOverviewPage> {
                               index: 0,
                               child: _Totals(totals: totals),
                             ),
-
                             const SizedBox(height: GwdSpace.xxl),
                             AppleStaggerItem(
                               index: 1,
                               child: SectionHeader(
                                 title: 'Who has it',
-                                subtitle: people.isEmpty
-                                    ? null
-                                    : 'Most outstanding first',
+                                subtitle: people.isEmpty ? null : 'Most outstanding first',
                               ),
                             ),
-
                             if (people.isEmpty)
                               const EmptyState(
                                 compact: true,
                                 icon: Icons.inbox_outlined,
                                 title: 'Nobody has it yet',
-                                message:
-                                    'Everything you sent is still waiting to be '
+                                message: 'Everything you sent is still waiting to be '
                                     'handed out by a department Lead.',
                               )
                             else
@@ -134,8 +138,7 @@ class _MyOverviewPageState extends State<MyOverviewPage> {
                                 AppleStaggerItem(
                                   index: 2 + i,
                                   child: Padding(
-                                    padding:
-                                        const EdgeInsets.only(bottom: GwdSpace.sm),
+                                    padding: const EdgeInsets.only(bottom: GwdSpace.sm),
                                     child: _PersonProgress(row: people[i]),
                                   ),
                                 ),
@@ -200,8 +203,7 @@ class _Totals extends StatelessWidget {
                     waiting == 1
                         ? '1 of these has not been handed out by its department yet.'
                         : '$waiting of these have not been handed out by their departments yet.',
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkSecondaryOf(context)),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
                   ),
                 ),
               ],
@@ -234,8 +236,7 @@ class _Stat extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: GwdType.caption.copyWith(
-                    fontSize: 8.5, color: GwdColors.inkTertiaryOf(context))),
+                style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context))),
           ],
         ),
       );
@@ -289,13 +290,11 @@ class _PersonProgress extends StatelessWidget {
                     Text(name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.headline
-                            .copyWith(color: GwdColors.inkOf(context))),
+                        style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                     Text(positionLineFor(role, department),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.footnote
-                            .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   ],
                 ),
               ),
@@ -354,8 +353,7 @@ class _PersonProgress extends StatelessWidget {
   }
 
   static String _initials(String value) {
-    final words =
-        value.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words = value.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.isEmpty) return '?';
     if (words.length == 1) {
       final w = words.first;

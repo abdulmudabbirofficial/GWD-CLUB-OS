@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 import 'club_task.dart';
 
 /// An event is a *project*: a team, department responsibilities, the work under
@@ -45,10 +47,10 @@ enum EventStatus {
   IconData get icon => switch (this) {
         EventStatus.draft => Icons.edit_note_rounded,
         EventStatus.planning => Icons.architecture_rounded,
-        EventStatus.approved => Icons.verified_outlined,
+        EventStatus.approved => GwdIcons.approved,
         EventStatus.ongoing => Icons.sensors_rounded,
-        EventStatus.completed => Icons.check_circle_rounded,
-        EventStatus.cancelled => Icons.cancel_outlined,
+        EventStatus.completed => GwdIcons.done,
+        EventStatus.cancelled => GwdIcons.cancelled,
       };
 
   /// Which statuses a manager may move to from here. Deliberately a short
@@ -57,7 +59,11 @@ enum EventStatus {
   List<EventStatus> get nextOptions => switch (this) {
         EventStatus.draft => const [EventStatus.planning, EventStatus.cancelled],
         EventStatus.planning => const [EventStatus.approved, EventStatus.cancelled],
-        EventStatus.approved => const [EventStatus.ongoing, EventStatus.completed, EventStatus.cancelled],
+        EventStatus.approved => const [
+            EventStatus.ongoing,
+            EventStatus.completed,
+            EventStatus.cancelled
+          ],
         EventStatus.ongoing => const [EventStatus.completed, EventStatus.cancelled],
         EventStatus.completed => const [EventStatus.ongoing],
         EventStatus.cancelled => const [EventStatus.planning],
@@ -182,8 +188,18 @@ class ClubEvent {
   }
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String get dateLabel => '${date.day} ${_months[date.month - 1]}';
@@ -294,11 +310,11 @@ class EventActivity {
       );
 
   IconData get icon => switch (kind) {
-        'taskCompleted' => Icons.check_circle_outline_rounded,
+        'taskCompleted' => GwdIcons.done,
         'document' => Icons.attach_file_rounded,
         'event.create' => Icons.auto_awesome_rounded,
         'event.status' => Icons.flag_outlined,
-        'document.decision' => Icons.verified_outlined,
+        'document.decision' => GwdIcons.approved,
         _ => Icons.circle_outlined,
       };
 }
@@ -395,8 +411,7 @@ class EventTaskCard {
         commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,
       );
 
-  bool get isOverdue =>
-      dueDate != null && status.isOpen && dueDate!.isBefore(DateTime.now());
+  bool get isOverdue => dueDate != null && status.isOpen && dueDate!.isBefore(DateTime.now());
 
   Color get accent {
     final hex = assigneeColor;
