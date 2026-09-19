@@ -47,6 +47,9 @@ function spawn() {
     const job = pending.get(id);
     if (!job) return;
     pending.delete(id);
+    // Released before the callbacks run: whatever they do next must not be
+    // holding this worker open.
+    worker.unref();
     if (error) job.reject(new Error(error));
     else job.resolve(value);
     idle.push(worker);
@@ -64,10 +67,18 @@ function spawn() {
     if (j !== -1) idle.splice(j, 1);
     if (!closing) { const fresh = spawn(); idle.push(fresh); pump(); }
   });
-  // Deliberately *not* unref'd. An unref'd worker does not keep the process
-  // alive, so a short-lived script — a seed, a migration — could exit with a
-  // hash still in flight and silently write nothing. The server closes the
-  // pool on shutdown instead, which is the honest way to let the process end.
+  // Idle workers do not hold the process open; busy ones do.
+  //
+  // Both halves matter, and getting either wrong breaks something real. Leave
+  // them permanently ref'd and every short-lived script that touches a
+  // password — the seeds, the reset, the name backfill — hangs forever after
+  // its work is done, which is exactly what happened the first time this was
+  // written. Leave them permanently *un*ref'd and the opposite bug appears:
+  // the script exits with a hash still in flight and silently writes nothing.
+  //
+  // So a worker is ref'd when a job is handed to it and unref'd when that job
+  // comes back. Pending work keeps Node alive; an idle pool lets it go.
+  worker.unref();
   workers.push(worker);
   return worker;
 }
@@ -87,6 +98,7 @@ function pump() {
     const worker = idle.pop();
     job.worker = worker;
     pending.set(job.id, job);
+    worker.ref();
     worker.postMessage({ id: job.id, op: job.op, args: job.args });
   }
 }

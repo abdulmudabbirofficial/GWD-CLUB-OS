@@ -17,7 +17,14 @@ class WidgetBridge {
   const WidgetBridge._();
 
   /// Must match the Android provider class and the iOS App Group / kind.
-  static const _androidProvider = 'GwdClubWidgetProvider';
+  ///
+  /// The sub-package is not optional. `home_widget` resolves this against the
+  /// application id, so a bare class name asks Android for
+  /// `com.gwd.clubos.GwdClubWidgetProvider` — and the provider actually lives
+  /// in `.widget`. The mismatch threw a ClassNotFoundException on every single
+  /// refresh, which the catch below turned into a debug line nobody reads, so
+  /// the home-screen widget had quietly never worked at all.
+  static const _androidProvider = 'widget.GwdClubWidgetProvider';
   static const _iosWidgetKind = 'GwdClubWidget';
   static const _appGroupId = 'group.com.gwd.clubos';
 

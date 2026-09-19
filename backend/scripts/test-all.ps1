@@ -52,6 +52,13 @@ function Drop-Database([string]$name) {
     Write-Host "  Dropped '$name'." -ForegroundColor DarkGray
 }
 
+# ------------------------------------------------------- process behaviour ---
+# Needs no server and no database: it spawns scripts and checks they end.
+if ($Only -eq 'all') {
+    & node (Join-Path $PSScriptRoot 'test-exit.js')
+    if ($LASTEXITCODE -ne 0) { $failed = 1 }
+}
+
 # ------------------------------------------------------------------ smoke ---
 if ($Only -in @('all', 'smoke')) {
     $smoke = Join-Path $PSScriptRoot 'smoke-isolated.ps1'
@@ -64,8 +71,26 @@ if ($Only -in @('all', 'meetings')) {
     $port = 4500
     $dbName = 'gwd_club_os_meet'
 
-    if (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) {
-        throw "Port $port is already in use; a previous run may still be up."
+    # Reclaim the port from a previous run that was interrupted.
+    #
+    # 4500 is this script's own throwaway port and nothing else uses it, so a
+    # listener here is always a server we started and failed to stop - usually
+    # because the run was cancelled mid-suite. Refusing outright meant one
+    # interrupted run left the whole suite unrunnable until somebody went
+    # hunting for a PID, which is a poor trade for a port we own. Only a `node`
+    # process is taken, so an unrelated program squatting the port still stops
+    # us rather than being killed.
+    $held = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($owner in $held) {
+        $proc = Get-Process -Id $owner -ErrorAction SilentlyContinue
+        if ($proc -and $proc.ProcessName -eq 'node') {
+            Write-Host "  Reclaiming port $port from a previous run (pid $owner)." -ForegroundColor DarkGray
+            Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        } else {
+            throw "Port $port is held by $($proc.ProcessName) (pid $owner), which is not ours."
+        }
     }
 
     Write-Host ''

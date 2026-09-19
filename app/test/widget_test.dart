@@ -134,25 +134,38 @@ void main() {
   });
 
   group('ClubTask', () {
-    ClubTask taskDue(Duration offset, {TaskStatus status = TaskStatus.pending}) => ClubTask(
+    /// Midday, `days` from today.
+    ///
+    /// Anchored to a calendar day rather than offset from `now`, because
+    /// `dueLabel` answers in calendar days and an hours-based offset silently
+    /// crosses midnight: "now + 2 hours" is *tomorrow* if the suite runs at
+    /// 23:00, and this test duly failed at 23:59. Midday is far enough from
+    /// either boundary that no timezone or DST shift can move it.
+    DateTime dayAt(int days) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, 12).add(Duration(days: days));
+    }
+
+    ClubTask taskDue(int days, {TaskStatus status = TaskStatus.pending}) => ClubTask(
           id: 't1',
           title: 'Design the poster',
           status: status,
-          dueDate: DateTime.now().add(offset),
+          dueDate: dayAt(days),
         );
 
     test('flags overdue only for work still open', () {
-      expect(taskDue(const Duration(days: -2)).isOverdue, isTrue);
-      expect(taskDue(const Duration(days: 2)).isOverdue, isFalse);
+      expect(taskDue(-2).isOverdue, isTrue);
+      expect(taskDue(2).isOverdue, isFalse);
       // A task finished late is not "overdue" — there is nothing left to chase.
-      expect(taskDue(const Duration(days: -2), status: TaskStatus.completed).isOverdue,
-          isFalse);
+      expect(taskDue(-2, status: TaskStatus.completed).isOverdue, isFalse);
     });
 
     test('describes due dates in human terms', () {
-      expect(taskDue(const Duration(hours: 2)).dueLabel, 'Due today');
-      expect(taskDue(const Duration(days: 1, hours: 2)).dueLabel, 'Due tomorrow');
-      expect(taskDue(const Duration(days: -3)).dueLabel, contains('overdue'));
+      expect(taskDue(0).dueLabel, 'Due today');
+      expect(taskDue(1).dueLabel, 'Due tomorrow');
+      expect(taskDue(-1).dueLabel, 'Due yesterday');
+      expect(taskDue(-3).dueLabel, contains('overdue'));
+      expect(taskDue(3).dueLabel, 'Due in 3 days');
     });
   });
 
@@ -1065,8 +1078,8 @@ void main() {
       final now = DateTime.now();
       for (final hour in [0, 1, 9, 13, 23]) {
         final meeting = at(DateTime(now.year, now.month, now.day, hour, 30));
-        expect(meeting.isToday, isTrue, reason: '${hour}:30 today');
-        expect(meeting.isPast, isFalse, reason: '${hour}:30 today');
+        expect(meeting.isToday, isTrue, reason: '$hour:30 today');
+        expect(meeting.isPast, isFalse, reason: '$hour:30 today');
       }
     });
 
