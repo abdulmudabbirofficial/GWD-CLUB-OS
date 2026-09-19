@@ -30,7 +30,7 @@
 [CmdletBinding()]
 param(
     [switch]$Keep,
-    [ValidateSet('all', 'smoke', 'meetings')]
+    [ValidateSet('all', 'smoke', 'meetings', 'requirements')]
     [string]$Only = 'all'
 )
 
@@ -160,6 +160,76 @@ if ($Only -in @('all', 'meetings')) {
     } finally {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
         Remove-Item Env:\PORT, Env:\MONGODB_DB, Env:\MONGODB_URI, Env:\MEET_BASE, Env:\MEET_CREDS -ErrorAction SilentlyContinue
+        Drop-Database $dbName
+    }
+}
+
+# --------------------------------------------------- mandatory requirements ---
+# The brief's non-negotiable list, walked end to end against a live server on
+# its own database: three Directors, who may assign to whom, Need Help becoming
+# a Task, attendance, events, schedule, privilege. Runs last because it is the
+# broadest and its failures are the most useful to read at the bottom.
+if ($Only -in @('all', 'requirements')) {
+    $port = 4600
+    $dbName = 'gwd_club_os_req'
+
+    $held = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($owner in $held) {
+        $proc = Get-Process -Id $owner -ErrorAction SilentlyContinue
+        if ($proc -and $proc.ProcessName -eq 'node') {
+            Stop-Process -Id $owner -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        } else {
+            throw "Port $port is held by $($proc.ProcessName) (pid $owner), which is not ours."
+        }
+    }
+
+    Write-Host ''
+    Write-Host "  Starting a throwaway API on $port against '$dbName'..." -ForegroundColor Cyan
+    $env:PORT = "$port"
+    $env:MONGODB_DB = $dbName
+    $env:MONGODB_URI = $localUri
+    $reqOut = Join-Path $backend 'req-server.log'
+    $reqErr = Join-Path $backend 'req-server.err.log'
+    $reqProc = Start-Process -FilePath 'node' -ArgumentList 'src/index.js' `
+        -WorkingDirectory $backend `
+        -RedirectStandardOutput $reqOut -RedirectStandardError $reqErr `
+        -WindowStyle Hidden -PassThru
+
+    try {
+        $up = $false
+        foreach ($i in 1..30) {
+            Start-Sleep -Seconds 1
+            if (Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue) { $up = $true; break }
+        }
+        if (-not $up) { throw 'Requirements test server failed to start.' }
+
+        $seedOut = & node (Join-Path $PSScriptRoot 'seed-club.js') 2>&1 | Out-String
+        if ($seedOut -notmatch 'Target:\s*local') {
+            Write-Host $seedOut
+            throw 'The seed did not connect to the local replica set. Refusing to run.'
+        }
+
+        # Passwords are read from the seed's one-time printout and handed over
+        # in the environment, never written down.
+        $creds = @{}
+        foreach ($line in ($seedOut -split "`r?`n")) {
+            if ($line -match '(\S+)@gwd\.global\s+(gwd-\S+)') { $creds[$Matches[1]] = $Matches[2] }
+        }
+        if ($creds.Count -lt 8) {
+            Write-Host $seedOut
+            throw "Only read $($creds.Count) seeded passwords; expected 8."
+        }
+
+        $env:REQ_CREDS = ($creds | ConvertTo-Json -Compress)
+        & node (Join-Path $PSScriptRoot 'test-requirements.js') --base "http://127.0.0.1:$port"
+        if ($LASTEXITCODE -ne 0) { $failed = 1 }
+    } finally {
+        if ($reqProc -and -not $reqProc.HasExited) {
+            Stop-Process -Id $reqProc.Id -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item Env:\PORT, Env:\MONGODB_DB, Env:\MONGODB_URI, Env:\REQ_CREDS -ErrorAction SilentlyContinue
         Drop-Database $dbName
     }
 }

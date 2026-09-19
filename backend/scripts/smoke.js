@@ -1591,9 +1591,28 @@ async function main() {
     directorToPresident.status === 403, `got ${directorToPresident.status}`);
 
   const leadTargets = await api('/api/users/assignable', { token: leadToken });
-  ok('A Lead reaches the officers too',
-    (leadTargets.body?.assignable ?? []).some((m) => officerRoles.includes(m.role)),
-    (leadTargets.body?.assignable ?? []).map((m) => m.role).join(','));
+  // A Lead *asks* the officers, never instructs them.
+  //
+  // This used to assert the opposite — that the officers appeared in a Lead's
+  // `assignable` list — and the permission layer obligingly agreed, which
+  // meant a Lead could put a task straight onto the President's plate. An
+  // assignment is an instruction and a Lead has no authority to instruct the
+  // people above them; upward and sideways both go through a request, which
+  // the recipient accepts or declines. That distinction is the entire reason
+  // the request system exists, so the officers belong in `requestable`.
+  ok('A Lead cannot assign to the officers',
+    !(leadTargets.body?.assignable ?? []).some((m) => officerRoles.includes(m.role)),
+    (leadTargets.body?.assignable ?? []).map((m) => m.role).join(',') || 'nobody');
+  ok('but can ask them',
+    (leadTargets.body?.requestable ?? []).some((m) => officerRoles.includes(m.role)),
+    (leadTargets.body?.requestable ?? []).map((m) => m.role).join(',') || 'nobody');
+
+  const leadAssignsPresident = await api('/api/tasks', {
+    method: 'POST', token: leadToken,
+    body: { title: `Lead instructs the President ${RUN}`, assignedTo: logins[0].body.user.id },
+  });
+  ok('and the server refuses it outright, not just the picker',
+    leadAssignsPresident.status === 403, `got ${leadAssignsPresident.status}`);
 
   // A member gets exactly one name: their own Lead. Needs somebody in the
   // Lead's own department — the fixture's other members sit in Creative, which

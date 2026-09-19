@@ -18,6 +18,7 @@
  *   node scripts/seed-club.js            # people only
  *   node scripts/seed-club.js --demo     # people plus sample events and tasks
  *   node scripts/seed-club.js --reset-passwords
+ *   node scripts/seed-club.js --keep-placeholders   # leave the bootstrap logins
  *
  * Passwords are printed ONCE. They are hashed, so there is no second chance.
  */
@@ -30,7 +31,19 @@ const { ROLES } = require('../src/permissions');
 
 const DEMO = process.argv.includes('--demo');
 const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
-const REPLACE_PLACEHOLDERS = process.argv.includes('--replace-placeholders');
+// Retiring the bootstrap accounts is the default, not an extra.
+//
+// Two seed paths create people: `src/seed.js` makes the `@gwd.club` bootstrap
+// accounts from .env every time the server starts, so a brand-new database can
+// be signed into at all, and this script puts the club's real `@gwd.global`
+// roster in. Leaving both is not a tidiness problem, it is a *correctness*
+// one: the club ends up with five Club Directors against a cap of three, and
+// two Presidents. The caps are enforced at signup and at role changes, so
+// seeding was the one way past them.
+//
+// `--keep-placeholders` opts out, for the rare case of wanting the bootstrap
+// logins alive alongside the roster while setting a machine up.
+const REPLACE_PLACEHOLDERS = !process.argv.includes('--keep-placeholders');
 
 /**
  * The accounts `src/seed.js` creates on a fresh database so the club can

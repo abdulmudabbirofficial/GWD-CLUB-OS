@@ -230,10 +230,16 @@ function canAssignTo(actor, target) {
   const rule = ASSIGN_TARGETS[actor.role];
 
   if (rule === 'ownDepartment') {
-    // A Lead owns their department's members — and only members. Reaching into
-    // another department is a request, never an assignment. They may also hand
-    // work to the club's officers, who have no department to route through.
-    if (EXECUTIVE_TIER.includes(target.role)) return true;
+    // A Lead owns their department's members, and nobody else.
+    //
+    // Not the officers either. This used to return true for the executive
+    // tier, on the reasoning that they have no department to route through —
+    // which quietly let a Lead put a task on the President's list. Assigning
+    // and requesting are different things: an assignment is an instruction,
+    // and a Lead has no authority to instruct the people above them. Upward
+    // and sideways both go through `canRequestTo`, where the recipient
+    // accepts or declines. Erasing that distinction is the whole reason the
+    // request system exists.
     return target.role === ROLES.clubMember && sameDepartment(target, actor);
   }
 

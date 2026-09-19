@@ -84,7 +84,27 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   }
 
   /// True when this person sends work to departments rather than to people.
-  bool get _toDepartment => _targets.canAssignToDepartment && !_requestMode;
+  ///
+  /// Leadership addresses departments *by default* — a Director shown forty
+  /// names and asked to pick one is making a decision they are not equipped
+  /// for. But "by default" is not "only": the permission matrix lets a
+  /// Director assign to the President, Vice President and Secretary General,
+  /// and the server has always returned those three in `assignable`. This
+  /// getter used to be unconditionally true for leadership, so the sheet
+  /// rendered the department picker and nothing else — the three people the
+  /// backend was offering had no way onto the screen. A Director could not
+  /// give the President a task at all.
+  bool get _toDepartment =>
+      _targets.canAssignToDepartment && !_requestMode && !_toNamedPerson;
+
+  /// Set when somebody with department-level authority has switched to
+  /// addressing a named person instead.
+  bool _toNamedPerson = false;
+
+  /// Whether that switch is worth showing: only when the server actually
+  /// offered somebody to address directly.
+  bool get _canChooseTarget =>
+      _targets.canAssignToDepartment && !_requestMode && _targets.assignable.isNotEmpty;
 
   /// In request mode a Lead can address another **department** instead of a
   /// person — "Technical needs Production on the stage rig". The ask lands on
@@ -202,7 +222,9 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                       ? 'They accept or decline — you are not their boss.'
                       : _toDepartment
                           ? 'Pick the department. Their Lead decides who does it.'
-                          : 'Pick who in your department takes this on.',
+                          : _toNamedPerson
+                              ? 'Goes straight to them, not through a department.'
+                              : 'Pick who in your department takes this on.',
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
@@ -214,6 +236,22 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
                           requestMode: _requestMode,
                           onChanged: (value) => setState(() {
                             _requestMode = value;
+                            _toNamedPerson = false;
+                            _selectedPeople.clear();
+                            _selectedDepartment = null;
+                          }),
+                        ),
+                        const SizedBox(height: GwdSpace.lg),
+                      ],
+                      // Department or person, for the tier that may do both.
+                      if (_canChooseTarget) ...[
+                        _TargetSwitch(
+                          toPerson: _toNamedPerson,
+                          personLabel: _targets.assignable.length == 1
+                              ? _targets.assignable.first.firstName
+                              : 'A person',
+                          onChanged: (value) => setState(() {
+                            _toNamedPerson = value;
                             _selectedPeople.clear();
                             _selectedDepartment = null;
                           }),
@@ -354,6 +392,89 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Department, or a named person.
+///
+/// Only shown to the tier that genuinely has both options — the executive and
+/// the supervisors, who address departments as a rule but may also give work
+/// directly to the President, Vice President or Secretary General. Everyone
+/// else has exactly one kind of target and gets no switch to ignore.
+class _TargetSwitch extends StatelessWidget {
+  const _TargetSwitch({
+    required this.toPerson,
+    required this.personLabel,
+    required this.onChanged,
+  });
+
+  final bool toPerson;
+  final String personLabel;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: GwdColors.sunkenOf(context),
+        borderRadius: BorderRadius.circular(GwdRadius.md),
+      ),
+      child: Row(
+        children: [
+          for (final isPerson in [false, true])
+            Expanded(
+              child: PressableScale(
+                onTap: () => onChanged(isPerson),
+                pressedScale: 0.97,
+                haptic: HapticStrength.selection,
+                child: AnimatedContainer(
+                  duration: AppleDuration.standard,
+                  curve: AppleCurves.standard,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isPerson == toPerson
+                        ? GwdColors.surfaceOf(context)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(GwdRadius.sm),
+                    boxShadow: isPerson == toPerson
+                        ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isPerson ? Icons.person_outline_rounded : GwdIcons.department,
+                        size: 14,
+                        color: isPerson == toPerson
+                            ? GwdColors.inkOf(context)
+                            : GwdColors.inkTertiaryOf(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          isPerson ? personLabel : 'A department',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GwdType.footnote.copyWith(
+                            color: isPerson == toPerson
+                                ? GwdColors.inkOf(context)
+                                : GwdColors.inkTertiaryOf(context),
+                            fontWeight:
+                                isPerson == toPerson ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

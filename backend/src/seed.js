@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const config = require('./config');
 const { col, C } = require('./db');
 const { hashPassword } = require('./auth');
-const { ROLES } = require('./permissions');
+const { ROLES, ROLE_CAPS } = require('./permissions');
 
 /**
  * Roots of trust (Section 4.5).
@@ -39,6 +39,27 @@ function avatarColorFor(seed) {
 
 async function upsertPerson({ name, email, password }, role) {
   const existing = await col(C.users).findOne({ email });
+
+  // A seat that is already filled is not seeded again.
+  //
+  // Two seed paths write people: this one, which creates the bootstrap
+  // accounts from .env so a brand-new database can be signed into at all, and
+  // `scripts/seed-club.js`, which puts the club's real roster in. Neither
+  // checked the caps, so running both - which is exactly what happens when the
+  // server starts after the roster is seeded - left the club with **five**
+  // Club Directors against a cap of three, and two Presidents. The cap is
+  // enforced at signup and at role changes, so seeding was the one way in.
+  //
+  // Skipping only applies to *new* accounts: an existing bootstrap account is
+  // still corrected below, so nothing that is already in use is disturbed.
+  if (!existing) {
+    const cap = ROLE_CAPS[role];
+    if (cap) {
+      const held = await col(C.users).countDocuments({ role, approvalStatus: 'approved' });
+      if (held >= cap) return { email, action: 'skipped (seat already filled)' };
+    }
+  }
+
   if (existing) {
     // Never silently overwrite a live account's password on restart.
     if (existing.role !== role || existing.approvalStatus !== 'approved') {
