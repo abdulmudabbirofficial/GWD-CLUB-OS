@@ -166,6 +166,96 @@ real event through a model that cannot hold it.
   returns `409` plus a checklist; the UI shows what is outstanding and offers
   "close it anyway", because the last two tasks often never get ticked.
 
+### Event templates, the day itself, and the write-up (v7)
+
+Three surfaces an event grows once a club runs the same thing twice.
+
+**Templates.** Most of a club's calendar is repeats. A template stores each
+task's deadline as an **offset** — `offsetDays: -14`, "fourteen days before" —
+and never a date, because a stored date is wrong the second time it is used and
+every time after. They are made from real events
+(`POST /api/event-templates/from-event/:id`, which translates the dates on the
+way) rather than authored from nothing: nobody sits down to write an abstract
+plan, so a screen that asked them to would stay empty. That is also why the
+templates page has no "new template" button.
+
+A template is applied **client-side, in the wizard**, which prefills the fields
+and resolves each offset into a real date the person can see and edit before
+anything commits. One creation path instead of two that would drift, and a
+starting point rather than a contract — which is the only kind anybody trusts.
+`events.templateId` is attribution only; editing a template never reaches back
+into events already made from it.
+
+**Day mode** (`GET /api/events/:id/day`). Every other event screen answers "is
+this on track?", which is a planning question asked at a desk. On the day nobody
+is planning — somebody is in a corridor with fifteen minutes to go, and the
+questions are what is on now, what is next, and who do I ring about the
+projector. So it drops the charts entirely.
+
+- The run sheet lives **on the event document**: a dozen rows, never read
+  without the event, never queried across events. A collection would buy a join
+  and nothing else.
+- Times are stored `HH:MM` so they sort without parsing; an untimed row sorts
+  last and returns `minutes == null` rather than a sentinel, because a zero
+  would place an "at some point" job at midnight, top of the list.
+- **"Now" is computed on the client, never the server.** The person holding the
+  phone is the one standing in the room, and a `currentItem` baked into a
+  response goes stale the moment the screen is left open. It is the last timed
+  row whose time has passed and is not ticked — so an overrunning item stays
+  current instead of the screen jumping to something that has not started.
+- **Ticking is open to anyone on the team; editing is not.** On the day the
+  person who finishes setting the stage is whoever was nearest, and making them
+  find the event lead is how a run sheet stops being updated by eleven. The
+  server tells the two apart by whether the body carries anything beyond `done`,
+  so the client must send **only** `done` when ticking.
+- **Phone numbers go only to whoever can manage the event.** Everyone else gets
+  the same run sheet with `phone` empty, so the client never holds a number it
+  could leak.
+
+**The report** (`GET`/`PUT /api/events/:id/report`). Half of it is derived and
+never typed — tasks completed, spend, team size, paperwork. Asking somebody to
+fill those in produces numbers that are wrong, and one wrong number is a report
+nobody reads the rest of. The typed half is three questions, not ten: a form
+long enough to feel like homework gets submitted empty, and an empty report is
+worse than none because it looks like the event went fine. An attendance of
+**zero is an answer** and must not be swallowed by a null check.
+
+Day mode and the report are each promoted onto the Overview tab at the point
+they become the obvious next thing — the day before and during, and once the
+event is done — and live in the overflow menu the rest of the time.
+
+### Meetings — what was decided, and what came of it (v7)
+
+The failure being closed: a decision gets made in the room, somebody writes it
+in a notes app, and it is next read when the same thing goes wrong at the
+following meeting.
+
+**An action item *is* a task, not a note about one.**
+`POST /api/meetings/:id/actions` writes a real row in `tasks` carrying
+`meetingId`, so it lands on the Work tab, sends the same notification, counts
+for the same points, and is ticked off in one place however you reach it. The
+meeting page reads them back live from `tasks` rather than keeping a copy, so
+finishing one from Work shows as done on the meeting with nothing holding the
+two in step.
+
+Unlike event work, meeting tasks are deliberately **not** filtered out of
+`/api/tasks`. Event work is excluded because one festival would bury everybody's
+own to-do list; an action item is the opposite — personal work somebody accepted
+out loud, and burying it is the thing being fixed.
+
+Authority is unchanged, and checked by the same functions the task route uses
+rather than a parallel set that would drift. Calling a meeting extends nobody's
+reach. Recording what came out of one takes having been in the room, or the same
+standing that lets you mark its attendance — somebody has to be able to tidy up
+after a meeting they missed.
+
+`meetings.notes` is one free-text field, not a minutes format. Nobody in a club
+records motions and seconders, and a form asking for them is left empty —
+whereas four lines of "we agreed to move the fest to the 20th" is what actually
+gets written and what anybody needs three weeks later. It sits **above**
+attendance: who turned up is a record, what was agreed is why anybody opens a
+past meeting at all.
+
 ### Event documents — the one genuinely sensitive surface
 
 Two kinds, and the distinction is the whole feature:
@@ -599,6 +689,22 @@ eventBills             { _id, eventId, title, note, category, amountPaise,
                          settledBy, settledAt, settlementRef,
                          receipt{ filename, storedName, size, mimeType } }
 
+-- v7 ------------------------------------------------------------------------
+eventTemplates         { _id, name, description, type, venue, startTime, endTime,
+                         organizingDepartmentId, supportingDepartmentIds[],
+                         responsibilities[{ departmentId, notes,
+                           tasks[{ title, description, offsetDays, points,
+                                   priority }] }],
+                         active, usageCount, lastUsedAt, createdBy }
+
+events  gains  templateId  (attribution, not a live link)
+               runSheet[{ id, time, title, note, ownerUserId,
+                          done, doneAt, doneBy }]
+               report{ attendance, highlights, challenges, learnings,
+                       submittedBy, submittedAt, updatedAt }
+meetings gains notes
+tasks   gains  meetingId  (sparse index: only a handful ever carry one)
+
 users  gains  mustChangePassword, passwordResetRequestedAt
 tasks  gains  assignedTo: null  (work addressed to a department, awaiting
               hand-out) and points ∈ {1, 3, 5}
@@ -837,9 +943,34 @@ $env:PATH="$root\flutter\bin;$root\jdk\bin;$root\git\cmd;$env:PATH"
   `loadAll` — so a Lead's triage pile was empty until they assigned something.
   Adding a `load*` method is two edits, not one.
 
-## Firebase / FCM
+## Firebase / FCM — the server half only
 
-Built but optional. The app must run correctly with **no** `google-services.json`
-present — in-app live toasts and the Notifications tab work over Socket.IO alone.
-Dropping in the real Firebase file later switches background push on with no
-code change.
+**Background push does not currently work, and dropping in
+`google-services.json` will not switch it on.** An earlier version of this file
+said it would; that was wrong, and believing it is how the club ends up thinking
+notifications are delivered when a phone is asleep.
+
+What *does* work is everything in-app: live toasts and the Notifications tab run
+over Socket.IO alone, which is why nothing looks broken. Background delivery is
+the part that is missing.
+
+The **server** side is complete — `services/fcm.js` initialises from
+`FIREBASE_SERVICE_ACCOUNT_JSON`, `POST /api/auth/device` stores a token against
+the user, and `sendToUsers` delivers. The **client** side does not exist at all:
+
+- `app/pubspec.yaml` has no `firebase_core` and no `firebase_messaging`
+- `android/app/build.gradle.kts` does not apply the `google-services` plugin
+- nothing in `app/lib` ever obtains a device token, so
+  `POST /api/auth/device` is never called and the `devices` collection stays
+  empty for every account
+
+So the server dutifully looks up zero devices and sends nothing. Turning it on
+needs all four of: a real Firebase project, `google-services.json`, the two
+Flutter packages plus the Gradle plugin, and client code that registers the
+token after sign-in and re-registers when it rotates. Until then this is an
+in-app notification system, and the app should not claim otherwise.
+
+The rule that stays true: the app must run correctly with **no**
+`google-services.json` present. Adding the Firebase SDK must not change that —
+an app that crashes at launch on a missing config file is worse than one with no
+push.
