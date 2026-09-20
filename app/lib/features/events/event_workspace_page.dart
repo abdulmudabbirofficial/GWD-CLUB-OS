@@ -276,7 +276,7 @@ Future<void> _showStatusSheet(BuildContext context, ClubEvent event, String even
   final store = AppScope.readStore(context);
   final messenger = ScaffoldMessenger.of(context);
 
-  await showModalBottomSheet<void>(
+  await showGwdSheet<void>(
     context: context,
     builder: (sheetContext) => Container(
       decoration: BoxDecoration(

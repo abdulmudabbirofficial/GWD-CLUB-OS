@@ -41,7 +41,8 @@ class _TasksPageState extends State<TasksPage> {
     final pendingRequests = store.incomingRequests.where((r) => r.isPending).toList();
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      // Transparent so the shell's wash shows through; see ClubShell.
+      backgroundColor: Colors.transparent,
       floatingActionButton: canAssign
           ? FloatingActionButton.extended(
               onPressed: () => showNewTaskSheet(context),
@@ -329,10 +330,10 @@ class _StatusFilter extends StatelessWidget {
           curve: AppleCurves.standard,
           padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? GwdColors.inkOf(context) : GwdColors.surfaceOf(context),
+            color: selected ? GwdColors.primaryRed : GwdColors.surfaceOf(context),
             borderRadius: BorderRadius.circular(GwdRadius.pill),
             border: Border.all(
-              color: selected ? GwdColors.inkOf(context) : GwdColors.hairlineOf(context),
+              color: selected ? GwdColors.primaryRed : GwdColors.hairlineOf(context),
             ),
           ),
           child: Row(
@@ -341,8 +342,7 @@ class _StatusFilter extends StatelessWidget {
               Text(
                 label,
                 style: GwdType.footnote.copyWith(
-                  color:
-                      selected ? GwdColors.surfaceOf(context) : GwdColors.inkSecondaryOf(context),
+                  color: selected ? Colors.white : GwdColors.inkSecondaryOf(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -351,7 +351,7 @@ class _StatusFilter extends StatelessWidget {
                 Text('$count',
                     style: GwdType.caption.copyWith(
                       color: selected
-                          ? GwdColors.surfaceOf(context).withValues(alpha: 0.7)
+                          ? Colors.white.withValues(alpha: 0.75)
                           : GwdColors.inkTertiaryOf(context),
                     )),
               ],

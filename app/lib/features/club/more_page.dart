@@ -39,7 +39,8 @@ class MorePage extends StatelessWidget {
     int next() => step++;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      // Transparent so the shell's wash shows through; see ClubShell.
+      backgroundColor: Colors.transparent,
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the
       // type is set.

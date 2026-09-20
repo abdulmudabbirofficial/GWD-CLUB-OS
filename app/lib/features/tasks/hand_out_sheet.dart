@@ -18,10 +18,8 @@ import '../../core/models/club_task.dart';
 /// "I'll do it myself" is a first-class option, not an afterthought: plenty of
 /// what lands on a Lead is faster to do than to delegate.
 Future<void> showHandOutSheet(BuildContext context, ClubTask task) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _HandOutSheet(task: task),
   );
 }

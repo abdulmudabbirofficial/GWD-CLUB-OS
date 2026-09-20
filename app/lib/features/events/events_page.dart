@@ -50,7 +50,8 @@ class _EventsPageState extends State<EventsPage> {
     int next() => step++;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      // Transparent so the shell's wash shows through; see ClubShell.
+      backgroundColor: Colors.transparent,
       floatingActionButton: store.canCreateEvents
           ? _CreateEventButton(onPressed: () => CreateEventFlow.open(context))
           : null,

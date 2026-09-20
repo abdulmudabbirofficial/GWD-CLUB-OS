@@ -49,7 +49,7 @@ class _SignInPageState extends State<SignInPage> {
       // still sit on plain ground and nothing has to fight the background to
       // stay readable.
       body: DecoratedBox(
-        decoration: BoxDecoration(gradient: GwdColors.heroOf(context)),
+        decoration: BoxDecoration(gradient: GwdColors.heroOf(context, extent: 0.42)),
         child: ContentWidth(
           child: SafeArea(
             child: Center(

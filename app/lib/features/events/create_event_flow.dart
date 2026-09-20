@@ -546,9 +546,8 @@ class _StepWorkState extends State<_StepWork> {
 
   Future<void> _addTask(_Responsibility r) async {
     final controller = TextEditingController();
-    final added = await showModalBottomSheet<String>(
+    final added = await showGwdSheet<String>(
       context: context,
-      isScrollControlled: true,
       builder: (sheetContext) => Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(sheetContext),

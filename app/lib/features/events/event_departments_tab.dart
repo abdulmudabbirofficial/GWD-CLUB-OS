@@ -100,7 +100,7 @@ Future<void> _addDepartment(
     return;
   }
 
-  await showModalBottomSheet<void>(
+  await showGwdSheet<void>(
     context: context,
     builder: (sheetContext) => Container(
       decoration: BoxDecoration(

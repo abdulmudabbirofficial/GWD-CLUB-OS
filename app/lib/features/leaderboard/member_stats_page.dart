@@ -1030,10 +1030,8 @@ class _RecentRow extends StatelessWidget {
 /// rescued an event or carried a week nobody logged. Limited to supervisors and
 /// the President so it stays meaningful.
 Future<void> showAwardSheet(BuildContext context, Member member) {
-  return showModalBottomSheet(
+  return showGwdSheet(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _AwardSheet(member: member),
   );
 }

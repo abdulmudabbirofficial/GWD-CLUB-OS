@@ -191,10 +191,10 @@ class _Segment extends StatelessWidget {
         height: 42,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? GwdColors.inkOf(context) : GwdColors.surfaceOf(context),
+          color: selected ? GwdColors.primaryRed : GwdColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
           border: Border.all(
-            color: selected ? GwdColors.inkOf(context) : GwdColors.hairlineOf(context),
+            color: selected ? GwdColors.primaryRed : GwdColors.hairlineOf(context),
           ),
         ),
         child: Row(
@@ -202,7 +202,7 @@ class _Segment extends StatelessWidget {
           children: [
             Text(label,
                 style: GwdType.callout.copyWith(
-                  color: selected ? GwdColors.canvasOf(context) : GwdColors.inkSecondaryOf(context),
+                  color: selected ? Colors.white : GwdColors.inkSecondaryOf(context),
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 )),
             if (count > 0) ...[
@@ -211,7 +211,7 @@ class _Segment extends StatelessWidget {
                   style: GwdType.caption.copyWith(
                     fontSize: 10,
                     color: selected
-                        ? GwdColors.canvasOf(context).withValues(alpha: 0.7)
+                        ? Colors.white.withValues(alpha: 0.75)
                         : GwdColors.inkTertiaryOf(context),
                   )),
             ],

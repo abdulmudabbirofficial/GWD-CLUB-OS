@@ -81,23 +81,75 @@ class GwdColors {
   /// that should feel like an *arrival* — signing in, the top of Home — are not
   /// a flat dark rectangle.
   ///
-  /// It falls away fast on purpose. A full-height wash looks impressive in a
-  /// mockup and then eats every piece of secondary text on the screen: grey
-  /// labels on deep crimson are unreadable, and lightening them to compensate
-  /// wrecks the hierarchy everywhere else. Colour behind the brand, plain
-  /// ground under the content, and nothing has to fight to stay legible.
-  static LinearGradient heroOf(BuildContext context, {double strength = 1.0}) {
+  /// [extent] is the fraction of the box the ramp is spread over: the colour
+  /// has fully resolved to the page's own ground by then, and everything past
+  /// it is ordinary canvas. A panel that *is* the hero passes 1; a whole page
+  /// that only wants colour at the top passes something small.
+  ///
+  /// That parameter is the whole design of this thing. A full-height wash looks
+  /// impressive in a mockup and then eats every piece of secondary text on the
+  /// screen — grey labels on deep crimson are unreadable, and lightening them
+  /// to compensate wrecks the hierarchy everywhere else. Callers therefore say
+  /// where the colour stops, and take responsibility for setting the text
+  /// inside that region in white rather than in the theme's ink.
+  static LinearGradient heroOf(BuildContext context, {double extent = 1.0}) {
     final dark = _isDark(context);
-    final top = dark ? crimsonDeep : primaryRed;
     final ground = dark ? canvasDark : canvas;
-    Color at(double t) => Color.lerp(ground, top, (t * strength).clamp(0.0, 1.0))!;
+
+    // Dark mode gets a deeper entry point. The same crimson that reads as
+    // confident on white reads as a fire alarm against a near-black canvas.
+    final top = dark ? const Color(0xFFA0151E) : primaryRed;
+    final mid = dark ? const Color(0xFF48090E) : crimsonDeep;
+
+    double at(double t) => (t * extent).clamp(0.0, 1.0);
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [at(0.62), at(0.34), at(0.10), ground],
+      colors: [
+        top,
+        mid,
+        Color.lerp(mid, ground, 0.74)!,
+        ground,
+      ],
       // Eased rather than evenly spaced: a linear two-stop ramp reads as a
       // band with a visible edge, and the eye finds that edge immediately.
-      stops: const [0.0, 0.16, 0.30, 0.48],
+      stops: [at(0.0), at(0.54), at(0.84), at(1.0)],
+    );
+  }
+
+  /// Text that sits *on* [heroOf]'s coloured region.
+  ///
+  /// White in both themes, because the region is crimson in both. Reaching for
+  /// `inkOf` here is the mistake that produced a light-mode hero with near-black
+  /// text on a red field.
+  static const onHero = Color(0xFFFFFFFF);
+  static const onHeroSoft = Color(0xB3FFFFFF);
+  static const onHeroFaint = Color(0x24FFFFFF);
+  static const onHeroLine = Color(0x38FFFFFF);
+
+  /// A warm wash for the top of an ordinary page.
+  ///
+  /// Much quieter than [heroOf]: this is not a hero, it is the page refusing to
+  /// be flat black. A dark theme built on #000 makes every screen look like the
+  /// same empty rectangle with different words on it, which is most of what
+  /// "basic" means when somebody says an app looks cheap.
+  ///
+  /// Faint enough that ordinary ink stays legible on it in both themes, so
+  /// pages using this do *not* have to switch their text to white the way the
+  /// hero's own callers do.
+  static LinearGradient pageWashOf(BuildContext context) {
+    final dark = _isDark(context);
+    final ground = dark ? canvasDark : canvas;
+    final source = dark ? const Color(0xFFA0151E) : primaryRed;
+    // Stronger in the dark, where a low-alpha tint over near-black simply
+    // disappears; barely there on white, where the same tint would read as a
+    // stain.
+    final tint = Color.lerp(ground, source, dark ? 0.26 : 0.07)!;
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [tint, Color.lerp(tint, ground, 0.68)!, ground],
+      stops: const [0.0, 0.16, 0.38],
     );
   }
 
@@ -403,11 +455,18 @@ class GwdShadow {
       ];
 
   /// Reserved for elements that are genuinely live (active alert, primary CTA).
+  ///
+  /// A contact shadow, not a glow. At a wide blur and no offset a coloured
+  /// shadow stops reading as light falling off an object and starts reading as
+  /// the object emitting light, which on a dark page looks like a bad neon
+  /// filter. Kept tight and pushed downwards so it still says "this button is
+  /// the raised one" without haloing.
   static List<BoxShadow> accent(Color color) => [
         BoxShadow(
-          color: color.withValues(alpha: 0.26),
-          blurRadius: 22,
-          offset: const Offset(0, 8),
+          color: color.withValues(alpha: 0.22),
+          blurRadius: 14,
+          offset: const Offset(0, 6),
+          spreadRadius: -4,
         ),
       ];
 }

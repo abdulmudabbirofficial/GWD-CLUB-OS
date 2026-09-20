@@ -294,19 +294,26 @@ class _ClubShellState extends State<ClubShell> {
         // already end their scrolls with a GwdSpace.xxxl tail, so nothing
         // important comes to rest underneath.
         extendBody: true,
-        body: layout.usesRail
-            ? Row(
-                children: [
-                  _ClubNavRail(
-                    index: _index,
-                    items: items,
-                    onChanged: _selectTab,
-                    extended: layout.twoColumn,
-                  ),
-                  Expanded(child: body),
-                ],
-              )
-            : body,
+        // The warm wash is painted once, here, rather than by each tab. Five
+        // pages each deciding their own background is how they drifted apart
+        // in the first place, and the wash has to sit *under* the nav rail as
+        // well as the content for the seam not to show.
+        body: _washed(
+          context,
+          layout.usesRail
+              ? Row(
+                  children: [
+                    _ClubNavRail(
+                      index: _index,
+                      items: items,
+                      onChanged: _selectTab,
+                      extended: layout.twoColumn,
+                    ),
+                    Expanded(child: body),
+                  ],
+                )
+              : body,
+        ),
         bottomNavigationBar: layout.usesRail
             ? null
             : _ClubNavBar(index: _index, items: items, onChanged: _selectTab),
@@ -314,6 +321,16 @@ class _ClubShellState extends State<ClubShell> {
     );
   }
 }
+
+/// Paints the page wash behind whatever the shell is showing.
+///
+/// The tab pages set their own Scaffold background to transparent so this shows
+/// through. An opaque page background would cover it and the app would go back
+/// to five flat black rectangles.
+Widget _washed(BuildContext context, Widget child) => DecoratedBox(
+      decoration: BoxDecoration(gradient: GwdColors.pageWashOf(context)),
+      child: child,
+    );
 
 class NavItem {
   const NavItem(this.icon, this.activeIcon, this.label, {this.badge = 0, this.accentBadge = false});

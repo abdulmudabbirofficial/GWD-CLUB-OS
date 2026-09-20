@@ -19,9 +19,8 @@ Future<void> showUploadDocumentSheet(
   required DocumentKind kind,
   EventDocument? replacing,
 }) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
     builder: (_) => _UploadDocumentSheet(
       eventId: eventId,
       kind: kind,

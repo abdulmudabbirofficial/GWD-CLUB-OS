@@ -451,6 +451,82 @@ Future<T?> showMorphSheet<T>({
   );
 }
 
+/// Open a modal sheet with the app's own keyboard and height behaviour.
+///
+/// Every sheet in the app goes through here rather than calling
+/// `showModalBottomSheet` directly, because the two things that keep going
+/// wrong are the two things no individual sheet should be deciding for itself.
+Future<T?> showGwdSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool isDismissible = true,
+  bool enableDrag = true,
+  double maxHeightFactor = 0.94,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    isDismissible: isDismissible,
+    enableDrag: enableDrag,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(
+      alpha: Theme.of(context).brightness == Brightness.dark ? 0.62 : 0.34,
+    ),
+    elevation: 0,
+    builder: (context) => SheetShell(
+      maxHeightFactor: maxHeightFactor,
+      child: Builder(builder: builder),
+    ),
+  );
+}
+
+/// Keeps a sheet clear of the keyboard, and shorter than the screen.
+///
+/// `showModalBottomSheet` anchors its child to the bottom of the *screen* and
+/// hands it the full screen height, keyboard or no keyboard. A sheet that does
+/// nothing about that is laid out underneath the keyboard and simply cannot be
+/// read — which is exactly what the app shipped: a tap on "Assign task" opened
+/// something the user could see one rounded corner of.
+///
+/// The lift is measured rather than assumed. Subtracting the inset from a
+/// constraint that has *already* had it taken out leaves a sheet with no height
+/// to draw in, and a sheet with no height is a full-screen black rectangle —
+/// the other half of the same bug. So this asks whether the room has been made
+/// before making it.
+class SheetShell extends StatelessWidget {
+  const SheetShell({super.key, required this.child, this.maxHeightFactor = 0.94});
+
+  final Widget child;
+
+  /// How much of the free space the sheet may take. Never all of it: a sliver
+  /// of scrim left showing is what tells you this is a sheet you can dismiss
+  /// rather than a screen you have been moved to.
+  final double maxHeightFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context).height;
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxHeight.isFinite ? constraints.maxHeight : screen;
+        // Room already made upstream? Then do not make it twice.
+        final lift = available > screen - inset + 1.0 ? inset : 0.0;
+        final room = math.max(160.0, available - lift);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: lift),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: room * maxHeightFactor),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 AnimationController? _sheetController(BuildContext context) {
   if (prefersReducedMotion(context)) return null;
   return AnimationController(

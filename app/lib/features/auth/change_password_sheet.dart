@@ -16,12 +16,10 @@ Future<bool> showChangePasswordSheet(
   BuildContext context, {
   bool forced = false,
 }) async {
-  final changed = await showModalBottomSheet<bool>(
+  final changed = await showGwdSheet<bool>(
     context: context,
-    isScrollControlled: true,
     isDismissible: !forced,
     enableDrag: !forced,
-    backgroundColor: Colors.transparent,
     builder: (_) => PopScope(
       canPop: !forced,
       child: _ChangePasswordSheet(forced: forced),
@@ -194,10 +192,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 /// member can find the President in a corridor, which is a stronger identity
 /// check than an inbox anyway.
 Future<void> showForgotPasswordSheet(BuildContext context, {String? email}) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _ForgotPasswordSheet(initialEmail: email),
   );
 }

@@ -11,10 +11,8 @@ import '../../core/models/recognition.dart';
 import '../../core/state/club_store.dart';
 
 Future<void> showNewTaskSheet(BuildContext context) {
-  return showModalBottomSheet(
+  return showGwdSheet(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => const _NewTaskSheet(),
   );
 }

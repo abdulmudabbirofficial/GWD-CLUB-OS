@@ -4,12 +4,12 @@ import '../../app/app_scope.dart';
 import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
+import '../../app/widgets/charts.dart';
 import '../../app/widgets/common.dart';
 import '../../core/api/socket_client.dart';
 import '../../core/models/club_event.dart';
 import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
-import '../../core/models/department.dart';
 import '../../core/state/club_store.dart';
 import '../alerts/send_alert_sheet.dart';
 import '../approvals/approvals_page.dart';
@@ -28,13 +28,24 @@ import '../tasks/task_detail_page.dart';
 
 /// Home — the command centre.
 ///
-/// Answers one question, in order of urgency: *what should I be doing?* Today,
-/// then what is coming, then your own work, then what is waiting on you, then
-/// the club around you.
+/// Answers one question, in order of urgency: *what should I be doing?*
 ///
-/// It carries a lot — but still exactly **one** primary decision: the "what's
-/// next" card. Everything else is a labelled, scannable row. That is the whole
-/// trick: more *information* does not have to mean more *decisions*.
+/// The screen opens on a coloured hero carrying who you are and the three
+/// numbers that describe your week, then the one focal decision, then what is
+/// waiting on you, then the club around you. Everything below the hero shares a
+/// single left edge and a single card shape, and every block is introduced by
+/// the same small-caps label.
+///
+/// That uniformity is doing real work. The earlier version stacked nine
+/// sections of equal weight, each with its own editorial subtitle, and it read
+/// as nine things shouting at the same volume — the reported complaint was that
+/// Home was confusing before you had read a word of it. A reader can only find
+/// the important thing on a screen if the unimportant things agree to look
+/// alike.
+///
+/// It still carries a lot, and still offers exactly **one** primary decision:
+/// the "what's next" card. More *information* does not have to mean more
+/// *decisions*.
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.onNavigate});
 
@@ -52,19 +63,31 @@ class HomePage extends StatelessWidget {
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     final openRequests = store.incomingRequests.where((r) => r.isPending).length;
-    final needsYou = store.pendingApprovals.length + openRequests;
-
     final live = store.eventsOngoing;
-    final soon = store.eventsUpcoming.take(3).toList();
+    final soon = store.eventsUpcoming.take(2).toList();
     // Other people's open asks. Yours are not "someone needs a hand" — you
     // already know about yours.
     final helpNeeded = store.openHelp.where((h) => !h.mine && !h.helping).take(2).toList();
+    final needsYou =
+        store.pendingApprovals.isNotEmpty || openRequests > 0 || helpNeeded.isNotEmpty;
 
     var step = 0;
     int next() => step++;
 
+    // Every block introduces itself the same way, and everything below the hero
+    // lines up on one left edge. Alignment is most of what separates a screen
+    // you can skim from one you have to read.
+    Widget band(String title, {String? subtitle, Widget? trailing}) => AppleStaggerItem(
+          index: next(),
+          child: Padding(
+            padding: const EdgeInsets.only(top: GwdSpace.xxl),
+            child: SectionHeader(title: title, subtitle: subtitle, trailing: trailing),
+          ),
+        );
+
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      // Transparent so the shell's wash shows through; see ClubShell.
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: GwdColors.primaryRed,
         onRefresh: () => store.loadAll(silent: true),
@@ -74,219 +97,185 @@ class HomePage extends StatelessWidget {
         // Schedule and Meetings beside it stayed readable.
         child: ContentWidth(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxxl),
+            padding: const EdgeInsets.only(bottom: GwdSpace.xxxl),
             children: [
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: GwdSpace.lg),
-                  child: AppleStaggerItem(index: next(), child: _Header(store: store)),
-                ),
-              ),
+              // The hero runs to the edges. The colour is the app introducing
+              // itself, and a gradient with a margin around it is just a card.
+              _HomeHero(store: store, gutter: gutter, onNavigate: onNavigate),
 
-              // ---------- anything live takes the whole width ----------
-              if (live.isNotEmpty) ...[
-                const SizedBox(height: GwdSpace.xl),
-                for (final event in live)
-                  AppleStaggerItem(
-                    index: next(),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                      child: _LiveEventBanner(
-                        event: event,
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => EventWorkspacePage(eventId: event.id),
-                        )),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: gutter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ---------- happening right now ----------
+                    if (live.isNotEmpty) ...[
+                      band('Happening now'),
+                      for (final event in live)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _LiveEventBanner(
+                              event: event,
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => EventWorkspacePage(eventId: event.id),
+                              )),
+                            ),
+                          ),
+                        ),
+                    ],
+
+                    // ---------- the one focal decision ----------
+                    band("What's next"),
+                    AppleStaggerItem(
+                      index: next(),
+                      child: _WhatsNextCard(
+                        store: store,
+                        onOpenSchedule: () => _openSchedule(context),
                       ),
                     ),
-                  ),
-              ],
 
-              // ---------- the one focal decision ----------
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: SectionHeader(
-                  title: "What's next",
-                  subtitle: store.whatsNext.isEmpty
-                      ? null
-                      : 'The one thing worth your attention right now',
-                ),
-              ),
-              AppleStaggerItem(
-                index: next(),
-                child: _WhatsNextCard(
-                  store: store,
-                  onOpenSchedule: () => _openSchedule(context),
-                ),
-              ),
+                    // ---------- things only you can clear ----------
+                    //
+                    // Approvals, task requests and other people's asks used to
+                    // be three sections with three headings. They are one
+                    // question — what is sitting in my court — and reading as
+                    // one list is what makes it answerable.
+                    if (needsYou) ...[
+                      band('Needs you', subtitle: 'Nobody else can action these'),
+                      if (store.pendingApprovals.isNotEmpty)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(
+                              icon: Icons.how_to_reg_outlined,
+                              tint: GwdColors.primaryRed,
+                              title: '${store.pendingApprovals.length} waiting to join',
+                              subtitle: 'Approve or decline',
+                              onTap: () => Navigator.of(context)
+                                  .push(MaterialPageRoute(builder: (_) => const ApprovalsPage())),
+                            ),
+                          ),
+                        ),
+                      if (openRequests > 0)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(
+                              icon: Icons.pan_tool_alt_outlined,
+                              tint: GwdColors.warning,
+                              title: '$openRequests task request${openRequests == 1 ? '' : 's'}',
+                              subtitle: 'Accept or decline',
+                              onTap: () => onNavigate(2),
+                            ),
+                          ),
+                        ),
+                      for (final request in helpNeeded)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: HelpCard(request: request),
+                          ),
+                        ),
+                      if (helpNeeded.isNotEmpty)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _More(
+                              label: 'Everyone asking',
+                              onTap: () => Navigator.of(context)
+                                  .push(MaterialPageRoute(builder: (_) => const HelpPage())),
+                            ),
+                          ),
+                        ),
+                    ],
 
-              // ---------- today ----------
-              if (store.today.isNotEmpty) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: SectionHeader(
-                    title: 'Today',
-                    subtitle: '${store.today.length} on the schedule',
-                    trailing: _More(onTap: () => _openSchedule(context)),
-                  ),
-                ),
-                AppleStaggerItem(
-                  index: next(),
-                  child: _TodayStrip(
-                    items: store.today,
-                    onOpenTask: (id) => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: id)),
-                    ),
-                    onOpenMeeting: (id) => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => MeetingDetailPage(meetingId: id)),
-                    ),
-                    onOpenSchedule: () => _openSchedule(context),
-                  ),
-                ),
-              ],
+                    // ---------- today ----------
+                    if (store.today.isNotEmpty) ...[
+                      band(
+                        'Today',
+                        subtitle: '${store.today.length} on the schedule',
+                        trailing: _More(onTap: () => _openSchedule(context)),
+                      ),
+                      AppleStaggerItem(
+                        index: next(),
+                        child: _TodayStrip(
+                          items: store.today,
+                          onOpenTask: (id) => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: id)),
+                          ),
+                          onOpenMeeting: (id) => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => MeetingDetailPage(meetingId: id)),
+                          ),
+                          onOpenSchedule: () => _openSchedule(context),
+                        ),
+                      ),
+                    ],
 
-              // ---------- what the club is putting on ----------
-              if (soon.isNotEmpty) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: SectionHeader(
-                    title: 'Coming up',
-                    subtitle: 'What the club is putting on',
-                    trailing: _More(onTap: () => onNavigate(1)),
-                  ),
-                ),
-                for (final event in soon)
-                  AppleStaggerItem(
-                    index: next(),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                      child: EventCard(
-                        event: event,
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => EventWorkspacePage(eventId: event.id),
-                        )),
+                    // ---------- what the club is putting on ----------
+                    if (soon.isNotEmpty) ...[
+                      band('Coming up', trailing: _More(onTap: () => onNavigate(1))),
+                      for (final event in soon)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: EventCard(
+                              event: event,
+                              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => EventWorkspacePage(eventId: event.id),
+                              )),
+                            ),
+                          ),
+                        ),
+                    ],
+
+                    // ---------- your own week, drawn ----------
+                    if (caps.earnsPoints) ...[
+                      band('Your work', trailing: _More(label: 'Open', onTap: () => onNavigate(2))),
+                      AppleStaggerItem(
+                        index: next(),
+                        child: _YourWorkCard(store: store, onOpenTasks: () => onNavigate(2)),
+                      ),
+                    ],
+
+                    // ---------- departments ----------
+                    if (store.departments.isNotEmpty) ...[
+                      band(
+                        'Across the club',
+                        subtitle: 'How each department is getting on',
+                        trailing: _More(label: 'All', onTap: () => onNavigate(3)),
+                      ),
+                      AppleStaggerItem(
+                        index: next(),
+                        child: _DepartmentStrip(store: store, onOpenAll: () => onNavigate(3)),
+                      ),
+                    ],
+
+                    // ---------- start something ----------
+                    band('Start something'),
+                    AppleStaggerItem(
+                      index: next(),
+                      child: _QuickActions(
+                        caps: caps,
+                        canCreateEvents: store.canCreateEvents,
+                        canScheduleMeetings: store.canScheduleMeetings,
+                        onOpenSchedule: () => _openSchedule(context),
                       ),
                     ),
-                  ),
-              ],
 
-              // ---------- things waiting on you ----------
-              if (needsYou > 0) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: const SectionHeader(
-                      title: 'Needs you', subtitle: 'Nobody else can action these'),
-                ),
-                if (store.pendingApprovals.isNotEmpty)
-                  AppleStaggerItem(
-                    index: next(),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                      child: _ActionRow(
-                        icon: Icons.how_to_reg_outlined,
-                        tint: GwdColors.primaryRed,
-                        title: '${store.pendingApprovals.length} waiting to join',
-                        subtitle: 'Approve or decline',
-                        onTap: () => Navigator.of(context)
-                            .push(MaterialPageRoute(builder: (_) => const ApprovalsPage())),
-                      ),
-                    ),
-                  ),
-                if (openRequests > 0)
-                  AppleStaggerItem(
-                    index: next(),
-                    child: _ActionRow(
-                      icon: Icons.pan_tool_alt_outlined,
-                      tint: GwdColors.warning,
-                      title: '$openRequests task request${openRequests == 1 ? '' : 's'}',
-                      subtitle: 'Accept or decline',
-                      onTap: () => onNavigate(2),
-                    ),
-                  ),
-              ],
-
-              // ---------- somebody is stuck ----------
-              if (helpNeeded.isNotEmpty) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: SectionHeader(
-                    title: 'Someone needs a hand',
-                    subtitle: 'Five minutes from you might unblock them',
-                    trailing: _More(
-                      onTap: () => Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (_) => const HelpPage())),
-                    ),
-                  ),
-                ),
-                for (final request in helpNeeded)
-                  AppleStaggerItem(
-                    index: next(),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                      child: HelpCard(request: request),
-                    ),
-                  ),
-              ],
-
-              // ---------- quick actions ----------
-              const SizedBox(height: GwdSpace.xxl),
-              AppleStaggerItem(
-                index: next(),
-                child: const SectionHeader(title: 'Quick actions'),
-              ),
-              AppleStaggerItem(
-                index: next(),
-                child: _QuickActions(
-                  caps: caps,
-                  canCreateEvents: store.canCreateEvents,
-                  canScheduleMeetings: store.canScheduleMeetings,
-                  onOpenSchedule: () => _openSchedule(context),
+                    if (me != null && me.role.isSupervisor) ...[
+                      const SizedBox(height: GwdSpace.xxl),
+                      AppleStaggerItem(index: next(), child: _SupervisorNote(role: me.role)),
+                    ],
+                  ],
                 ),
               ),
-
-              // ---------- your week ----------
-              if (caps.earnsPoints) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: const SectionHeader(
-                      title: 'Your week', subtitle: 'Finished against everything on your plate'),
-                ),
-                AppleStaggerItem(
-                  index: next(),
-                  child: _WeekCard(store: store, onOpenTasks: () => onNavigate(2)),
-                ),
-              ],
-
-              // ---------- departments ----------
-              if (store.departments.isNotEmpty) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(
-                  index: next(),
-                  child: SectionHeader(
-                    title: 'Across the club',
-                    subtitle: 'How each department is getting on',
-                    trailing: _More(
-                      label: 'All',
-                      onTap: () => onNavigate(3),
-                    ),
-                  ),
-                ),
-                AppleStaggerItem(
-                  index: next(),
-                  child: _DepartmentStrip(store: store, onOpenAll: () => onNavigate(3)),
-                ),
-              ],
-
-              if (me != null && me.role.isSupervisor) ...[
-                const SizedBox(height: GwdSpace.xxl),
-                AppleStaggerItem(index: next(), child: _SupervisorNote(role: me.role)),
-              ],
             ],
           ),
         ),
@@ -379,91 +368,161 @@ class _LiveEventBanner extends StatelessWidget {
   }
 }
 
-/// Greeting, identity, points.
-class _Header extends StatelessWidget {
-  const _Header({required this.store});
+/// The top of Home: who you are, and the three numbers that describe your week.
+///
+/// Runs edge to edge in the brand's crimson ramp, and resolves to the page's
+/// own ground exactly at its bottom edge, so the panel ends without drawing a
+/// line. Everything inside it is set in white — the region is red in both
+/// themes, and reaching for the theme's ink here would put near-black text on a
+/// red field in light mode.
+///
+/// The three figures are the dashboard the app was missing. Opening a club app
+/// and having to visit three tabs to find out whether you are behind is the
+/// difference between a tool and a filing cabinet.
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({required this.store, required this.gutter, required this.onNavigate});
+
   final ClubStore store;
+  final double gutter;
+  final ValueChanged<int> onNavigate;
 
   @override
   Widget build(BuildContext context) {
     final session = AppScope.sessionOf(context);
     final me = session.me;
+    final caps = store.capabilities;
 
-    // Just the time of day.
-    //
-    // This used to append the office — "Good morning, President" — directly
-    // above a name with "President" set under it again. The identity block
-    // below is where somebody's post belongs, and saying it twice in three
-    // lines reads like a mail-merge that went wrong rather than a greeting.
-    final greeting = _timeGreeting();
+    final open = store.myTasks.where((t) => t.status.isOpen).toList();
+    final horizon = DateTime.now().add(const Duration(days: 7));
+    // Overdue counts as due. Work that slipped past its date is the most due
+    // thing you own, and dropping it out of the figure is how it gets forgotten.
+    final due = open.where((t) => t.dueDate != null && t.dueDate!.isBefore(horizon)).length;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: GwdColors.heroOf(context)),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      greeting,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GwdType.callout.copyWith(color: GwdColors.inkSecondaryOf(context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _timeGreeting(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GwdType.callout.copyWith(color: GwdColors.onHeroSoft),
+                              ),
+                            ),
+                            const SizedBox(width: GwdSpace.sm),
+                            LiveDot(connected: store.liveStatus == LiveStatus.connected),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        // The name, then what they are and where — "Abdul" over
+                        // "Marketing Lead". A role badge beside a department
+                        // name makes the reader assemble the sentence, and
+                        // reads as "Lead" plus an unrelated word.
+                        Text(
+                          me?.displayName ?? 'There',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GwdType.largeTitle.copyWith(
+                            color: me?.isUnnamed == true
+                                ? GwdColors.onHeroSoft
+                                : GwdColors.onHero,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (me != null)
+                          Text(
+                            me.positionLine(session.department?.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GwdType.footnote.copyWith(color: GwdColors.onHeroSoft),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: GwdSpace.md),
+                  PressableScale(
+                    onTap: () => showProfileSheet(context),
+                    child: Semantics(
+                      button: true,
+                      label: 'Profile and settings',
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: GwdColors.onHeroFaint,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: GwdColors.onHeroLine),
+                        ),
+                        // Not the shared Avatar: that one tints itself from the
+                        // person's own colour, which is chosen to stand out
+                        // against the canvas and disappears on crimson.
+                        child: Text(
+                          me?.initials ?? '?',
+                          style: GwdType.caption.copyWith(
+                            color: GwdColors.onHero,
+                            fontSize: 15,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: GwdSpace.xl),
+              Row(
+                children: [
+                  Expanded(
+                    child: _HeroStat(
+                      value: open.length,
+                      label: open.length == 1 ? 'task open' : 'tasks open',
+                      onTap: () => onNavigate(2),
                     ),
                   ),
                   const SizedBox(width: GwdSpace.sm),
-                  LiveDot(connected: store.liveStatus == LiveStatus.connected),
+                  Expanded(
+                    child: _HeroStat(
+                      value: due,
+                      label: 'due this week',
+                      onTap: () => onNavigate(2),
+                    ),
+                  ),
+                  const SizedBox(width: GwdSpace.sm),
+                  Expanded(
+                    // Supervisors do not collect points, so they are not shown
+                    // a score they can never move.
+                    child: caps.earnsPoints
+                        ? _HeroStat(value: me?.points ?? 0, label: 'points earned')
+                        : _HeroStat(
+                            value: store.members.length,
+                            label: 'in the club',
+                            onTap: () => onNavigate(3),
+                          ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 2),
-              // The name, then what they are and where — "Abdul" over
-              // "Marketing Lead". The badge and the department name used to sit
-              // side by side underneath, which made the reader assemble the
-              // sentence themselves and read as "Lead" plus an unrelated word.
-              Text(
-                me?.displayName ?? 'There',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GwdType.largeTitle.copyWith(
-                  color: me?.isUnnamed == true
-                      ? GwdColors.inkTertiaryOf(context)
-                      : GwdColors.inkOf(context),
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (me != null)
-                Text(
-                  me.positionLine(session.department?.name),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
-                ),
             ],
           ),
         ),
-        const SizedBox(width: GwdSpace.md),
-        // Supervisors do not collect points, so they are not shown a score.
-        if (store.capabilities.earnsPoints) ...[
-          _PointsPill(points: me?.points ?? 0),
-          const SizedBox(width: GwdSpace.sm),
-        ],
-        PressableScale(
-          onTap: () => showProfileSheet(context),
-          child: Semantics(
-            button: true,
-            label: 'Profile and settings',
-            child: Avatar(
-              initials: me?.initials ?? '?',
-              tint: me?.tint ?? GwdColors.inkTertiary,
-              size: 44,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -475,35 +534,58 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _PointsPill extends StatelessWidget {
-  const _PointsPill({required this.points});
-  final int points;
+/// One figure in the hero.
+///
+/// A pane of frosted white rather than a card in the app's surface colour: the
+/// surface tokens are built to sit on the canvas, and a near-black tile laid on
+/// crimson reads as a hole cut in the page. Tinted white works on every part of
+/// the ramp and in both themes.
+///
+/// The number is set in the display face at tabular width, so three tiles side
+/// by side keep their digits on one baseline grid however the values change.
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.value, required this.label, this.onTap});
+
+  final int value;
+  final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: '$points points',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: 8),
-        decoration: BoxDecoration(
-          color: GwdColors.sunkenOf(context),
-          borderRadius: BorderRadius.circular(GwdRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.auto_awesome_outlined, size: 12, color: GwdColors.inkTertiaryOf(context)),
-            const SizedBox(width: 5),
-            AnimatedCounter(
-              value: points,
-              style: GwdType.callout.copyWith(
-                color: GwdColors.inkOf(context),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+    final card = Container(
+      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
+      decoration: BoxDecoration(
+        color: GwdColors.onHeroFaint,
+        borderRadius: BorderRadius.circular(GwdRadius.lg),
+        border: Border.all(color: GwdColors.onHeroLine),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedCounter(
+            value: value,
+            style: GwdType.title1.merge(GwdType.numeric).copyWith(
+                  color: GwdColors.onHero,
+                  height: 1.0,
+                ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GwdType.micro.copyWith(color: GwdColors.onHeroSoft),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return Semantics(label: '$value $label', child: card);
+    return Semantics(
+      button: true,
+      label: '$value $label',
+      child: PressableScale(onTap: onTap, child: card),
     );
   }
 }
@@ -851,9 +933,8 @@ class _QuickActions extends StatelessWidget {
   /// want from a tile labelled "Schedule", and guessing wrong sends somebody
   /// into a form they have to back out of.
   Future<void> _chooseScheduleAction(BuildContext context) async {
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showGwdSheet<String>(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (sheetContext) => Container(
         decoration: BoxDecoration(
           color: GwdColors.surfaceOf(sheetContext),
@@ -1029,63 +1110,127 @@ class _Action extends StatelessWidget {
   }
 }
 
-class _WeekCard extends StatelessWidget {
-  const _WeekCard({required this.store, required this.onOpenTasks});
+/// Your own work, drawn rather than described.
+///
+/// Two readings, because they answer different questions. The donut is *what
+/// state is my work in* — the shape tells you at a glance whether you are
+/// sitting on a pile of untouched tasks or a pile of nearly-finished ones,
+/// which a single "62%" cannot. The columns are *when is it due*, which is the
+/// question that actually decides what you do this afternoon.
+///
+/// Neither is a ranking and neither compares you to anybody. Same rule as every
+/// other progress surface in the app.
+class _YourWorkCard extends StatelessWidget {
+  const _YourWorkCard({required this.store, required this.onOpenTasks});
   final ClubStore store;
   final VoidCallback onOpenTasks;
 
   @override
   Widget build(BuildContext context) {
-    final p = store.progress;
+    final mine = store.myTasks;
+    final toDo = mine.where((t) => t.status == TaskStatus.pending).length;
+    final doing = mine.where((t) => t.status == TaskStatus.inProgress).length;
+    final review = mine.where((t) => t.status == TaskStatus.review).length;
+    final blocked = mine.where((t) => t.status == TaskStatus.blocked).length;
+    final done = mine.where((t) => t.status == TaskStatus.completed).length;
+    final open = toDo + doing + review + blocked;
+
+    if (mine.isEmpty) {
+      return SurfaceCard(
+        onTap: onOpenTasks,
+        child: Row(
+          children: [
+            Icon(Icons.inbox_outlined, size: 22, color: GwdColors.inkTertiaryOf(context)),
+            const SizedBox(width: GwdSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Nothing on your plate',
+                      style: GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
+                  const SizedBox(height: 2),
+                  Text('Work assigned to you appears here.',
+                      style:
+                          GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SurfaceCard(
       onTap: onOpenTasks,
-      child: Row(
+      padding: const EdgeInsets.all(GwdSpace.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ProgressArc(
-            progress: p.ratio.clamp(0.0, 1.0),
-            color: GwdColors.success,
-            size: 58,
-            child: Text(
-              '${(p.ratio * 100).round()}%',
-              style: GwdType.caption.merge(GwdType.numeric).copyWith(
-                    fontSize: 13,
-                    color: GwdColors.inkOf(context),
-                  ),
-            ),
+          DonutChart(
+            centreValue: '$open',
+            centreLabel: open == 1 ? 'still open' : 'still open',
+            slices: [
+              ChartSlice(label: 'To do', value: toDo, tint: GwdColors.inkTertiaryOf(context)),
+              ChartSlice(label: 'In progress', value: doing, tint: GwdColors.primaryRed),
+              ChartSlice(label: 'In review', value: review, tint: GwdColors.info),
+              if (blocked > 0)
+                ChartSlice(label: 'Blocked', value: blocked, tint: GwdColors.warning),
+              ChartSlice(label: 'Done', value: done, tint: GwdColors.success),
+            ],
           ),
-          const SizedBox(width: GwdSpace.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  p.total == 0 ? 'Nothing on your plate' : '${p.done} of ${p.total} done',
-                  style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  p.total == 0
-                      ? 'Work assigned to you this week appears here.'
-                      : '${store.pendingCount} pending · ${store.inProgressCount} in progress',
-                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
-                ),
-              ],
-            ),
+          const SizedBox(height: GwdSpace.lg),
+          Divider(height: 1, color: GwdColors.hairlineOf(context)),
+          const SizedBox(height: GwdSpace.lg),
+          Text(
+            'DUE OVER THE NEXT WEEK',
+            style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context)),
           ),
-          Icon(Icons.chevron_right_rounded, size: 20, color: GwdColors.inkTertiaryOf(context)),
+          const SizedBox(height: GwdSpace.md),
+          ColumnChart(columns: _week(mine)),
         ],
       ),
     );
+  }
+
+  /// Seven days from today, counting open work by the day it is due.
+  ///
+  /// Anything already overdue lands on today rather than being dropped: it is
+  /// not next week's problem, and a chart that quietly omits late work is
+  /// telling its reader the most comforting available lie.
+  static List<ChartColumn> _week(List<ClubTask> tasks) {
+    const initials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    return List.generate(7, (i) {
+      final day = today.add(Duration(days: i));
+      final count = tasks.where((t) {
+        if (!t.status.isOpen || t.dueDate == null) return false;
+        final d = t.dueDate!;
+        final due = DateTime(d.year, d.month, d.day);
+        if (i == 0) return !due.isAfter(today);
+        return due == day;
+      }).length;
+      return ChartColumn(
+        label: initials[(day.weekday - 1) % 7],
+        value: count,
+        highlight: i == 0,
+      );
+    });
   }
 }
 
 /// Department progress, on Home.
 ///
-/// A horizontal row of coloured initials looked like decoration and said
-/// nothing. Department progress is open to every member by design, so this
-/// shows the number that actually matters — how much of each department's work
-/// has landed — and links into the full structure.
+/// Open to every member by design: a club where you cannot see what another
+/// department is working on duplicates work. Aggregate only — how much of a
+/// department's work has landed, never who inside it did what.
+///
+/// The name sits above its bar rather than in a fixed-width column beside it.
+/// A column wide enough for "Cinematography" wastes half the row on "PR", and
+/// one sized for "PR" truncates every other department in the club.
 class _DepartmentStrip extends StatelessWidget {
   const _DepartmentStrip({required this.store, required this.onOpenAll});
   final ClubStore store;
@@ -1094,22 +1239,41 @@ class _DepartmentStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Alphabetical, never by how well anyone is doing. Sorting departments by
-    // completion turns a progress panel into a league table, which Section 31
-    // is explicit about not building.
+    // completion turns a progress panel into a league table.
     final departments = store.departments.where((d) => d.active).toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     final shown = departments.take(4).toList();
 
+    // Every bar is read against the busiest department rather than against its
+    // own total, so a department with two tasks finished does not draw the same
+    // full bar as one that finished thirty. Percentages hide the size of the
+    // job; this is comparing like with like.
+    final busiest = shown.fold<int>(1, (m, d) => d.assigned > m ? d.assigned : m);
+
     return SurfaceCard(
       onTap: onOpenAll,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          for (var i = 0; i < shown.length; i++) ...[
-            if (i > 0) const SizedBox(height: GwdSpace.md),
-            _DepartmentRow(department: shown[i]),
-          ],
+          BarChart(
+            max: busiest,
+            bars: [
+              for (final d in shown)
+                ChartBar(
+                  label: d.name,
+                  value: d.completed,
+                  tint: d.assigned == 0
+                      ? GwdColors.inkTertiaryOf(context)
+                      : (d.completed >= d.assigned ? GwdColors.success : GwdColors.primaryRed),
+                  caption: d.assigned == 0
+                      ? 'nothing yet'
+                      : '${d.completed} of ${d.assigned} done',
+                ),
+            ],
+          ),
           if (departments.length > shown.length) ...[
-            const SizedBox(height: GwdSpace.md),
+            const SizedBox(height: GwdSpace.lg),
             Row(
               children: [
                 Text(
@@ -1128,76 +1292,11 @@ class _DepartmentStrip extends StatelessWidget {
   }
 }
 
-class _DepartmentRow extends StatelessWidget {
-  const _DepartmentRow({required this.department});
-  final Department department;
-
-  @override
-  Widget build(BuildContext context) {
-    final rate = department.completionRate;
-    final tint = rate >= 80
-        ? GwdColors.success
-        : rate >= 50
-            ? GwdColors.info
-            : rate > 0
-                ? GwdColors.warning
-                : GwdColors.inkTertiaryOf(context);
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 104,
-          child: Text(
-            department.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GwdType.callout.copyWith(color: GwdColors.inkOf(context)),
-          ),
-        ),
-        const SizedBox(width: GwdSpace.sm),
-        Expanded(
-          child: TweenAnimationBuilder<double>(
-            duration: AppleDuration.deliberate,
-            curve: AppleCurves.standard,
-            tween: Tween(
-                begin: 0,
-                end: department.assigned == 0 ? 0 : department.completed / department.assigned),
-            builder: (context, t, _) => Container(
-              height: 7,
-              decoration: BoxDecoration(
-                color: GwdColors.sunkenOf(context),
-                borderRadius: BorderRadius.circular(GwdRadius.pill),
-              ),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: t.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: tint,
-                    borderRadius: BorderRadius.circular(GwdRadius.pill),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: GwdSpace.md),
-        SizedBox(
-          width: 58,
-          child: Text(
-            department.assigned == 0 ? 'no work' : '${department.completed}/${department.assigned}',
-            textAlign: TextAlign.right,
-            style: GwdType.footnote.merge(GwdType.numeric).copyWith(
-                  color: GwdColors.inkTertiaryOf(context),
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// points area just looks like a bug.
+/// Why a supervisor has no score.
+///
+/// Directors and the Faculty Coordinator oversee the club rather than compete
+/// in it, so they earn no points and are absent from the leaderboard. Without
+/// a line saying so, an empty points area just looks like a bug.
 class _SupervisorNote extends StatelessWidget {
   const _SupervisorNote({required this.role});
   final ClubRole role;

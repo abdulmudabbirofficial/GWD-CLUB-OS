@@ -21,12 +21,10 @@ Future<bool> showSetNameSheet(
   BuildContext context, {
   bool forced = false,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showGwdSheet<bool>(
     context: context,
-    isScrollControlled: true,
     isDismissible: !forced,
     enableDrag: !forced,
-    backgroundColor: Colors.transparent,
     builder: (_) => PopScope(
       canPop: !forced,
       child: _SetNameSheet(forced: forced),

@@ -4,6 +4,7 @@ import '../../app/app_scope.dart';
 import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
+import '../../app/widgets/charts.dart';
 import '../../app/widgets/common.dart';
 import '../../core/models/department.dart';
 import '../../core/models/recognition.dart';
@@ -35,7 +36,8 @@ class DepartmentsHubPage extends StatelessWidget {
     int next() => step++;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      // Transparent so the shell's wash shows through; see ClubShell.
+      backgroundColor: Colors.transparent,
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the
       // type is set.
@@ -218,51 +220,34 @@ class _ClubTotals extends StatelessWidget {
           if (rows.any((r) => r.assigned > 0)) ...[
             const SizedBox(height: GwdSpace.lg),
             Divider(height: 1, color: GwdColors.hairlineOf(context)),
-            const SizedBox(height: GwdSpace.md),
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 108,
-                      child: Text(row.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GwdType.footnote.copyWith(color: GwdColors.inkOf(context))),
-                    ),
-                    const SizedBox(width: GwdSpace.sm),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(GwdRadius.pill),
-                        child: TweenAnimationBuilder<double>(
-                          duration: AppleDuration.deliberate,
-                          curve: AppleCurves.enter,
-                          tween: Tween(
-                              begin: 0, end: row.assigned == 0 ? 0 : row.completed / row.assigned),
-                          builder: (context, value, _) => LinearProgressIndicator(
-                            value: value,
-                            minHeight: 6,
-                            backgroundColor: GwdColors.sunkenOf(context),
-                            valueColor: AlwaysStoppedAnimation(GwdColors.inkSecondaryOf(context)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: GwdSpace.md),
-                    SizedBox(
-                      width: 52,
-                      child: Text(
-                        row.assigned == 0 ? 'none' : '${row.completed}/${row.assigned}',
-                        textAlign: TextAlign.right,
-                        style: GwdType.footnote
-                            .merge(GwdType.numeric)
-                            .copyWith(color: GwdColors.inkTertiaryOf(context)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: GwdSpace.lg),
+            // The name sits above its own bar. It used to live in a fixed
+            // 108pt column, which is wide enough for "PR & HR" and truncates
+            // "Marketing & Social Media" to "Marketing & Soci..." — on the one
+            // screen whose whole job is telling you which department is which.
+            //
+            // Every bar is measured against the busiest department rather than
+            // against its own total, so two finished out of two does not draw
+            // the same full bar as twenty out of twenty. A percentage hides how
+            // big the job was.
+            BarChart(
+              max: rows.fold<int>(1, (m, r) => r.assigned > m ? r.assigned : m),
+              bars: [
+                for (final row in rows)
+                  ChartBar(
+                    label: row.name,
+                    value: row.completed,
+                    tint: row.assigned == 0
+                        ? GwdColors.inkTertiaryOf(context)
+                        : (row.completed >= row.assigned
+                            ? GwdColors.success
+                            : GwdColors.primaryRed),
+                    caption: row.assigned == 0
+                        ? 'nothing yet'
+                        : '${row.completed} of ${row.assigned} done',
+                  ),
+              ],
+            ),
           ],
         ],
       ),

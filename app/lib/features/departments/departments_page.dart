@@ -166,9 +166,8 @@ Future<void> _pickLead(BuildContext context, Department department) async {
           (m.role == ClubRole.clubMember || m.role == ClubRole.clubLead))
       .toList();
 
-  await showModalBottomSheet(
+  await showGwdSheet(
     context: context,
-    backgroundColor: Colors.transparent,
     builder: (sheetContext) => Container(
       decoration: BoxDecoration(
         color: GwdColors.canvasOf(sheetContext),
@@ -254,10 +253,8 @@ Future<void> _pickLead(BuildContext context, Department department) async {
 }
 
 Future<void> _showEditor(BuildContext context, {Department? existing}) {
-  return showModalBottomSheet(
+  return showGwdSheet(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _DepartmentEditor(existing: existing),
   );
 }

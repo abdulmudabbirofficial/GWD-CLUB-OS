@@ -20,10 +20,8 @@ Future<void> showFileBillSheet(
   required String eventId,
   required List<String> categories,
 }) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => _FileBillSheet(eventId: eventId, categories: categories),
   );
 }

@@ -157,7 +157,12 @@ class _NewMeetingSheetState extends State<_NewMeetingSheet> {
         ),
         child: ListView(
           controller: controller,
-          padding: const EdgeInsets.only(bottom: GwdSpace.xxl),
+          // Scroll room for the keyboard. A draggable sheet spans the screen
+          // whether or not one is up, so without this the last fields are laid
+          // out underneath it and cannot be reached.
+          padding: EdgeInsets.only(
+            bottom: GwdSpace.xxl + MediaQuery.viewInsetsOf(context).bottom,
+          ),
           children: [
             const SheetHeader(
               title: 'Call a meeting',

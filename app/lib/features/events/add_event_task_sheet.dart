@@ -20,9 +20,8 @@ Future<void> showAddEventTaskSheet(
   required List<EventDepartment> departments,
   String? initialDepartmentId,
 }) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
     builder: (_) => _AddEventTaskSheet(
       eventId: eventId,
       departments: departments,

@@ -12,9 +12,8 @@ import '../../core/api/api_client.dart';
 /// this feature is that asking costs nothing — a form that demands a category,
 /// a priority and a deadline is a form people close.
 Future<void> showAskForHelpSheet(BuildContext context, {String? eventId}) {
-  return showModalBottomSheet<void>(
+  return showGwdSheet<void>(
     context: context,
-    isScrollControlled: true,
     builder: (_) => _AskForHelpSheet(eventId: eventId),
   );
 }

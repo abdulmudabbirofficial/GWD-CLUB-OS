@@ -383,7 +383,7 @@ Future<void> _showCardSheet(
     ],
   }.toList();
 
-  await showModalBottomSheet<void>(
+  await showGwdSheet<void>(
     context: context,
     builder: (sheetContext) => Container(
       decoration: BoxDecoration(
@@ -618,16 +618,16 @@ class _Pill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? GwdColors.inkOf(context) : Colors.transparent,
+          color: selected ? GwdColors.primaryRed : Colors.transparent,
           borderRadius: BorderRadius.circular(GwdRadius.pill),
           border: Border.all(
-            color: selected ? GwdColors.inkOf(context) : GwdColors.hairlineOf(context),
+            color: selected ? GwdColors.primaryRed : GwdColors.hairlineOf(context),
           ),
         ),
         child: Text(
           label,
           style: GwdType.footnote.copyWith(
-            color: selected ? GwdColors.canvasOf(context) : GwdColors.inkSecondaryOf(context),
+            color: selected ? Colors.white : GwdColors.inkSecondaryOf(context),
           ),
         ),
       ),
