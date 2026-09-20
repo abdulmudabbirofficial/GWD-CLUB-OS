@@ -119,7 +119,9 @@ class _Root extends StatelessWidget {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      systemNavigationBarColor: isDark ? GwdColors.canvasDark : GwdColors.canvas,
+      // Transparent: the nav bar sits on the warmest part of the backdrop,
+      // and painting it flat canvas puts a grey strip under the glow.
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
     ));
 
@@ -156,10 +158,14 @@ class _Root extends StatelessWidget {
         final consumed = await ClubShell.handleBack();
         if (!consumed) await SystemNavigator.pop();
       },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 420),
-        switchInCurve: Curves.easeOutCubic,
-        child: KeyedSubtree(key: ValueKey(session.state), child: screen),
+      // One backdrop, above the theme and below every route, so signing in
+      // does not cross a visible seam between two differently-lit screens.
+      child: AppBackdrop(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 420),
+          switchInCurve: Curves.easeOutCubic,
+          child: KeyedSubtree(key: ValueKey(session.state), child: screen),
+        ),
       ),
     );
   }
@@ -173,7 +179,7 @@ class _Splash extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

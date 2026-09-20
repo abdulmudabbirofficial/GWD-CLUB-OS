@@ -44,7 +44,7 @@ class _MeetingsPageState extends State<MeetingsPage> {
     final past = store.meetingsPast;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Meetings', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

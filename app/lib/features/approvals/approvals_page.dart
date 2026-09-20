@@ -24,7 +24,7 @@ class ApprovalsPage extends StatelessWidget {
     final requests = store.pendingApprovals;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Approvals', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

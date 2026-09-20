@@ -107,7 +107,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     final meeting = _meeting;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Meeting', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
         actions: [

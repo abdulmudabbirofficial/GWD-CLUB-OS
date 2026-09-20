@@ -49,7 +49,7 @@ class _PendingApprovalPageState extends State<PendingApprovalPage> {
     final rejected = me?.approvalStatus == ApprovalStatus.rejected;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the
       // type is set.

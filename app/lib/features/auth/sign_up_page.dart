@@ -86,7 +86,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final session = AppScope.sessionOf(context);
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),

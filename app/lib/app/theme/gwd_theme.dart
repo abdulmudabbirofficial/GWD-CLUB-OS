@@ -81,77 +81,92 @@ class GwdColors {
   /// that should feel like an *arrival* — signing in, the top of Home — are not
   /// a flat dark rectangle.
   ///
-  /// [extent] is the fraction of the box the ramp is spread over: the colour
-  /// has fully resolved to the page's own ground by then, and everything past
-  /// it is ordinary canvas. A panel that *is* the hero passes 1; a whole page
-  /// that only wants colour at the top passes something small.
+  /// ## The backdrop
   ///
-  /// That parameter is the whole design of this thing. A full-height wash looks
-  /// impressive in a mockup and then eats every piece of secondary text on the
-  /// screen — grey labels on deep crimson are unreadable, and lightening them
-  /// to compensate wrecks the hierarchy everywhere else. Callers therefore say
-  /// where the colour stops, and take responsibility for setting the text
-  /// inside that region in white rather than in the theme's ink.
-  static LinearGradient heroOf(BuildContext context, {double extent = 1.0}) {
-    final dark = _isDark(context);
-    final ground = dark ? canvasDark : canvas;
-
-    // Dark mode gets a deeper entry point. The same crimson that reads as
-    // confident on white reads as a fire alarm against a near-black canvas.
-    final top = dark ? const Color(0xFFA0151E) : primaryRed;
-    final mid = dark ? const Color(0xFF48090E) : crimsonDeep;
-
-    double at(double t) => (t * extent).clamp(0.0, 1.0);
-    return LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        top,
-        mid,
-        Color.lerp(mid, ground, 0.74)!,
-        ground,
-      ],
-      // Eased rather than evenly spaced: a linear two-stop ramp reads as a
-      // band with a visible edge, and the eye finds that edge immediately.
-      stops: [at(0.0), at(0.54), at(0.84), at(1.0)],
-    );
-  }
-
-  /// Text that sits *on* [heroOf]'s coloured region.
+  /// One field behind the entire app: near-black at the top, warming as it
+  /// falls, with a deep oxblood bloom rising off the bottom edge. It does not
+  /// scroll and it does not belong to any screen — it is the room the app is
+  /// standing in.
   ///
-  /// White in both themes, because the region is crimson in both. Reaching for
-  /// `inkOf` here is the mistake that produced a light-mode hero with near-black
-  /// text on a red field.
+  /// Two layers rather than one ramp, and that is the whole difference between
+  /// this and the version it replaces. A single linear gradient from red to
+  /// black bands visibly on an OLED panel, and reads as a gradient — as an
+  /// effect somebody applied. A dark base with a radial bloom centred *below*
+  /// the screen reads as light coming from somewhere, which is what every
+  /// expensive dark interface is actually doing.
+  ///
+  /// The colour is also deliberately held down. A large field of saturated red
+  /// is the single most reliable way to make an interface look cheap: it
+  /// fights every piece of text on top of it and leaves nothing for the
+  /// accent to say. The bloom is oxblood, most of the screen is nearly black,
+  /// and the bright crimson is spent only on the one control that matters.
+  static LinearGradient backdropBase(bool dark) => dark
+      ? const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF07060A), Color(0xFF0A0709), Color(0xFF150B0F)],
+          stops: [0.0, 0.55, 1.0],
+        )
+      : const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFDFAFA), Color(0xFFFAF2F3)],
+          stops: [0.0, 0.55, 1.0],
+        );
+
+  /// The glow, rising off the bottom edge.
+  ///
+  /// Vertical, and measured from the bottom up, because that is how the thing
+  /// is described: red at the floor, gone by the ceiling.
+  ///
+  /// It was a radial bloom first, which was worse. A radial gradient large
+  /// enough to matter puts its own circumference on screen, and a faint circle
+  /// drawn across the bottom of every page is the most obvious tell there is
+  /// that somebody applied an effect. Seven stops on a straight rise instead:
+  /// enough that an OLED panel cannot band it, and no shape of its own.
+  ///
+  /// The alpha curve does the work. Even spacing looks like a ramp; front-
+  /// loading it so the colour holds through the bottom fifth and then decays
+  /// slowly looks like light falling off, which is the difference.
+  static LinearGradient backdropBloom(bool dark) => dark
+      ? const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            Color(0xF0901527),
+            Color(0xD17D1322),
+            Color(0x9C5F0F1B),
+            Color(0x633F0A13),
+            Color(0x3326070D),
+            Color(0x14120407),
+            Color(0x0007060A),
+          ],
+          stops: [0.0, 0.07, 0.17, 0.29, 0.43, 0.60, 0.84],
+        )
+      : const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            Color(0x2EC81E2A),
+            Color(0x24C81E2A),
+            Color(0x1AC81E2A),
+            Color(0x11C81E2A),
+            Color(0x09C81E2A),
+            Color(0x04C81E2A),
+            Color(0x00C81E2A),
+          ],
+          stops: [0.0, 0.07, 0.17, 0.29, 0.43, 0.60, 0.84],
+        );
+
+  /// Text that sits on the darkest part of the backdrop.
+  ///
+  /// Kept because a few surfaces genuinely sit on colour — the sign-in mark,
+  /// the nav bar's selected rule — and reaching for `inkOf` there would put
+  /// near-black text on a red field in the light theme.
   static const onHero = Color(0xFFFFFFFF);
   static const onHeroSoft = Color(0xB3FFFFFF);
   static const onHeroFaint = Color(0x24FFFFFF);
   static const onHeroLine = Color(0x38FFFFFF);
-
-  /// A warm wash for the top of an ordinary page.
-  ///
-  /// Much quieter than [heroOf]: this is not a hero, it is the page refusing to
-  /// be flat black. A dark theme built on #000 makes every screen look like the
-  /// same empty rectangle with different words on it, which is most of what
-  /// "basic" means when somebody says an app looks cheap.
-  ///
-  /// Faint enough that ordinary ink stays legible on it in both themes, so
-  /// pages using this do *not* have to switch their text to white the way the
-  /// hero's own callers do.
-  static LinearGradient pageWashOf(BuildContext context) {
-    final dark = _isDark(context);
-    final ground = dark ? canvasDark : canvas;
-    final source = dark ? const Color(0xFFA0151E) : primaryRed;
-    // Stronger in the dark, where a low-alpha tint over near-black simply
-    // disappears; barely there on white, where the same tint would read as a
-    // stain.
-    final tint = Color.lerp(ground, source, dark ? 0.26 : 0.07)!;
-    return LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [tint, Color.lerp(tint, ground, 0.68)!, ground],
-      stops: const [0.0, 0.16, 0.38],
-    );
-  }
 
   /// The same ramp turned on its side, for a card that wants brand weight
   /// without becoming a billboard.
@@ -508,7 +523,11 @@ class GwdTheme {
       // as a bug even when nobody can name it.
       fontFamily: GwdType.ui,
       fontFamilyFallback: const ['Inter', 'Roboto'],
-      scaffoldBackgroundColor: isDark ? GwdColors.canvasDark : GwdColors.canvas,
+      // Transparent, because the app paints one backdrop at the root and
+      // every screen stands on it. An opaque scaffold anywhere punches a
+      // flat rectangle through that field, which is exactly how a dark
+      // theme ends up looking like five unrelated black screens.
+      scaffoldBackgroundColor: Colors.transparent,
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: GwdColors.primaryRed,
@@ -589,6 +608,33 @@ enum SurfaceEmphasis { quiet, raised, live }
 
 /// The single card primitive for the whole app. Quiet by default; it only picks
 /// up an accent border and glow when [emphasis] says the content is live.
+/// The field the whole app stands on.
+///
+/// Painted once, at the root, behind every route. Deliberately *not* per-screen:
+/// five pages each drawing their own background is how they drift apart, and a
+/// backdrop that restarts at every navigation is a backdrop the eye notices.
+///
+/// It does not scroll with the content either. A glow that slides up the screen
+/// as you flick a list reads as a texture printed on the page; one that stays
+/// put reads as the light in the room.
+class AppBackdrop extends StatelessWidget {
+  const AppBackdrop({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: GwdColors.backdropBase(dark)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(gradient: GwdColors.backdropBloom(dark)),
+        child: child,
+      ),
+    );
+  }
+}
+
 class SurfaceCard extends StatelessWidget {
   const SurfaceCard({
     super.key,
@@ -617,12 +663,23 @@ class SurfaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = accent ?? GwdColors.primaryRed;
-    final bg = backgroundColor ?? (isDark ? GwdColors.surfaceDark : GwdColors.surface);
+    // Translucent in the dark, so the backdrop's glow passes through a card
+    // instead of being blocked by it. An opaque near-black panel laid over a
+    // lit field is a hole cut in the page; a pane of tinted glass is a surface
+    // resting on it, and that difference is most of what separates an
+    // expensive-looking dark interface from a cheap one.
+    //
+    // Light mode keeps a solid surface: white on near-white needs the edge that
+    // opacity provides, and there is no glow underneath to reveal.
+    final bg = backgroundColor ??
+        (isDark ? const Color(0x0DFFFFFF) : GwdColors.surface);
 
     final border = borderColor ??
         switch (emphasis) {
-          SurfaceEmphasis.quiet => isDark ? GwdColors.hairlineDark : GwdColors.hairline,
-          SurfaceEmphasis.raised => isDark ? GwdColors.hairlineDark : GwdColors.hairline,
+          // A hairline of light along the top edge, not a grey outline. On a
+          // glass pane the border is the edge catching the light.
+          SurfaceEmphasis.quiet => isDark ? const Color(0x14FFFFFF) : GwdColors.hairline,
+          SurfaceEmphasis.raised => isDark ? const Color(0x1FFFFFFF) : GwdColors.hairline,
           SurfaceEmphasis.live => accentColor.withValues(alpha: 0.34),
         };
 

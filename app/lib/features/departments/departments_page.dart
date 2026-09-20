@@ -25,7 +25,7 @@ class DepartmentsPage extends StatelessWidget {
     final departments = store.departments;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Departments', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

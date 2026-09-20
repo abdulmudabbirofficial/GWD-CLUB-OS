@@ -76,7 +76,7 @@ class _MyOverviewPageState extends State<MyOverviewPage> {
     final assigned = (totals['assigned'] as num?)?.toInt() ?? 0;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('What I handed out',
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),

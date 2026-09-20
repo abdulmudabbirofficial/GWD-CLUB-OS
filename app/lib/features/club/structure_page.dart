@@ -74,7 +74,7 @@ class _StructurePageState extends State<StructurePage> {
         .toList();
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Structure', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
@@ -383,7 +383,7 @@ class _DepartmentPageState extends State<DepartmentPage> {
     final rest = _members.where((m) => m.id != _leadId).toList();
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(widget.name, style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

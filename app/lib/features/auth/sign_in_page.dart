@@ -40,17 +40,11 @@ class _SignInPageState extends State<SignInPage> {
     final session = AppScope.sessionOf(context);
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
-      // The brand ramp, not a flat rectangle.
-      //
-      // This is the first screen anybody sees, and a wall of near-black says
-      // nothing about whose app it is. The crimson holds its shoulder at the
-      // top and falls away into the canvas well before the form, so the fields
-      // still sit on plain ground and nothing has to fight the background to
-      // stay readable.
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: GwdColors.heroOf(context, extent: 0.42)),
-        child: ContentWidth(
+      backgroundColor: Colors.transparent,
+      // No background of its own: the app's backdrop is already behind this,
+      // and the sign-in screen showing a different field from the one the user
+      // lands on a second later is the seam worth avoiding.
+      body: ContentWidth(
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -197,7 +191,6 @@ class _SignInPageState extends State<SignInPage> {
             ),
           ),
         ),
-      ),
     );
   }
 }

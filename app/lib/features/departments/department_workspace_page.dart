@@ -56,7 +56,7 @@ class _DepartmentWorkspacePageState extends State<DepartmentWorkspacePage> {
     final gutter = Layout.of(context).gutter;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(title: Text(department?.name ?? 'Department')),
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the

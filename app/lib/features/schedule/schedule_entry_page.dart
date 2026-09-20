@@ -59,7 +59,7 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
 
     if (entry == null) {
       return Scaffold(
-        backgroundColor: GwdColors.canvasOf(context),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(),
         // Capped on a wide window: rows stretching the full width of a
         // desktop browser or a tablet are unreadable however nicely the
@@ -78,7 +78,7 @@ class _ScheduleEntryPageState extends State<ScheduleEntryPage> {
     final going = entry.isAttending(session.me?.id ?? '');
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(entry.categoryName,
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),

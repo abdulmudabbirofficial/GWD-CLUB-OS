@@ -96,7 +96,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final lastWeek = previous.fold<int>(0, (sum, d) => sum + _count(d, 'count'));
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Dashboard', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

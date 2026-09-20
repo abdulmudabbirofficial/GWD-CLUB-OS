@@ -1432,16 +1432,37 @@ class ClubStore extends ChangeNotifier {
     required String current,
     required String next,
   }) async {
-    final json = await _api.post('/api/auth/password', {
-      'currentPassword': current,
-      'newPassword': next,
-    });
+    // Given a long leash on purpose.
+    //
+    // This is the slowest call the app makes: bcrypt verifies the old password
+    // and hashes the new one - a second of deliberate CPU before the database
+    // is touched - and the write then goes to a hosted cluster. On the ordinary
+    // twenty-second budget it times out, and the way it fails is the problem
+    // rather than the wait: the server finishes the change regardless, revoking
+    // the token the client is still holding, so the *next* request 401s and the
+    // user is thrown back to sign-in having apparently done nothing wrong. It
+    // reproduced every time on a first sign-in, which is precisely when a
+    // seeded account is forced through this sheet.
+    final json = await _api.post(
+      '/api/auth/password',
+      {'currentPassword': current, 'newPassword': next},
+      ApiClient.passwordTimeout,
+    );
     // The server revokes every token issued before the change — including the
     // one that just made this request — and hands back a replacement. Adopt it,
     // or succeeding at changing your password signs you straight out.
     final token = json['token'] as String?;
     if (token != null) {
       await session.adoptToken(token, user: (json['user'] as Map?)?.cast<String, dynamic>());
+
+      // And re-handshake the socket, which is still holding the token the
+      // server has just revoked. Adopting the replacement fixes REST and
+      // leaves the live connection stale: its next reconnect is rejected, a
+      // rejected handshake signs the user out, and the user is signed out for
+      // the crime of successfully changing their password. That is precisely
+      // what a seeded account hits on its very first sign-in, because the
+      // forced change runs one screen in.
+      socket.connect(token);
     }
     await session.refresh();
     notifyListeners();

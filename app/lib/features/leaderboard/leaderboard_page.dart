@@ -56,7 +56,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     final groups = store.recognition;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Recognition', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),

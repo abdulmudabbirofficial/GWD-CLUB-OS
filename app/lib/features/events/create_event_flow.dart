@@ -196,7 +196,7 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
     };
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Abandon this event',

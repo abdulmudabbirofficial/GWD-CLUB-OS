@@ -47,7 +47,7 @@ class _HelpPageState extends State<HelpPage> {
     int next() => step++;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       floatingActionButton: PressableScale(
         onTap: () => showAskForHelpSheet(context),
         haptic: HapticStrength.medium,

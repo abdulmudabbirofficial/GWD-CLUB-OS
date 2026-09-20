@@ -91,33 +91,64 @@ class ApiClient {
     return Uri.parse('$baseUrl$path$qs');
   }
 
-  Map<String, String> get _headers {
-    final token = tokenProvider?.call();
-    return {
-      'content-type': 'application/json',
-      if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
-    };
-  }
+  Map<String, String> _headersFor(String? token) => {
+        'content-type': 'application/json',
+        if (token != null && token.isNotEmpty) 'authorization': 'Bearer $token',
+      };
+
+  /// Whether a 401 for a request sent under [sent] should end the session.
+  ///
+  /// Only if we are still holding that token. Changing your password revokes
+  /// every token issued before it, and requests already in flight under the old
+  /// one come back 401 a moment later - through no fault of the session that
+  /// replaced it.
+  ///
+  /// Not hypothetical. Signing in fires fifteen calls to fill the store, a
+  /// seeded account is pushed straight into the forced password sheet, and on a
+  /// hosted database several of those calls are still open when the change
+  /// lands. Every one came back 401 and the first to arrive signed the user
+  /// out - so a first-time member, doing exactly what they were told, was
+  /// thrown back to the sign-in screen by the act of succeeding.
+  bool _shouldEndSession(String? sent) => sent == tokenProvider?.call();
+
+  /// How long an ordinary call may take before the app gives up.
+  ///
+  /// Generous, because the backend is a laptop on college Wi-Fi and the phone
+  /// is often two rooms away, not because any request should take this long.
+  static const defaultTimeout = Duration(seconds: 20);
+
+  /// Password work, which is slow *by design*.
+  ///
+  /// A cost-12 bcrypt comparison plus a fresh hash is a second of deliberate
+  /// CPU before the database is even touched, and the write that follows goes
+  /// to a hosted cluster. Twenty seconds is fine for reading a task list and is
+  /// not a safe budget for this — and the failure is nastier than a spinner,
+  /// because the server finishes the change after the client has stopped
+  /// waiting. See [ClubStore.changePassword].
+  static const passwordTimeout = Duration(seconds: 75);
 
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
+    Duration? timeout,
   }) async {
     late http.Response response;
+    final sent = tokenProvider?.call();
+    final headers = _headersFor(sent);
     try {
       final uri = _uri(path, query);
       final encoded = body == null ? null : jsonEncode(body);
       response = await switch (method) {
-        'GET' => _client.get(uri, headers: _headers),
-        'POST' => _client.post(uri, headers: _headers, body: encoded),
-        'PATCH' => _client.patch(uri, headers: _headers, body: encoded),
-        'PUT' => _client.put(uri, headers: _headers, body: encoded),
-        'DELETE' => _client.delete(uri, headers: _headers, body: encoded),
+        'GET' => _client.get(uri, headers: headers),
+        'POST' => _client.post(uri, headers: headers, body: encoded),
+        'PATCH' => _client.patch(uri, headers: headers, body: encoded),
+        'PUT' => _client.put(uri, headers: headers, body: encoded),
+        'DELETE' => _client.delete(uri, headers: headers, body: encoded),
         _ => throw ArgumentError('Unsupported method $method'),
       }
-          .timeout(const Duration(seconds: 20));
+          .timeout(timeout ?? defaultTimeout);
     } on TimeoutException {
       throw ApiException('The server took too long to respond.', 408);
     } catch (error) {
@@ -144,7 +175,7 @@ class ApiClient {
       }
     }
 
-    if (response.statusCode == 401) onUnauthorized?.call();
+    if (response.statusCode == 401 && _shouldEndSession(sent)) onUnauthorized?.call();
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
@@ -155,11 +186,13 @@ class ApiClient {
     return json;
   }
 
-  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) =>
-      _send('GET', path, query: query);
+  Future<Map<String, dynamic>> get(String path,
+          {Map<String, dynamic>? query, Duration? timeout}) =>
+      _send('GET', path, query: query, timeout: timeout);
 
-  Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) =>
-      _send('POST', path, body: body);
+  Future<Map<String, dynamic>> post(String path,
+          [Map<String, dynamic>? body, Duration? timeout]) =>
+      _send('POST', path, body: body, timeout: timeout);
 
   Future<Map<String, dynamic>> patch(String path, [Map<String, dynamic>? body]) =>
       _send('PATCH', path, body: body);
@@ -189,11 +222,11 @@ class ApiClient {
     Duration timeout = const Duration(minutes: 3),
   }) async {
     late http.StreamedResponse streamed;
+    final sent = tokenProvider?.call();
     try {
       final request = http.MultipartRequest('POST', _uri(path));
-      final token = tokenProvider?.call();
-      if (token != null && token.isNotEmpty) {
-        request.headers['authorization'] = 'Bearer $token';
+      if (sent != null && sent.isNotEmpty) {
+        request.headers['authorization'] = 'Bearer $sent';
       }
       request.fields.addAll(fields);
       if (bytes != null) {
@@ -226,7 +259,7 @@ class ApiClient {
       }
     }
 
-    if (streamed.statusCode == 401) onUnauthorized?.call();
+    if (streamed.statusCode == 401 && _shouldEndSession(sent)) onUnauthorized?.call();
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
       throw ApiException(
         json['error']?.toString() ?? 'That file could not be uploaded.',
@@ -247,9 +280,10 @@ class ApiClient {
     Map<String, dynamic>? query,
   }) async {
     late http.Response response;
+    final sent = tokenProvider?.call();
     try {
       response = await _client
-          .get(_uri(path, query), headers: _headers)
+          .get(_uri(path, query), headers: _headersFor(sent))
           .timeout(const Duration(minutes: 2));
     } on TimeoutException {
       throw ApiException('That file took too long to download.', 408);
@@ -258,7 +292,7 @@ class ApiClient {
       throw ApiException("Can't reach $target to fetch that file.", 0);
     }
 
-    if (response.statusCode == 401) onUnauthorized?.call();
+    if (response.statusCode == 401 && _shouldEndSession(sent)) onUnauthorized?.call();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       String message = 'That file could not be opened.';
       try {

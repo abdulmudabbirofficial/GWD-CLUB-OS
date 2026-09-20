@@ -68,7 +68,7 @@ class _EventWorkspacePageState extends State<EventWorkspacePage>
 
     if (workspace == null) {
       return Scaffold(
-        backgroundColor: GwdColors.canvasOf(context),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(),
         // Capped on a wide window: rows stretching the full width of a
         // desktop browser or a tablet are unreadable however nicely the
@@ -99,7 +99,7 @@ class _EventWorkspacePageState extends State<EventWorkspacePage>
     final event = workspace.event;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           _EventHeader(workspace: workspace, eventId: widget.eventId),

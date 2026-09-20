@@ -23,7 +23,7 @@ class CategoryAdminPage extends StatelessWidget {
     final categories = store.categories;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text('Schedule categories',
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),

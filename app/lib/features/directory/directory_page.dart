@@ -83,7 +83,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
         : const <Member>[];
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(department?.name ?? 'Directory',
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),

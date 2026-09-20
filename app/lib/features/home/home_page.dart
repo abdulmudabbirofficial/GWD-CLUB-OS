@@ -99,8 +99,6 @@ class HomePage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.only(bottom: GwdSpace.xxxl),
             children: [
-              // The hero runs to the edges. The colour is the app introducing
-              // itself, and a gradient with a margin around it is just a card.
               _HomeHero(store: store, gutter: gutter, onNavigate: onNavigate),
 
               Padding(
@@ -370,11 +368,10 @@ class _LiveEventBanner extends StatelessWidget {
 
 /// The top of Home: who you are, and the three numbers that describe your week.
 ///
-/// Runs edge to edge in the brand's crimson ramp, and resolves to the page's
-/// own ground exactly at its bottom edge, so the panel ends without drawing a
-/// line. Everything inside it is set in white — the region is red in both
-/// themes, and reaching for the theme's ink here would put near-black text on a
-/// red field in light mode.
+/// No background of its own. The app's backdrop is near-black up here and warms
+/// as it falls, so the hero is the quiet end of the screen and the colour is
+/// somewhere below — which is the right way round. A coloured panel at the top
+/// of the one screen people open forty times a day is a thing you get tired of.
 ///
 /// The three figures are the dashboard the app was missing. Opening a club app
 /// and having to visit three tabs to find out whether you are behind is the
@@ -398,129 +395,113 @@ class _HomeHero extends StatelessWidget {
     // thing you own, and dropping it out of the figure is how it gets forgotten.
     final due = open.where((t) => t.dueDate != null && t.dueDate!.isBefore(horizon)).length;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(gradient: GwdColors.heroOf(context)),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _timeGreeting(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GwdType.callout.copyWith(color: GwdColors.onHeroSoft),
-                              ),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _timeGreeting(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GwdType.callout
+                                  .copyWith(color: GwdColors.inkSecondaryOf(context)),
                             ),
-                            const SizedBox(width: GwdSpace.sm),
-                            LiveDot(connected: store.liveStatus == LiveStatus.connected),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        // The name, then what they are and where — "Abdul" over
-                        // "Marketing Lead". A role badge beside a department
-                        // name makes the reader assemble the sentence, and
-                        // reads as "Lead" plus an unrelated word.
-                        Text(
-                          me?.displayName ?? 'There',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GwdType.largeTitle.copyWith(
-                            color: me?.isUnnamed == true
-                                ? GwdColors.onHeroSoft
-                                : GwdColors.onHero,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (me != null)
-                          Text(
-                            me.positionLine(session.department?.name),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GwdType.footnote.copyWith(color: GwdColors.onHeroSoft),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: GwdSpace.md),
-                  PressableScale(
-                    onTap: () => showProfileSheet(context),
-                    child: Semantics(
-                      button: true,
-                      label: 'Profile and settings',
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: GwdColors.onHeroFaint,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: GwdColors.onHeroLine),
-                        ),
-                        // Not the shared Avatar: that one tints itself from the
-                        // person's own colour, which is chosen to stand out
-                        // against the canvas and disappears on crimson.
-                        child: Text(
-                          me?.initials ?? '?',
-                          style: GwdType.caption.copyWith(
-                            color: GwdColors.onHero,
-                            fontSize: 15,
-                            letterSpacing: 0,
-                          ),
+                          const SizedBox(width: GwdSpace.sm),
+                          LiveDot(connected: store.liveStatus == LiveStatus.connected),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      // The name, then what they are and where — "Abdul" over
+                      // "Marketing Lead". A role badge beside a department name
+                      // makes the reader assemble the sentence, and reads as
+                      // "Lead" plus an unrelated word.
+                      Text(
+                        me?.displayName ?? 'There',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GwdType.largeTitle.copyWith(
+                          color: me?.isUnnamed == true
+                              ? GwdColors.inkTertiaryOf(context)
+                              : GwdColors.inkOf(context),
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      if (me != null)
+                        Text(
+                          me.positionLine(session.department?.name),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: GwdSpace.md),
+                PressableScale(
+                  onTap: () => showProfileSheet(context),
+                  child: Semantics(
+                    button: true,
+                    label: 'Profile and settings',
+                    child: Avatar(
+                      initials: me?.initials ?? '?',
+                      tint: me?.tint ?? GwdColors.inkTertiary,
+                      size: 44,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: GwdSpace.xl),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HeroStat(
-                      value: open.length,
-                      label: open.length == 1 ? 'task open' : 'tasks open',
-                      onTap: () => onNavigate(2),
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: GwdSpace.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeroStat(
+                    value: open.length,
+                    label: open.length == 1 ? 'task open' : 'tasks open',
+                    onTap: () => onNavigate(2),
                   ),
-                  const SizedBox(width: GwdSpace.sm),
-                  Expanded(
-                    child: _HeroStat(
-                      value: due,
-                      label: 'due this week',
-                      onTap: () => onNavigate(2),
-                    ),
+                ),
+                const SizedBox(width: GwdSpace.sm),
+                Expanded(
+                  child: _HeroStat(
+                    value: due,
+                    label: 'due this week',
+                    tint: due > 0 ? GwdColors.warning : null,
+                    onTap: () => onNavigate(2),
                   ),
-                  const SizedBox(width: GwdSpace.sm),
-                  Expanded(
-                    // Supervisors do not collect points, so they are not shown
-                    // a score they can never move.
-                    child: caps.earnsPoints
-                        ? _HeroStat(value: me?.points ?? 0, label: 'points earned')
-                        : _HeroStat(
-                            value: store.members.length,
-                            label: 'in the club',
-                            onTap: () => onNavigate(3),
-                          ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                const SizedBox(width: GwdSpace.sm),
+                Expanded(
+                  // Supervisors do not collect points, so they are not shown a
+                  // score they can never move.
+                  child: caps.earnsPoints
+                      ? _HeroStat(value: me?.points ?? 0, label: 'points earned')
+                      : _HeroStat(
+                          value: store.members.length,
+                          label: 'in the club',
+                          onTap: () => onNavigate(3),
+                        ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -536,29 +517,22 @@ class _HomeHero extends StatelessWidget {
 
 /// One figure in the hero.
 ///
-/// A pane of frosted white rather than a card in the app's surface colour: the
-/// surface tokens are built to sit on the canvas, and a near-black tile laid on
-/// crimson reads as a hole cut in the page. Tinted white works on every part of
-/// the ramp and in both themes.
-///
 /// The number is set in the display face at tabular width, so three tiles side
 /// by side keep their digits on one baseline grid however the values change.
+/// Counters that reflow as they tick read as unstable.
 class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.value, required this.label, this.onTap});
+  const _HeroStat({required this.value, required this.label, this.tint, this.onTap});
 
   final int value;
   final String label;
+  final Color? tint;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final card = Container(
+    final card = SurfaceCard(
       padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
-      decoration: BoxDecoration(
-        color: GwdColors.onHeroFaint,
-        borderRadius: BorderRadius.circular(GwdRadius.lg),
-        border: Border.all(color: GwdColors.onHeroLine),
-      ),
+      borderRadius: GwdRadius.lg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -566,7 +540,7 @@ class _HeroStat extends StatelessWidget {
           AnimatedCounter(
             value: value,
             style: GwdType.title1.merge(GwdType.numeric).copyWith(
-                  color: GwdColors.onHero,
+                  color: tint ?? GwdColors.inkOf(context),
                   height: 1.0,
                 ),
           ),
@@ -575,7 +549,7 @@ class _HeroStat extends StatelessWidget {
             label,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GwdType.micro.copyWith(color: GwdColors.onHeroSoft),
+            style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
           ),
         ],
       ),

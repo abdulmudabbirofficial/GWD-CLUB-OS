@@ -50,7 +50,7 @@ class DepartmentRecognitionPage extends StatelessWidget {
 
     if (group == null) {
       return Scaffold(
-        backgroundColor: GwdColors.canvasOf(context),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           title:
               Text('Department', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
@@ -67,7 +67,7 @@ class DepartmentRecognitionPage extends StatelessWidget {
     final totals = group.totals;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(group.name,
             maxLines: 1,

@@ -37,7 +37,7 @@ class _AlertsPageState extends State<AlertsPage> {
     final broadcasts = store.alerts;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       floatingActionButton: store.capabilities.canBroadcast
           ? FloatingActionButton.extended(
               onPressed: () => showSendAlertSheet(context),

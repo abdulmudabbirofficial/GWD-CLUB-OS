@@ -102,7 +102,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
     // Opened by id, and neither the server nor the store has the person yet.
     if (member == null) {
       return Scaffold(
-        backgroundColor: GwdColors.canvasOf(context),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(),
         body: _forbidden || _error != null
             ? EmptyState(
@@ -127,7 +127,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
     final canAward = store.capabilities.canAwardPoints && member.role.earnsPoints;
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(member.role.title,
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),

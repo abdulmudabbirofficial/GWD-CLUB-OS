@@ -84,6 +84,20 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
         const SnackBar(content: Text('Password changed.')),
       );
     } on ApiException catch (e) {
+      // A timeout here is genuinely ambiguous: the server may well have applied
+      // the change after the client stopped waiting, in which case the password
+      // in this form is already the live one and the session in hand is already
+      // dead. Saying "that failed" would be a guess, and the wrong guess leaves
+      // somebody typing an old password at a sign-in screen that will never
+      // accept it again.
+      if (e.statusCode == 408) {
+        setState(() {
+          _error = 'The server took too long to answer, so this may or may not '
+              'have gone through. Sign in again — try your new password first.';
+          _busy = false;
+        });
+        return;
+      }
       setState(() {
         _error = e.message;
         _busy = false;

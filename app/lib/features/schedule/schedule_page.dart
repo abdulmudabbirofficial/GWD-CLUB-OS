@@ -135,7 +135,7 @@ class _SchedulePageState extends State<SchedulePage> {
     final days = grouped.keys.toList()..sort();
 
     return Scaffold(
-      backgroundColor: GwdColors.canvasOf(context),
+      backgroundColor: Colors.transparent,
       floatingActionButton: store.capabilities.canCreateScheduleEntry
           ? FloatingActionButton.extended(
               onPressed: () => showScheduleEditor(
