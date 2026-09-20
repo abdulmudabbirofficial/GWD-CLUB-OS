@@ -629,13 +629,16 @@ attention.
 Brand: crimson `#DC2626` + jet black `#09090B`, from the red club logo. Never
 default Material purple.
 
-Cleanup owed: `gwd_theme.dart` carries dead aliases from an abandoned neon/glass
-iteration (`primaryIndigo`, `purple`, `electricViolet`, `neonPink`, `neonCyan`,
-`glassSurface`, `GlassCard`). Delete as feature pages get rewritten.
+Both of the cleanups this section used to owe are **done**, and neither should
+come back:
 
-**Dark mode must be ON.** v1 pinned `themeMode: ThemeMode.light` in `main.dart`
-with a comment about auditing screens. The tokens already exist — unpin it and
-audit.
+- The dead neon/glass aliases (`primaryIndigo`, `purple`, `electricViolet`,
+  `neonPink`, `neonCyan`, `glassSurface`, `GlassCard`) are gone from
+  `gwd_theme.dart`, and nothing in `app/lib` references them.
+- `themeMode` is `ThemeMode.system`, not the `ThemeMode.light` v1 pinned it to.
+  **Dark mode is on and must stay on.** Anything new is audited in both themes
+  before it ships, which is what the `*Of(context)` resolvers are for — a
+  hardcoded `Colors.white` or a raw hex is the thing that breaks it.
 
 ## Rules
 
