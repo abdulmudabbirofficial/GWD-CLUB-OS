@@ -218,9 +218,14 @@ Future<void> _pickLead(BuildContext context, Department department) async {
                                 Avatar(initials: member.initials, tint: member.tint, size: 34),
                                 const SizedBox(width: GwdSpace.md),
                                 Expanded(
-                                  child: Text(member.name,
-                                      style: GwdType.headline
-                                          .copyWith(color: GwdColors.inkOf(sheetContext))),
+                                  child: Text(member.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GwdType.headline.copyWith(
+                                        color: member.isUnnamed
+                                            ? GwdColors.inkTertiaryOf(sheetContext)
+                                            : GwdColors.inkOf(sheetContext),
+                                      )),
                                 ),
                                 if (member.id == department.leadUserId)
                                   const Icon(Icons.check_circle_rounded,

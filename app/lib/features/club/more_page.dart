@@ -274,26 +274,25 @@ class _ProfileHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(me.name,
+                // displayName, never `me.name`: an account created for somebody
+                // who has not signed in yet has a placeholder there.
+                Text(me.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.title2.copyWith(color: GwdColors.inkOf(context))),
+                    style: GwdType.title2.copyWith(
+                      color: me.isUnnamed
+                          ? GwdColors.inkTertiaryOf(context)
+                          : GwdColors.inkOf(context),
+                    )),
                 const SizedBox(height: 3),
-                Row(
-                  children: [
-                    RoleBadge(role: me.role, dense: true),
-                    if (department != null) ...[
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(department.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      ),
-                    ],
-                  ],
-                ),
+                // "Creative Lead", as one line. A LEAD badge sitting next to the
+                // word "Creative" makes the reader assemble the sentence, and
+                // in a club with six departments the bare role says what
+                // somebody does without saying what they do it for.
+                Text(me.positionLine(department?.name),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
               ],
             ),
           ),

@@ -195,11 +195,14 @@ class _SeatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(member.name,
+                Text(member.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: (emphasis ? GwdType.title3 : GwdType.headline)
-                        .copyWith(color: GwdColors.inkOf(context))),
+                    style: (emphasis ? GwdType.title3 : GwdType.headline).copyWith(
+                      color: member.isUnnamed
+                          ? GwdColors.inkTertiaryOf(context)
+                          : GwdColors.inkOf(context),
+                    )),
                 const SizedBox(height: 2),
                 Text(role.title,
                     style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
