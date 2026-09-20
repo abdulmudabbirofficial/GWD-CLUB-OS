@@ -255,23 +255,40 @@ class _ClubShellState extends State<ClubShell> {
     // height into the inherited bottom padding fixes every one of them at
     // once: a Scaffold sizes its FAB against exactly this, and `SafeArea`
     // reads it too, so nothing has to know the shell exists.
-    final barHeight = layout.usesRail ? 0.0 : _ClubNavBar.height;
-    final media = MediaQuery.of(context);
-
-    final body = MediaQuery(
-      data: media.copyWith(
-        padding: media.padding.copyWith(bottom: media.padding.bottom + barHeight),
-        viewPadding: media.viewPadding.copyWith(
-          bottom: media.viewPadding.bottom + barHeight,
+    //
+    // The `Builder` is load-bearing, and was the bug.
+    //
+    // Read from the shell's own build context, `MediaQuery.of` returns the data
+    // from *outside* this Scaffold — which still carries the keyboard inset
+    // that the Scaffold has just finished removing from its body. Re-publishing
+    // it put the inset back, and the pushed page's own Scaffold then subtracted
+    // it a second time. Measured with a text field focused: the shell handed
+    // the Navigator 361.5 points and the page's body came out at **zero**,
+    // which paints as a blank screen under the app bar with no error anywhere.
+    // Search was unusable the moment anybody typed, which is all that screen
+    // does.
+    //
+    // Inside the body, `MediaQuery.of` is the Scaffold's already-adjusted copy:
+    // the inset is gone because the space has been taken, and adding the bar
+    // height back is the only correction left to make.
+    Widget shellBody(BuildContext context) {
+      final media = MediaQuery.of(context);
+      final barHeight = layout.usesRail ? 0.0 : _ClubNavBar.height;
+      return MediaQuery(
+        data: media.copyWith(
+          padding: media.padding.copyWith(bottom: media.padding.bottom + barHeight),
+          viewPadding: media.viewPadding.copyWith(
+            bottom: media.viewPadding.bottom + barHeight,
+          ),
         ),
-      ),
-      child: Navigator(
-        key: _navigatorKey,
-        onGenerateRoute: (_) => MaterialPageRoute(
-          builder: (_) => _TabStack(index: _index, builders: builders),
+        child: Navigator(
+          key: _navigatorKey,
+          onGenerateRoute: (_) => MaterialPageRoute(
+            builder: (_) => _TabStack(index: _index, builders: builders),
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     // No PopScope here — it must sit directly under the home route to be
     // consulted, so main.dart owns it and calls ClubShell.handleBack().
@@ -296,10 +313,10 @@ class _ClubShellState extends State<ClubShell> {
                       extended: layout.twoColumn,
                     ),
                   ),
-                  Expanded(child: body),
+                  Expanded(child: Builder(builder: shellBody)),
                 ],
               )
-            : body,
+            : Builder(builder: shellBody),
         bottomNavigationBar: layout.usesRail
             ? null
             : _Badges(

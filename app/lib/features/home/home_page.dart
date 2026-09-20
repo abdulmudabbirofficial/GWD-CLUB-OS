@@ -23,6 +23,7 @@ import '../meetings/new_meeting_sheet.dart';
 import '../profile/profile_sheet.dart';
 import '../schedule/schedule_editor.dart';
 import '../schedule/schedule_page.dart';
+import '../search/search_page.dart';
 import '../tasks/new_task_sheet.dart';
 import '../tasks/task_detail_page.dart';
 
@@ -453,7 +454,32 @@ class _HomeHero extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: GwdSpace.md),
+                const SizedBox(width: GwdSpace.sm),
+                // Search sits next to the avatar because this is the screen
+                // everybody lands on, and "where is that person / event / task"
+                // is a question the app had no answer to at all.
+                PressableScale(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchPage()),
+                  ),
+                  child: Semantics(
+                    button: true,
+                    label: 'Search the club',
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: GwdColors.sunkenOf(context),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: GwdColors.hairlineOf(context)),
+                      ),
+                      child: Icon(Icons.search_rounded,
+                          size: 20, color: GwdColors.inkSecondaryOf(context)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: GwdSpace.sm),
                 PressableScale(
                   onTap: () => showProfileSheet(context),
                   child: Semantics(
