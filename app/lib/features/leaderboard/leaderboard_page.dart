@@ -11,6 +11,7 @@ import '../../core/models/recognition.dart';
 import 'department_chart.dart';
 import 'department_recognition_page.dart';
 import 'recognition_rows.dart';
+import '../../core/plural.dart';
 
 /// Recognition — **per department, never club-wide**.
 ///
@@ -91,7 +92,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                         // rows. Given against finished is the question everyone
                         // asks first, and it is aggregate — it gives away
                         // nothing about any individual.
-                        if (store.departmentProgress.length >= 2) ...[
+                        if (ClubProgressChart.hasData(store.departmentProgress)) ...[
                           const SizedBox(height: GwdSpace.lg),
                           SurfaceCard(
                             padding: const EdgeInsets.fromLTRB(
@@ -249,9 +250,9 @@ class _DepartmentTile extends StatelessWidget {
                   // Factual, never comparative.
                   switch ((totals.people, totals.completed)) {
                     (0, _) => 'Nobody here yet',
-                    (_, 0) => '${totals.people} people · nothing finished yet',
-                    (_, final done) => '${totals.people} people · $done finished · '
-                        '${totals.points} points',
+                    (_, 0) => '${people(totals.people)} · nothing finished yet',
+                    (_, final done) => '${people(totals.people)} · $done finished · '
+                        '${countOf(totals.points, 'point')}',
                   },
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

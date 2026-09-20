@@ -126,21 +126,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         Expanded(
                           child: _Tile(
                             value: _count(_totals, 'people'),
-                            label: 'people',
+                            label: _count(_totals, 'people') == 1 ? 'person' : 'people',
                           ),
                         ),
                         const SizedBox(width: GwdSpace.sm),
                         Expanded(
                           child: _Tile(
                             value: _count(_totals, 'departments'),
-                            label: 'departments',
+                            label: _count(_totals, 'departments') == 1
+                                ? 'department'
+                                : 'departments',
                           ),
                         ),
                         const SizedBox(width: GwdSpace.sm),
                         Expanded(
                           child: _Tile(
                             value: _count(_totals, 'openEvents'),
-                            label: 'events on',
+                            label: _count(_totals, 'openEvents') == 1 ? 'event on' : 'events on',
                           ),
                         ),
                         const SizedBox(width: GwdSpace.sm),
@@ -195,7 +197,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       ),
 
                     // ---------- is it speeding up or slowing down ----------
-                    if (week.isNotEmpty) ...[
+                    // Only when there is something to plot. Seven flat stubs
+                    // in a tall empty box says nothing the subtitle has not
+                    // already said, and reads as a chart that failed to load.
+                    if (week.isNotEmpty && thisWeek + lastWeek > 0) ...[
                       const SizedBox(height: GwdSpace.xxl),
                       SectionHeader(
                         title: 'Finished this week',

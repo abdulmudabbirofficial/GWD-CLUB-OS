@@ -17,6 +17,7 @@ import '../meetings/meetings_page.dart';
 import '../profile/profile_sheet.dart';
 import '../schedule/schedule_page.dart';
 import 'structure_page.dart';
+import '../../core/plural.dart';
 
 /// Everything that does not earn a tab of its own.
 ///
@@ -237,7 +238,7 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: Center(
                   child: Text(
-                    '${session.clubName} · ${store.members.length} members',
+                    '${session.clubName} · ${countOf(store.members.length, 'member')}',
                     style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ),

@@ -14,6 +14,7 @@ import 'event_departments_tab.dart';
 import 'event_documents_tab.dart';
 import 'event_finance_tab.dart';
 import 'event_updates_tab.dart';
+import '../../core/plural.dart';
 
 /// The event workspace.
 ///
@@ -693,7 +694,7 @@ class _OverviewTab extends StatelessWidget {
             title: 'Running it',
             subtitle: workspace.team.length == 1
                 ? 'One person on the core team'
-                : '${workspace.team.length} people on the core team',
+                : '${people(workspace.team.length)} on the core team',
           ),
         ),
         AppleStaggerItem(index: next(), child: _TeamStrip(workspace: workspace)),
@@ -782,7 +783,7 @@ class _ProgressCard extends StatelessWidget {
                 Text(
                   event.taskCount == 0
                       ? 'No work added yet'
-                      : '${event.taskCompleted} of ${event.taskCount} tasks done',
+                      : '${event.taskCompleted} of ${countOf(event.taskCount, 'task')} done',
                   style: GwdType.headline.copyWith(color: GwdColors.inkOf(context)),
                 ),
                 const SizedBox(height: 3),

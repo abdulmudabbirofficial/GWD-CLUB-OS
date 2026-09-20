@@ -8,6 +8,7 @@ import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/help_request.dart';
 import 'ask_for_help_sheet.dart';
+import '../../core/plural.dart';
 
 /// Help & collaboration.
 ///
@@ -347,7 +348,7 @@ class HelpCard extends StatelessWidget {
                   child: Text(
                     request.helpers.length == 1
                         ? '${request.helpers.first.name.split(' ').first} is on it'
-                        : '${request.helpers.length} people are on it',
+                        : '${people(request.helpers.length)} are on it',
                     style: GwdType.footnote.copyWith(color: GwdColors.success),
                   ),
                 ),

@@ -187,6 +187,14 @@ class ClubProgressChart extends StatelessWidget {
 
   final List<DepartmentProgress> departments;
 
+  /// Whether there is anything here worth drawing.
+  ///
+  /// Exposed so a caller can decide not to wrap it in a card. The chart
+  /// returning an empty box was correct and still left a blank rounded
+  /// rectangle on Recognition, because the card around it did not know.
+  static bool hasData(List<DepartmentProgress> departments) =>
+      departments.where((d) => d.assigned > 0).length >= 2;
+
   @override
   Widget build(BuildContext context) {
     final shown = departments.where((d) => d.assigned > 0).toList();

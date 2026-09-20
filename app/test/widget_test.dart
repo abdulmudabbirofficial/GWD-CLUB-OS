@@ -448,15 +448,41 @@ void main() {
       );
     });
 
-    test('parses its banner colour and survives a malformed one', () {
-      expect(build().bannerColor, const Color(0xFF0891B2));
-      final broken = ClubEvent.fromJson({
-        'id': 'e2',
+    test('takes its colour from the shared palette, not from what was stored', () {
+      // The stored `banner` is ignored on purpose. It was assigned from a
+      // palette containing a violet and a near-black, nobody ever picked one by
+      // hand, and every event created before that was fixed still carries
+      // whatever it was given - which rendered as a violet header filling the
+      // top third of the screen. Deriving from the id repairs the old ones
+      // without a migration.
+      expect(GwdColors.accents, contains(build().bannerColor));
+
+      final stored = ClubEvent.fromJson({
+        'id': 'e1',
         'name': 'x',
         'date': DateTime.now().toIso8601String(),
-        'banner': 'nope',
+        'banner': '#6D28D9', // the violet
       });
-      expect(broken.bannerColor, isA<Color>());
+      expect(stored.bannerColor, isNot(const Color(0xFF6D28D9)));
+      expect(GwdColors.accents, contains(stored.bannerColor));
+    });
+
+    test('the same event is the same colour every time', () {
+      // A card and its header are built separately; an unstable colour would
+      // show two different accents for one event on one screen.
+      expect(build().bannerColor, build().bannerColor);
+    });
+
+    test('a malformed or missing banner is still a usable colour', () {
+      for (final banner in [null, 'nope', '', '#zzzzzz']) {
+        final event = ClubEvent.fromJson({
+          'id': 'e2',
+          'name': 'x',
+          'date': DateTime.now().toIso8601String(),
+          if (banner != null) 'banner': banner,
+        });
+        expect(GwdColors.accents, contains(event.bannerColor), reason: '$banner');
+      }
     });
 
     test('offers a short forward path, never every status from every status', () {

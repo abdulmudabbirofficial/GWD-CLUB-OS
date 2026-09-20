@@ -9,6 +9,7 @@ import '../../app/widgets/common.dart';
 import '../../core/models/department.dart';
 import '../../core/models/recognition.dart';
 import 'department_workspace_page.dart';
+import '../../core/plural.dart';
 
 /// The Departments tab.
 ///
@@ -63,7 +64,8 @@ class DepartmentsHubPage extends StatelessWidget {
                         Text(
                           departments.length == 1
                               ? 'One department'
-                              : '${departments.length} departments, ${store.members.length} people',
+                              : '${countOf(departments.length, 'department')}, '
+                                  '${people(store.members.length)}',
                           style: GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context)),
                         ),
                       ],
@@ -199,7 +201,7 @@ class _ClubTotals extends StatelessWidget {
                       style: GwdType.title3.copyWith(color: GwdColors.inkOf(context)),
                     ),
                     const SizedBox(height: 2),
-                    Text('Across ${rows.length} departments',
+                    Text('Across ${countOf(rows.length, 'department')}',
                         style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
                     if (waiting > 0) ...[
                       const SizedBox(height: GwdSpace.sm),
@@ -305,9 +307,7 @@ class _DepartmentTile extends StatelessWidget {
                     Text(
                       [
                         if (lead != null) 'Led by ${lead.firstName}',
-                        department.memberCount == 1
-                            ? '1 person'
-                            : '${department.memberCount} people',
+                        people(department.memberCount),
                       ].join('  ·  '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
