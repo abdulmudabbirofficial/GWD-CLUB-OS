@@ -1,7 +1,7 @@
 name: gwd_club_os
 description: GWD Club OS — club management for GWD Global. Android, iOS and Web from one codebase.
 publish_to: "none"
-version: 6.1.0+9
+version: 7.0.0+10
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -14,7 +14,16 @@ dependencies:
   http: ^1.2.2
   socket_io_client: ^2.0.3+1
 
-  # Local persistence: session token and the offline-first cache
+  # Local persistence: the session token, the server-address override, and the
+  # signed-in user's own record so the shell can draw before the first fetch
+  # returns.
+  #
+  # Deliberately **not** an offline cache of club data. An earlier version of
+  # this comment said it was. With no server the app shows a designed error
+  # state and a retry, which is honest: a club's data changes hourly, and
+  # showing yesterday's task list without saying so is worse than saying the
+  # server cannot be reached — especially here, where the usual cause is a
+  # laptop that went to sleep and comes back in seconds.
   shared_preferences: ^2.3.2
 
   # Native home-screen widgets (Section 7). Bridges shared data to Android

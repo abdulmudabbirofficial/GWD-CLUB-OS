@@ -103,24 +103,25 @@ class _EventDayPageState extends State<EventDayPage> {
         }
         return RefreshIndicator(
           onRefresh: _load,
-          child: ContentWidth(child: _Body(day: day, now: _now, onChanged: _load)),
+          child: ContentWidth(child: _Body(day: day, now: _now)),
         );
       }),
     );
   }
 
-  Future<void> _addItem(EventDay day) async {
-    await showRunSheetItemSheet(context, eventId: widget.eventId, team: day.team);
-    if (mounted) await _load();
-  }
+  // No refetch afterwards: the sheet's save goes through the store, which
+  // reloads the day and notifies. This page reads the day out of the store, so
+  // it is already redrawn by the time the sheet closes. Calling _load() here as
+  // well fetched the same payload twice on every change.
+  Future<void> _addItem(EventDay day) =>
+      showRunSheetItemSheet(context, eventId: widget.eventId, team: day.team);
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.day, required this.now, required this.onChanged});
+  const _Body({required this.day, required this.now});
 
   final EventDay day;
   final DateTime now;
-  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -140,12 +141,7 @@ class _Body extends StatelessWidget {
         if (current != null || next != null) ...[
           const SizedBox(height: GwdSpace.lg),
           FluidReveal(
-            child: _FocalCard(
-              day: day,
-              current: current,
-              next: next,
-              onChanged: onChanged,
-            ),
+            child: _FocalCard(day: day, current: current, next: next),
           ),
         ],
 
@@ -178,7 +174,6 @@ class _Body extends StatelessWidget {
                 day: day,
                 now: now,
                 isCurrent: current?.id == scheduled[i].id,
-                onChanged: onChanged,
               ),
             ),
         ],
@@ -200,7 +195,6 @@ class _Body extends StatelessWidget {
                 day: day,
                 now: now,
                 isCurrent: false,
-                onChanged: onChanged,
               ),
             ),
         ],
@@ -326,13 +320,11 @@ class _FocalCard extends StatelessWidget {
     required this.day,
     required this.current,
     required this.next,
-    required this.onChanged,
   });
 
   final EventDay day;
   final RunSheetItem? current;
   final RunSheetItem? next;
-  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -357,11 +349,7 @@ class _FocalCard extends StatelessWidget {
                           .copyWith(color: GwdColors.inkOf(context))),
                 ),
                 const SizedBox(width: GwdSpace.md),
-                _TickButton(
-                  item: here,
-                  eventId: day.event.id,
-                  onChanged: onChanged,
-                ),
+                _TickButton(item: here, eventId: day.event.id),
               ],
             ),
             if (here.note.isNotEmpty) ...[
@@ -421,14 +409,12 @@ class _RunSheetRow extends StatelessWidget {
     required this.day,
     required this.now,
     required this.isCurrent,
-    required this.onChanged,
   });
 
   final RunSheetItem item;
   final EventDay day;
   final DateTime now;
   final bool isCurrent;
-  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -445,7 +431,6 @@ class _RunSheetRow extends StatelessWidget {
         onTap: day.canEdit
             ? () => showRunSheetItemSheet(context,
                 eventId: day.event.id, team: day.team, existing: item)
-                .then((_) => onChanged())
             : null,
         padding: const EdgeInsets.symmetric(
             horizontal: GwdSpace.lg, vertical: GwdSpace.md),
@@ -497,7 +482,7 @@ class _RunSheetRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: GwdSpace.sm),
-            _TickButton(item: item, eventId: day.event.id, onChanged: onChanged),
+            _TickButton(item: item, eventId: day.event.id),
           ],
         ),
       ),
@@ -513,15 +498,10 @@ class _RunSheetRow extends StatelessWidget {
 /// event lead to have it marked done is how a run sheet stops being updated by
 /// eleven in the morning.
 class _TickButton extends StatefulWidget {
-  const _TickButton({
-    required this.item,
-    required this.eventId,
-    required this.onChanged,
-  });
+  const _TickButton({required this.item, required this.eventId});
 
   final RunSheetItem item;
   final String eventId;
-  final Future<void> Function() onChanged;
 
   @override
   State<_TickButton> createState() => _TickButtonState();
@@ -575,7 +555,6 @@ class _TickButtonState extends State<_TickButton> {
         done: !widget.item.done,
       );
       if (!widget.item.done) HapticFeedback.mediumImpact();
-      await widget.onChanged();
     } catch (e) {
       messenger?.showSnackBar(SnackBar(content: Text('$e')));
     } finally {

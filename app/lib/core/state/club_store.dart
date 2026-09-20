@@ -1862,6 +1862,16 @@ class ClubStore extends ChangeNotifier {
           unawaited(loadEventBoard(eventId));
           unawaited(loadEventWorkspace(eventId));
         }
+        // Same rule for the day view and the write-up: both count open work,
+        // so a task finished on somebody else's phone changes what they say.
+        // Only the ones actually open — a club with forty past events must not
+        // refetch forty payloads because one task moved.
+        if (eventId != null && _days.containsKey(eventId)) {
+          unawaited(loadEventDay(eventId));
+        }
+        if (eventId != null && _reports.containsKey(eventId)) {
+          unawaited(loadEventReport(eventId));
+        }
         // No toast here either: the server writes a `taskAssigned`
         // notification for the same person at the same moment, and that is
         // where toasts come from now.
@@ -1931,6 +1941,8 @@ class ClubStore extends ChangeNotifier {
           unawaited(loadEventWorkspace(id));
           if (_timelines.containsKey(id)) unawaited(loadEventTimeline(id));
         }
+        if (id != null && _days.containsKey(id)) unawaited(loadEventDay(id));
+        if (id != null && _reports.containsKey(id)) unawaited(loadEventReport(id));
 
       case 'event:deleted':
         final id = event.data['id'];

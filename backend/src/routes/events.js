@@ -905,7 +905,10 @@ router.get('/:id/day', async (request, response, next) => {
       String(event.leadUserId ?? ''),
       ...(event.teamUserIds ?? []).map(String),
       ...(event.runSheet ?? []).map((i) => String(i.ownerUserId ?? '')),
-    ])].filter(Boolean).filter(ObjectId.isValid).map((uid) => new ObjectId(uid));
+    // `.filter(ObjectId.isValid)` would pass the static detached from its class
+    // and hand it an index and an array as extra arguments. It happens to work
+    // today; an arrow keeps it working whatever the driver does next.
+    ])].filter((uid) => ObjectId.isValid(uid)).map((uid) => new ObjectId(uid));
 
     const [people, openTasks, pendingApprovals] = await Promise.all([
       col(C.users).find(
@@ -1047,11 +1050,20 @@ router.patch('/:id/runsheet/:itemId', async (request, response, next) => {
       }
     }
 
-    await col(C.events).updateOne(
-      { _id: id },
-      { $set: set },
-      { arrayFilters: [{ 'row.id': itemId }] },
-    );
+    // Only pass `arrayFilters` when something in `$set` actually uses it.
+    //
+    // Mongo rejects an update that declares a filter identifier no positional
+    // operator references — "the array filter for identifier 'row' was not
+    // used" — so a request carrying no recognised field would have come back a
+    // 500 rather than doing nothing. An empty change is not an error.
+    const touchesRow = Object.keys(set).some((key) => key.startsWith('runSheet.'));
+    if (touchesRow) {
+      await col(C.events).updateOne(
+        { _id: id },
+        { $set: set },
+        { arrayFilters: [{ 'row.id': itemId }] },
+      );
+    }
     const updated = await col(C.events).findOne({ _id: id });
     const item = serialiseRunSheet(updated).find((i) => i.id === String(itemId));
     response.json({ item });

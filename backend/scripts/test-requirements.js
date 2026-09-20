@@ -635,6 +635,14 @@ const login = async (email, password) => {
   ok('T3', 'but rewriting one is the event lead’s call',
     rewrite.status === 403, `got ${rewrite.status}`);
 
+  // An empty change is not an error. This came back a 500 before: Mongo
+  // rejects an update declaring an array filter that nothing in $set uses.
+  const noChange = await api(`/api/events/${liveId}/runsheet/${rowId}`, {
+    method: 'PATCH', token: who.tech.token, body: {},
+  });
+  ok('T3', 'A patch that changes nothing is a no-op, not a server error',
+    noChange.status === 200, `got ${noChange.status} ${noChange.txt.slice(0, 100)}`);
+
   // A member with no part in the event still sees what is happening - the
   // club is not secret - but nobody's phone number comes with it.
   const outsider = await api(`/api/events/${liveId}/day`, { token: mate.token });
