@@ -57,9 +57,38 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   bool _busy = false;
   String? _error;
 
+  ClubStore? _store;
+  int _knownDepartments = -1;
+
   @override
   void initState() {
     super.initState();
+    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Keep the department list current while the sheet is open.
+    //
+    // The targets are fetched once when the sheet opens, which covers the
+    // ordinary case. But a department created or retired *now* — by somebody
+    // else in the club, arriving over the socket — has to show up here too,
+    // or the picker is quietly offering a department that no longer exists.
+    // Watching the count rather than the whole list keeps this to one refetch
+    // per actual change instead of one per store notification.
+    final store = AppScope.readStore(context);
+    if (!identical(store, _store)) {
+      _store?.removeListener(_onStoreChanged);
+      _store = store..addListener(_onStoreChanged);
+      _knownDepartments = store.departments.where((d) => d.active).length;
+    }
+  }
+
+  void _onStoreChanged() {
+    final live = _store?.departments.where((d) => d.active).length ?? 0;
+    if (live == _knownDepartments) return;
+    _knownDepartments = live;
     _load();
   }
 
@@ -70,6 +99,15 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
       setState(() {
         _targets = targets;
         _loading = false;
+        // If the department that was picked has since been retired, drop the
+        // selection rather than submitting against something that is gone.
+        final ids = {
+          ...targets.departments.map((d) => d.id),
+          ...targets.requestableDepartments.map((d) => d.id),
+        };
+        if (_selectedDepartment != null && !ids.contains(_selectedDepartment)) {
+          _selectedDepartment = null;
+        }
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -78,6 +116,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
 
   @override
   void dispose() {
+    _store?.removeListener(_onStoreChanged);
     _title.dispose();
     _description.dispose();
     super.dispose();
@@ -94,8 +133,7 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
   /// rendered the department picker and nothing else — the three people the
   /// backend was offering had no way onto the screen. A Director could not
   /// give the President a task at all.
-  bool get _toDepartment =>
-      _targets.canAssignToDepartment && !_requestMode && !_toNamedPerson;
+  bool get _toDepartment => _targets.canAssignToDepartment && !_requestMode && !_toNamedPerson;
 
   /// Set when somebody with department-level authority has switched to
   /// addressing a named person instead.
@@ -202,194 +240,190 @@ class _NewTaskSheetState extends State<_NewTaskSheet> {
     final people = _requestMode ? _targets.requestable : _targets.assignable;
     final canRequest = _targets.requestable.isNotEmpty;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: _requestMode ? 'Ask someone' : 'Give out work',
-                  subtitle: _requestMode
-                      ? 'They accept or decline — you are not their boss.'
-                      : _toDepartment
-                          ? 'Pick the department. Their Lead decides who does it.'
-                          : _toNamedPerson
-                              ? 'Goes straight to them, not through a department.'
-                              : 'Pick who in your department takes this on.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (canRequest) ...[
-                        _ModeSwitch(
-                          requestMode: _requestMode,
-                          onChanged: (value) => setState(() {
-                            _requestMode = value;
-                            _toNamedPerson = false;
-                            _selectedPeople.clear();
-                            _selectedDepartment = null;
-                          }),
-                        ),
-                        const SizedBox(height: GwdSpace.lg),
-                      ],
-                      // Department or person, for the tier that may do both.
-                      if (_canChooseTarget) ...[
-                        _TargetSwitch(
-                          toPerson: _toNamedPerson,
-                          personLabel: _targets.assignable.length == 1
-                              ? _targets.assignable.first.firstName
-                              : 'A person',
-                          onChanged: (value) => setState(() {
-                            _toNamedPerson = value;
-                            _selectedPeople.clear();
-                            _selectedDepartment = null;
-                          }),
-                        ),
-                        const SizedBox(height: GwdSpace.lg),
-                      ],
-                      GwdField(
-                        label: 'What needs doing',
-                        controller: _title,
-                        autofocus: true,
-                        hint: 'Shoot the teaser',
-                        onChanged: (_) => setState(() {}),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetHeader(
+                title: _requestMode ? 'Ask someone' : 'Give out work',
+                subtitle: _requestMode
+                    ? 'They accept or decline — you are not their boss.'
+                    : _toDepartment
+                        ? 'Pick the department. Their Lead decides who does it.'
+                        : _toNamedPerson
+                            ? 'Goes straight to them, not through a department.'
+                            : 'Pick who in your department takes this on.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (canRequest) ...[
+                      _ModeSwitch(
+                        requestMode: _requestMode,
+                        onChanged: (value) => setState(() {
+                          _requestMode = value;
+                          _toNamedPerson = false;
+                          _selectedPeople.clear();
+                          _selectedDepartment = null;
+                        }),
                       ),
                       const SizedBox(height: GwdSpace.lg),
-                      if (_loading)
-                        const SkeletonList(count: 2, height: 54)
-                      else if (_toDepartment)
+                    ],
+                    // Department or person, for the tier that may do both.
+                    if (_canChooseTarget) ...[
+                      _TargetSwitch(
+                        toPerson: _toNamedPerson,
+                        personLabel: _targets.assignable.length == 1
+                            ? _targets.assignable.first.firstName
+                            : 'A person',
+                        onChanged: (value) => setState(() {
+                          _toNamedPerson = value;
+                          _selectedPeople.clear();
+                          _selectedDepartment = null;
+                        }),
+                      ),
+                      const SizedBox(height: GwdSpace.lg),
+                    ],
+                    GwdField(
+                      label: 'What needs doing',
+                      controller: _title,
+                      autofocus: true,
+                      hint: 'Shoot the teaser',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    if (_loading)
+                      const SkeletonList(count: 2, height: 54)
+                    else if (_toDepartment)
+                      _DepartmentPicker(
+                        departments: _targets.departments,
+                        selected: _selectedDepartment,
+                        onChanged: (id) => setState(() => _selectedDepartment = id),
+                      )
+                    else ...[
+                      // A Lead asking across the club picks a department
+                      // first — that is the unit the work is described in.
+                      // Picking one clears any person, and vice versa: an ask
+                      // goes to one place.
+                      if (_requestMode && _targets.requestableDepartments.isNotEmpty) ...[
+                        Text('ASK A DEPARTMENT',
+                            style:
+                                GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                        const SizedBox(height: GwdSpace.sm),
                         _DepartmentPicker(
-                          departments: _targets.departments,
+                          departments: _targets.requestableDepartments,
                           selected: _selectedDepartment,
-                          onChanged: (id) => setState(() => _selectedDepartment = id),
-                        )
-                      else ...[
-                        // A Lead asking across the club picks a department
-                        // first — that is the unit the work is described in.
-                        // Picking one clears any person, and vice versa: an ask
-                        // goes to one place.
-                        if (_requestMode && _targets.requestableDepartments.isNotEmpty) ...[
-                          Text('ASK A DEPARTMENT',
+                          onChanged: (id) => setState(() {
+                            _selectedDepartment = _selectedDepartment == id ? null : id;
+                            _selectedPeople.clear();
+                          }),
+                        ),
+                        if (people.isNotEmpty) ...[
+                          const SizedBox(height: GwdSpace.lg),
+                          Text('OR ASK A PERSON',
                               style: GwdType.eyebrow
                                   .copyWith(color: GwdColors.inkTertiaryOf(context))),
                           const SizedBox(height: GwdSpace.sm),
-                          _DepartmentPicker(
-                            departments: _targets.requestableDepartments,
-                            selected: _selectedDepartment,
-                            onChanged: (id) => setState(() {
-                              _selectedDepartment = _selectedDepartment == id ? null : id;
-                              _selectedPeople.clear();
-                            }),
-                          ),
-                          if (people.isNotEmpty) ...[
-                            const SizedBox(height: GwdSpace.lg),
-                            Text('OR ASK A PERSON',
-                                style: GwdType.eyebrow
-                                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
-                            const SizedBox(height: GwdSpace.sm),
-                          ],
                         ],
-                        if (!_requestMode ||
-                            _targets.requestableDepartments.isEmpty ||
-                            people.isNotEmpty)
-                          _PeoplePicker(
-                            people: people,
-                            selected: _selectedPeople,
-                            requestMode: _requestMode,
-                            onToggle: (id) => setState(() {
-                              _selectedDepartment = null;
-                              if (_requestMode) {
-                                // One at a time: a request is a conversation.
-                                _selectedPeople
-                                  ..clear()
-                                  ..add(id);
-                              } else if (!_selectedPeople.remove(id)) {
-                                _selectedPeople.add(id);
-                              }
-                            }),
-                          ),
                       ],
-                      const SizedBox(height: GwdSpace.lg),
-                      if (!_requestMode) ...[
-                        _PointPicker(
-                          values: _targets.pointValues,
-                          selected: _points,
-                          toDepartment: _toDepartment,
-                          onChanged: (value) => setState(() => _points = value),
+                      if (!_requestMode ||
+                          _targets.requestableDepartments.isEmpty ||
+                          people.isNotEmpty)
+                        _PeoplePicker(
+                          people: people,
+                          selected: _selectedPeople,
+                          requestMode: _requestMode,
+                          onToggle: (id) => setState(() {
+                            _selectedDepartment = null;
+                            if (_requestMode) {
+                              // One at a time: a request is a conversation.
+                              _selectedPeople
+                                ..clear()
+                                ..add(id);
+                            } else if (!_selectedPeople.remove(id)) {
+                              _selectedPeople.add(id);
+                            }
+                          }),
                         ),
-                        const SizedBox(height: GwdSpace.lg),
-                      ],
-                      Row(
-                        children: [
+                    ],
+                    const SizedBox(height: GwdSpace.lg),
+                    if (!_requestMode) ...[
+                      _PointPicker(
+                        values: _targets.pointValues,
+                        selected: _points,
+                        toDepartment: _toDepartment,
+                        onChanged: (value) => setState(() => _points = value),
+                      ),
+                      const SizedBox(height: GwdSpace.lg),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MiniPicker(
+                            label: 'Due',
+                            value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
+                            icon: Icons.event_rounded,
+                            muted: _due == null,
+                            onTap: _pickDue,
+                          ),
+                        ),
+                        if (!_requestMode) ...[
+                          const SizedBox(width: GwdSpace.sm),
                           Expanded(
                             child: _MiniPicker(
-                              label: 'Due',
-                              value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
-                              icon: Icons.event_rounded,
-                              muted: _due == null,
-                              onTap: _pickDue,
+                              label: 'Priority',
+                              value: _priority.label,
+                              icon: Icons.flag_outlined,
+                              muted: _priority == TaskPriority.normal,
+                              onTap: () => setState(() {
+                                _priority = switch (_priority) {
+                                  TaskPriority.low => TaskPriority.normal,
+                                  TaskPriority.normal => TaskPriority.high,
+                                  TaskPriority.high => TaskPriority.low,
+                                };
+                              }),
                             ),
                           ),
-                          if (!_requestMode) ...[
-                            const SizedBox(width: GwdSpace.sm),
-                            Expanded(
-                              child: _MiniPicker(
-                                label: 'Priority',
-                                value: _priority.label,
-                                icon: Icons.flag_outlined,
-                                muted: _priority == TaskPriority.normal,
-                                onTap: () => setState(() {
-                                  _priority = switch (_priority) {
-                                    TaskPriority.low => TaskPriority.normal,
-                                    TaskPriority.normal => TaskPriority.high,
-                                    TaskPriority.high => TaskPriority.low,
-                                  };
-                                }),
-                              ),
-                            ),
-                          ],
                         ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'Notes',
-                        controller: _description,
-                        maxLines: 3,
-                        hint: 'Anything the person doing this should know.',
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
                       ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: _requestMode
-                            ? 'Send request'
-                            : _toDepartment
-                                ? 'Send to department'
-                                : 'Assign it',
-                        icon: _requestMode
-                            ? Icons.pan_tool_alt_outlined
-                            : Icons.arrow_forward_rounded,
-                        busy: _busy,
-                        onPressed: _canSubmit ? _submit : null,
-                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'Notes',
+                      controller: _description,
+                      maxLines: 3,
+                      hint: 'Anything the person doing this should know.',
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
                     ],
-                  ),
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: _requestMode
+                          ? 'Send request'
+                          : _toDepartment
+                              ? 'Send to department'
+                              : 'Assign it',
+                      icon:
+                          _requestMode ? Icons.pan_tool_alt_outlined : Icons.arrow_forward_rounded,
+                      busy: _busy,
+                      onPressed: _canSubmit ? _submit : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -436,9 +470,7 @@ class _TargetSwitch extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isPerson == toPerson
-                        ? GwdColors.surfaceOf(context)
-                        : Colors.transparent,
+                    color: isPerson == toPerson ? GwdColors.surfaceOf(context) : Colors.transparent,
                     borderRadius: BorderRadius.circular(GwdRadius.sm),
                     boxShadow: isPerson == toPerson
                         ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
@@ -464,8 +496,7 @@ class _TargetSwitch extends StatelessWidget {
                             color: isPerson == toPerson
                                 ? GwdColors.inkOf(context)
                                 : GwdColors.inkTertiaryOf(context),
-                            fontWeight:
-                                isPerson == toPerson ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isPerson == toPerson ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
                       ),

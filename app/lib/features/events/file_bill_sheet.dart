@@ -108,177 +108,173 @@ class _FileBillSheetState extends State<_FileBillSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SheetHeader(
-                  title: 'What did it cost?',
-                  subtitle: 'Money already spent, so the club can pay it back.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GwdField(
-                        label: 'What the money went on',
-                        controller: _title,
-                        autofocus: true,
-                        hint: 'Poster printing',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('HOW MUCH',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.xs + 2),
-                      TextField(
-                        controller: _amount,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                        ],
-                        onChanged: (_) => setState(() {}),
-                        style: GwdType.title2
-                            .merge(GwdType.numeric)
-                            .copyWith(color: GwdColors.inkOf(context)),
-                        decoration: InputDecoration(
-                          prefixText: '₹ ',
-                          prefixStyle:
-                              GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
-                          hintText: '0',
-                          hintStyle:
-                              GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
-                          filled: true,
-                          fillColor: GwdColors.sunkenOf(context),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: GwdSpace.lg, vertical: GwdSpace.md),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(GwdRadius.md),
-                            borderSide: const BorderSide(color: GwdColors.primaryRed, width: 1.5),
-                          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SheetHeader(
+                title: 'What did it cost?',
+                subtitle: 'Money already spent, so the club can pay it back.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GwdField(
+                      label: 'What the money went on',
+                      controller: _title,
+                      autofocus: true,
+                      hint: 'Poster printing',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('HOW MUCH',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.xs + 2),
+                    TextField(
+                      controller: _amount,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      onChanged: (_) => setState(() {}),
+                      style: GwdType.title2
+                          .merge(GwdType.numeric)
+                          .copyWith(color: GwdColors.inkOf(context)),
+                      decoration: InputDecoration(
+                        prefixText: '₹ ',
+                        prefixStyle:
+                            GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        hintText: '0',
+                        hintStyle: GwdType.title2.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        filled: true,
+                        fillColor: GwdColors.sunkenOf(context),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: GwdSpace.lg, vertical: GwdSpace.md),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(GwdRadius.md),
+                          borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(GwdRadius.md),
+                          borderSide: BorderSide(color: GwdColors.hairlineOf(context)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(GwdRadius.md),
+                          borderSide: const BorderSide(color: GwdColors.primaryRed, width: 1.5),
                         ),
                       ),
-                      if (_parsedAmount > 0) ...[
-                        const SizedBox(height: 5),
-                        Text(formatRupees(_parsedAmount),
-                            style:
-                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      ],
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('WHAT KIND',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
-                      Wrap(
-                        spacing: GwdSpace.sm,
-                        runSpacing: GwdSpace.sm,
-                        children: [
-                          for (final category in widget.categories)
-                            _Tag(
-                              label: category,
-                              selected: _category == category,
-                              onTap: () => setState(() => _category = category),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: GwdField(
-                              label: 'Who paid',
-                              controller: _paidBy,
-                              hint: 'You, unless you say otherwise',
-                            ),
+                    ),
+                    if (_parsedAmount > 0) ...[
+                      const SizedBox(height: 5),
+                      Text(formatRupees(_parsedAmount),
+                          style:
+                              GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    ],
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('WHAT KIND',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    Wrap(
+                      spacing: GwdSpace.sm,
+                      runSpacing: GwdSpace.sm,
+                      children: [
+                        for (final category in widget.categories)
+                          _Tag(
+                            label: category,
+                            selected: _category == category,
+                            onTap: () => setState(() => _category = category),
                           ),
-                          const SizedBox(width: GwdSpace.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('WHEN',
-                                    style: GwdType.eyebrow
-                                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
-                                const SizedBox(height: GwdSpace.xs + 2),
-                                PressableScale(
-                                  onTap: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _spentOn,
-                                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                                      lastDate: DateTime.now(),
-                                    );
-                                    if (picked != null) {
-                                      setState(() => _spentOn = picked);
-                                    }
-                                  },
-                                  child: Container(
-                                    height: 48,
-                                    padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg),
-                                    alignment: Alignment.centerLeft,
-                                    decoration: BoxDecoration(
-                                      color: GwdColors.sunkenOf(context),
-                                      borderRadius: BorderRadius.circular(GwdRadius.md),
-                                      border: Border.all(color: GwdColors.hairlineOf(context)),
-                                    ),
-                                    child: Text(
-                                      '${_spentOn.day}/${_spentOn.month}/${_spentOn.year}',
-                                      style: GwdType.body.copyWith(color: GwdColors.inkOf(context)),
-                                    ),
+                      ],
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GwdField(
+                            label: 'Who paid',
+                            controller: _paidBy,
+                            hint: 'You, unless you say otherwise',
+                          ),
+                        ),
+                        const SizedBox(width: GwdSpace.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('WHEN',
+                                  style: GwdType.eyebrow
+                                      .copyWith(color: GwdColors.inkTertiaryOf(context))),
+                              const SizedBox(height: GwdSpace.xs + 2),
+                              PressableScale(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: _spentOn,
+                                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() => _spentOn = picked);
+                                  }
+                                },
+                                child: Container(
+                                  height: 48,
+                                  padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg),
+                                  alignment: Alignment.centerLeft,
+                                  decoration: BoxDecoration(
+                                    color: GwdColors.sunkenOf(context),
+                                    borderRadius: BorderRadius.circular(GwdRadius.md),
+                                    border: Border.all(color: GwdColors.hairlineOf(context)),
+                                  ),
+                                  child: Text(
+                                    '${_spentOn.day}/${_spentOn.month}/${_spentOn.year}',
+                                    style: GwdType.body.copyWith(color: GwdColors.inkOf(context)),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      _ReceiptSlot(
-                        file: _receipt,
-                        sizeBytes: _receiptSize,
-                        onTap: _pickReceipt,
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'Note',
-                        controller: _note,
-                        maxLines: 2,
-                        hint: 'A3 colour, 40 copies.',
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
+                        ),
                       ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: 'File it',
-                        icon: Icons.receipt_long_rounded,
-                        busy: _busy,
-                        onPressed: _valid ? _submit : null,
-                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    _ReceiptSlot(
+                      file: _receipt,
+                      sizeBytes: _receiptSize,
+                      onTap: _pickReceipt,
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'Note',
+                      controller: _note,
+                      maxLines: 2,
+                      hint: 'A3 colour, 40 copies.',
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
                     ],
-                  ),
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: 'File it',
+                      icon: Icons.receipt_long_rounded,
+                      busy: _busy,
+                      onPressed: _valid ? _submit : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

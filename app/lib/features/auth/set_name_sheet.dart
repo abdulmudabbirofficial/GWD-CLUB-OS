@@ -100,89 +100,86 @@ class _SetNameSheetState extends State<_SetNameSheet> {
   Widget build(BuildContext context) {
     final me = AppScope.sessionOf(context).me;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: widget.forced ? 'What should we call you?' : 'Your name',
-                  subtitle: widget.forced
-                      ? 'This account was set up for you, so it does not have your name on it yet.'
-                      : 'How the rest of the club sees you.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GwdField(
-                        label: 'Your full name',
-                        controller: _name,
-                        autofocus: true,
-                        hint: 'The name people know you by',
-                        textCapitalization: TextCapitalization.words,
-                        onChanged: (_) => setState(() {}),
-                      ),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetHeader(
+                title: widget.forced ? 'What should we call you?' : 'Your name',
+                subtitle: widget.forced
+                    ? 'This account was set up for you, so it does not have your name on it yet.'
+                    : 'How the rest of the club sees you.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GwdField(
+                      label: 'Your full name',
+                      controller: _name,
+                      autofocus: true,
+                      hint: 'The name people know you by',
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'Phone (optional)',
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) {
+                        if (_valid) _submit();
+                      },
+                    ),
+
+                    // Say out loud what the name is *not*. The position is
+                    // already known from the role and is shown underneath the
+                    // name everywhere, so putting it in this box duplicates
+                    // one thing and loses another.
+                    if (me != null) ...[
                       const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'Phone (optional)',
-                        controller: _phone,
-                        keyboardType: TextInputType.phone,
-                        onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) {
-                          if (_valid) _submit();
-                        },
+                      _PreviewCard(
+                        name: _name.text.trim().isEmpty ? 'Your name' : _name.text.trim(),
+                        faded: _name.text.trim().isEmpty,
+                        me: me,
+                        department: AppScope.sessionOf(context).department?.name,
                       ),
-
-                      // Say out loud what the name is *not*. The position is
-                      // already known from the role and is shown underneath the
-                      // name everywhere, so putting it in this box duplicates
-                      // one thing and loses another.
-                      if (me != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        _PreviewCard(
-                          name: _name.text.trim().isEmpty ? 'Your name' : _name.text.trim(),
-                          faded: _name.text.trim().isEmpty,
-                          me: me,
-                          department: AppScope.sessionOf(context).department?.name,
-                        ),
-                      ],
-
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
-                      ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: widget.forced ? 'That is me' : 'Save',
-                        icon: Icons.person_outline_rounded,
-                        busy: _busy,
-                        onPressed: _valid ? _submit : null,
-                      ),
-                      if (!widget.forced) ...[
-                        const SizedBox(height: GwdSpace.sm),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: Text('Cancel',
-                              style: GwdType.callout
-                                  .copyWith(color: GwdColors.inkTertiaryOf(context))),
-                        ),
-                      ],
                     ],
-                  ),
+
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
+                    ],
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: widget.forced ? 'That is me' : 'Save',
+                      icon: Icons.person_outline_rounded,
+                      busy: _busy,
+                      onPressed: _valid ? _submit : null,
+                    ),
+                    if (!widget.forced) ...[
+                      const SizedBox(height: GwdSpace.sm),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text('Cancel',
+                            style:
+                                GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

@@ -95,94 +95,91 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: widget.forced ? 'Choose your own password' : 'Change password',
-                  subtitle: widget.forced
-                      ? 'The one you were given was temporary — somebody else knows it.'
-                      : 'You will need the one you use now.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GwdField(
-                        label: widget.forced ? 'The one you were given' : 'Current password',
-                        controller: _current,
-                        obscure: true,
-                        autofocus: true,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'New password',
-                        controller: _next,
-                        obscure: true,
-                        hint: 'At least 8 characters',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'Type it again',
-                        controller: _confirm,
-                        obscure: true,
-                        onChanged: (_) => setState(() {}),
-                        onSubmitted: (_) {
-                          if (_valid) _submit();
-                        },
-                      ),
-                      if (_problem != null) ...[
-                        const SizedBox(height: GwdSpace.md),
-                        Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded,
-                                size: 14, color: GwdColors.inkTertiaryOf(context)),
-                            const SizedBox(width: 6),
-                            Text(_problem!,
-                                style: GwdType.footnote
-                                    .copyWith(color: GwdColors.inkTertiaryOf(context))),
-                          ],
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
-                      ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: 'Save it',
-                        icon: Icons.lock_outline_rounded,
-                        busy: _busy,
-                        onPressed: _valid ? _submit : null,
-                      ),
-                      if (!widget.forced) ...[
-                        const SizedBox(height: GwdSpace.sm),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: Text('Not now',
-                              style: GwdType.callout
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetHeader(
+                title: widget.forced ? 'Choose your own password' : 'Change password',
+                subtitle: widget.forced
+                    ? 'The one you were given was temporary — somebody else knows it.'
+                    : 'You will need the one you use now.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GwdField(
+                      label: widget.forced ? 'The one you were given' : 'Current password',
+                      controller: _current,
+                      obscure: true,
+                      autofocus: true,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'New password',
+                      controller: _next,
+                      obscure: true,
+                      hint: 'At least 8 characters',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'Type it again',
+                      controller: _confirm,
+                      obscure: true,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) {
+                        if (_valid) _submit();
+                      },
+                    ),
+                    if (_problem != null) ...[
+                      const SizedBox(height: GwdSpace.md),
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 14, color: GwdColors.inkTertiaryOf(context)),
+                          const SizedBox(width: 6),
+                          Text(_problem!,
+                              style: GwdType.footnote
                                   .copyWith(color: GwdColors.inkTertiaryOf(context))),
-                        ),
-                      ],
+                        ],
+                      ),
                     ],
-                  ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
+                    ],
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: 'Save it',
+                      icon: Icons.lock_outline_rounded,
+                      busy: _busy,
+                      onPressed: _valid ? _submit : null,
+                    ),
+                    if (!widget.forced) ...[
+                      const SizedBox(height: GwdSpace.sm),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text('Not now',
+                            style:
+                                GwdType.callout.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -243,97 +240,94 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: _sent ? 'Asked' : 'Forgotten your password?',
-                  subtitle: _sent ? null : 'A Director or the President will set you a new one.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: _sent
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(GwdSpace.lg),
-                              decoration: BoxDecoration(
-                                color: GwdColors.tintOf(context, GwdColors.success),
-                                borderRadius: BorderRadius.circular(GwdRadius.md),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.check_circle_outline_rounded,
-                                      size: 18, color: GwdColors.success),
-                                  const SizedBox(width: GwdSpace.md),
-                                  Expanded(
-                                    child: Text(
-                                      'They have been told. They will pass you a '
-                                      'temporary password — you will be asked to '
-                                      'pick your own when you sign in with it.',
-                                      style: GwdType.callout
-                                          .copyWith(color: GwdColors.inkSecondaryOf(context)),
-                                    ),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetHeader(
+                title: _sent ? 'Asked' : 'Forgotten your password?',
+                subtitle: _sent ? null : 'A Director or the President will set you a new one.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: _sent
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(GwdSpace.lg),
+                            decoration: BoxDecoration(
+                              color: GwdColors.tintOf(context, GwdColors.success),
+                              borderRadius: BorderRadius.circular(GwdRadius.md),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.check_circle_outline_rounded,
+                                    size: 18, color: GwdColors.success),
+                                const SizedBox(width: GwdSpace.md),
+                                Expanded(
+                                  child: Text(
+                                    'They have been told. They will pass you a '
+                                    'temporary password — you will be asked to '
+                                    'pick your own when you sign in with it.',
+                                    style: GwdType.callout
+                                        .copyWith(color: GwdColors.inkSecondaryOf(context)),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: GwdSpace.xl),
-                            PrimaryButton(
-                              label: 'Done',
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'There is no reset email — the club does not run a '
-                              'mail server. Instead this tells the people who can '
-                              'fix it, and they hand you a new password however '
-                              'they normally reach you.',
-                              style: GwdType.footnote
-                                  .copyWith(color: GwdColors.inkTertiaryOf(context)),
-                            ),
+                          ),
+                          const SizedBox(height: GwdSpace.xl),
+                          PrimaryButton(
+                            label: 'Done',
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'There is no reset email — the club does not run a '
+                            'mail server. Instead this tells the people who can '
+                            'fix it, and they hand you a new password however '
+                            'they normally reach you.',
+                            style:
+                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                          ),
+                          const SizedBox(height: GwdSpace.lg),
+                          GwdField(
+                            label: 'Your email',
+                            controller: _email,
+                            autofocus: true,
+                            keyboardType: TextInputType.emailAddress,
+                            onChanged: (_) => setState(() {}),
+                            onSubmitted: (_) => _submit(),
+                          ),
+                          if (_error != null) ...[
                             const SizedBox(height: GwdSpace.lg),
-                            GwdField(
-                              label: 'Your email',
-                              controller: _email,
-                              autofocus: true,
-                              keyboardType: TextInputType.emailAddress,
-                              onChanged: (_) => setState(() {}),
-                              onSubmitted: (_) => _submit(),
-                            ),
-                            if (_error != null) ...[
-                              const SizedBox(height: GwdSpace.lg),
-                              ErrorNote(message: _error!),
-                            ],
-                            const SizedBox(height: GwdSpace.xl),
-                            PrimaryButton(
-                              label: 'Ask for a reset',
-                              icon: Icons.help_outline_rounded,
-                              busy: _busy,
-                              onPressed: _email.text.contains('@') ? _submit : null,
-                            ),
+                            ErrorNote(message: _error!),
                           ],
-                        ),
-                ),
-              ],
-            ),
+                          const SizedBox(height: GwdSpace.xl),
+                          PrimaryButton(
+                            label: 'Ask for a reset',
+                            icon: Icons.help_outline_rounded,
+                            busy: _busy,
+                            onPressed: _email.text.contains('@') ? _submit : null,
+                          ),
+                        ],
+                      ),
+              ),
+            ],
           ),
         ),
       ),

@@ -142,90 +142,87 @@ class _UploadDocumentSheetState extends State<_UploadDocumentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: _isReplacement
-                      ? 'File a new version'
-                      : _isApproval
-                          ? 'File an official approval'
-                          : 'Add a file',
-                  subtitle: _isReplacement
-                      ? 'The old version stays on the record.'
-                      : _isApproval
-                          ? 'Permission letters, venue bookings, faculty sign-off.'
-                          : 'Posters, scripts, budgets — anything the team needs.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_isApproval && !_isReplacement) ...[
-                        _ApprovalNotice(),
-                        const SizedBox(height: GwdSpace.lg),
-                      ],
-                      if (!_isReplacement) ...[
-                        GwdField(
-                          label: 'What is it',
-                          controller: _title,
-                          hint: _isApproval ? 'Principal’s permission letter' : 'Poster — final',
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        const SizedBox(height: GwdSpace.lg),
-                      ],
-                      _SourceSwitch(
-                        useLink: _useLink,
-                        onChanged: (value) => setState(() => _useLink = value),
-                      ),
-                      const SizedBox(height: GwdSpace.md),
-                      if (_useLink)
-                        GwdField(
-                          label: 'Link',
-                          controller: _link,
-                          hint: 'https://drive.google.com/…',
-                          keyboardType: TextInputType.url,
-                          onChanged: (_) => setState(() {}),
-                        )
-                      else
-                        _FileSlot(file: _file, sizeBytes: _fileSize, onTap: _pick),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SheetHeader(
+                title: _isReplacement
+                    ? 'File a new version'
+                    : _isApproval
+                        ? 'File an official approval'
+                        : 'Add a file',
+                subtitle: _isReplacement
+                    ? 'The old version stays on the record.'
+                    : _isApproval
+                        ? 'Permission letters, venue bookings, faculty sign-off.'
+                        : 'Posters, scripts, budgets — anything the team needs.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_isApproval && !_isReplacement) ...[
+                      _ApprovalNotice(),
                       const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: _isReplacement ? 'What changed' : 'Note (optional)',
-                        controller: _note,
-                        maxLines: 2,
-                        hint: _isReplacement
-                            ? 'Venue moved to Block C'
-                            : 'Anything worth knowing about it',
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
-                      ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: _isReplacement ? 'File new version' : 'Add it',
-                        icon: Icons.upload_rounded,
-                        busy: _busy,
-                        onPressed: _valid ? _submit : null,
-                      ),
                     ],
-                  ),
+                    if (!_isReplacement) ...[
+                      GwdField(
+                        label: 'What is it',
+                        controller: _title,
+                        hint: _isApproval ? 'Principal’s permission letter' : 'Poster — final',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: GwdSpace.lg),
+                    ],
+                    _SourceSwitch(
+                      useLink: _useLink,
+                      onChanged: (value) => setState(() => _useLink = value),
+                    ),
+                    const SizedBox(height: GwdSpace.md),
+                    if (_useLink)
+                      GwdField(
+                        label: 'Link',
+                        controller: _link,
+                        hint: 'https://drive.google.com/…',
+                        keyboardType: TextInputType.url,
+                        onChanged: (_) => setState(() {}),
+                      )
+                    else
+                      _FileSlot(file: _file, sizeBytes: _fileSize, onTap: _pick),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: _isReplacement ? 'What changed' : 'Note (optional)',
+                      controller: _note,
+                      maxLines: 2,
+                      hint: _isReplacement
+                          ? 'Venue moved to Block C'
+                          : 'Anything worth knowing about it',
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
+                    ],
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: _isReplacement ? 'File new version' : 'Add it',
+                      icon: Icons.upload_rounded,
+                      busy: _busy,
+                      onPressed: _valid ? _submit : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

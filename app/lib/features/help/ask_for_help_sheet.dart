@@ -114,135 +114,131 @@ class _AskForHelpSheetState extends State<_AskForHelpSheet> {
     final store = AppScope.storeOf(context);
     final events = store.eventsActive;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SheetHeader(
-                  title: 'What do you need a hand with?',
-                  subtitle: 'Your department sees it first. Anyone in the club can offer.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GwdField(
-                        label: 'In one line',
-                        controller: _title,
-                        autofocus: true,
-                        hint: 'Need two people for the stage backdrop on Friday',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'More, if it helps',
-                        controller: _description,
-                        maxLines: 3,
-                        hint: 'When, where, and what it involves.',
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('WHEN DO YOU NEED IT',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
-                      Wrap(
-                        spacing: GwdSpace.sm,
-                        runSpacing: GwdSpace.sm,
-                        children: [
-                          for (final (label, window) in _windows)
-                            _Tag(
-                              label: label,
-                              selected: _within == window,
-                              onTap: () => setState(() => _within = window),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('HOW MANY PEOPLE',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
-                      Wrap(
-                        spacing: GwdSpace.sm,
-                        runSpacing: GwdSpace.sm,
-                        children: [
-                          for (final n in const [1, 2, 3, 4, 5, 8])
-                            _Tag(
-                              label: n == 1 ? '1 person' : '$n people',
-                              selected: _maxHelpers == n,
-                              onTap: () => setState(() => _maxHelpers = n),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.xs),
-                      Text(
-                        'The ask stops taking offers once that many people are on it.',
-                        style: GwdType.caption
-                            .copyWith(letterSpacing: 0, color: GwdColors.inkTertiaryOf(context)),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('WHAT WOULD HELP',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
-                      Wrap(
-                        spacing: GwdSpace.sm,
-                        runSpacing: GwdSpace.sm,
-                        children: [
-                          for (final skill in _common)
-                            _Tag(
-                              label: skill,
-                              selected: _skills.contains(skill),
-                              onTap: () => setState(() {
-                                if (!_skills.remove(skill)) _skills.add(skill);
-                              }),
-                            ),
-                        ],
-                      ),
-                      if (events.isNotEmpty) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        Text('IS THIS FOR AN EVENT?',
-                            style:
-                                GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                        const SizedBox(height: GwdSpace.sm),
-                        Wrap(
-                          spacing: GwdSpace.sm,
-                          runSpacing: GwdSpace.sm,
-                          children: [
-                            for (final event in events.take(6))
-                              _Tag(
-                                label: event.name,
-                                selected: _eventId == event.id,
-                                onTap: () => setState(
-                                    () => _eventId = _eventId == event.id ? null : event.id),
-                              ),
-                          ],
-                        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SheetHeader(
+                title: 'What do you need a hand with?',
+                subtitle: 'Your department sees it first. Anyone in the club can offer.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GwdField(
+                      label: 'In one line',
+                      controller: _title,
+                      autofocus: true,
+                      hint: 'Need two people for the stage backdrop on Friday',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'More, if it helps',
+                      controller: _description,
+                      maxLines: 3,
+                      hint: 'When, where, and what it involves.',
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('WHEN DO YOU NEED IT',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    Wrap(
+                      spacing: GwdSpace.sm,
+                      runSpacing: GwdSpace.sm,
+                      children: [
+                        for (final (label, window) in _windows)
+                          _Tag(
+                            label: label,
+                            selected: _within == window,
+                            onTap: () => setState(() => _within = window),
+                          ),
                       ],
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('HOW MANY PEOPLE',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    Wrap(
+                      spacing: GwdSpace.sm,
+                      runSpacing: GwdSpace.sm,
+                      children: [
+                        for (final n in const [1, 2, 3, 4, 5, 8])
+                          _Tag(
+                            label: n == 1 ? '1 person' : '$n people',
+                            selected: _maxHelpers == n,
+                            onTap: () => setState(() => _maxHelpers = n),
+                          ),
                       ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: 'Ask',
-                        icon: Icons.pan_tool_alt_outlined,
-                        busy: _busy,
-                        onPressed: _title.text.trim().length >= 4 ? _submit : null,
+                    ),
+                    const SizedBox(height: GwdSpace.xs),
+                    Text(
+                      'The ask stops taking offers once that many people are on it.',
+                      style: GwdType.caption
+                          .copyWith(letterSpacing: 0, color: GwdColors.inkTertiaryOf(context)),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('WHAT WOULD HELP',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    Wrap(
+                      spacing: GwdSpace.sm,
+                      runSpacing: GwdSpace.sm,
+                      children: [
+                        for (final skill in _common)
+                          _Tag(
+                            label: skill,
+                            selected: _skills.contains(skill),
+                            onTap: () => setState(() {
+                              if (!_skills.remove(skill)) _skills.add(skill);
+                            }),
+                          ),
+                      ],
+                    ),
+                    if (events.isNotEmpty) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      Text('IS THIS FOR AN EVENT?',
+                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                      const SizedBox(height: GwdSpace.sm),
+                      Wrap(
+                        spacing: GwdSpace.sm,
+                        runSpacing: GwdSpace.sm,
+                        children: [
+                          for (final event in events.take(6))
+                            _Tag(
+                              label: event.name,
+                              selected: _eventId == event.id,
+                              onTap: () =>
+                                  setState(() => _eventId = _eventId == event.id ? null : event.id),
+                            ),
+                        ],
                       ),
                     ],
-                  ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
+                    ],
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: 'Ask',
+                      icon: Icons.pan_tool_alt_outlined,
+                      busy: _busy,
+                      onPressed: _title.text.trim().length >= 4 ? _submit : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

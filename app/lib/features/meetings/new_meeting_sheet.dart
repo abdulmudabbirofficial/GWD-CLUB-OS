@@ -145,153 +145,150 @@ class _NewMeetingSheetState extends State<_NewMeetingSheet> {
         .toList()
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, controller) => Container(
-          decoration: BoxDecoration(
-            color: GwdColors.surfaceOf(context),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-          ),
-          child: ListView(
-            controller: controller,
-            padding: const EdgeInsets.only(bottom: GwdSpace.xxl),
-            children: [
-              const SheetHeader(
-                title: 'Call a meeting',
-                subtitle: 'Everybody invited is told straight away.',
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: GwdSpace.xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GwdField(
-                      label: 'What is it about',
-                      controller: _title,
-                      autofocus: true,
-                      hint: 'Pre-event sync',
-                      textCapitalization: TextCapitalization.sentences,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: GwdSpace.lg),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, controller) => Container(
+        decoration: BoxDecoration(
+          color: GwdColors.surfaceOf(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        ),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.only(bottom: GwdSpace.xxl),
+          children: [
+            const SheetHeader(
+              title: 'Call a meeting',
+              subtitle: 'Everybody invited is told straight away.',
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: GwdSpace.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GwdField(
+                    label: 'What is it about',
+                    controller: _title,
+                    autofocus: true,
+                    hint: 'Pre-event sync',
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: GwdSpace.lg),
 
-                    // ---------- when ----------
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _Picker(
-                            label: 'Date',
-                            value: '${_date.day}/${_date.month}',
-                            icon: Icons.event_rounded,
-                            onTap: _pickDate,
-                          ),
+                  // ---------- when ----------
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Picker(
+                          label: 'Date',
+                          value: '${_date.day}/${_date.month}',
+                          icon: Icons.event_rounded,
+                          onTap: _pickDate,
                         ),
-                        const SizedBox(width: GwdSpace.sm),
-                        Expanded(
-                          child: _Picker(
-                            label: 'Starts',
-                            value: _hhmm(_start),
-                            icon: Icons.schedule_rounded,
-                            onTap: () => _pickTime(start: true),
-                          ),
+                      ),
+                      const SizedBox(width: GwdSpace.sm),
+                      Expanded(
+                        child: _Picker(
+                          label: 'Starts',
+                          value: _hhmm(_start),
+                          icon: Icons.schedule_rounded,
+                          onTap: () => _pickTime(start: true),
                         ),
-                        const SizedBox(width: GwdSpace.sm),
-                        Expanded(
-                          child: _Picker(
-                            label: 'Ends',
-                            value: _end == null ? 'Open' : _hhmm(_end!),
-                            icon: Icons.schedule_outlined,
-                            muted: _end == null,
-                            onTap: () => _pickTime(start: false),
-                          ),
+                      ),
+                      const SizedBox(width: GwdSpace.sm),
+                      Expanded(
+                        child: _Picker(
+                          label: 'Ends',
+                          value: _end == null ? 'Open' : _hhmm(_end!),
+                          icon: Icons.schedule_outlined,
+                          muted: _end == null,
+                          onTap: () => _pickTime(start: false),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
 
-                    const SizedBox(height: GwdSpace.lg),
-                    GwdField(
-                      label: 'Where (optional)',
-                      controller: _venue,
-                      hint: 'Seminar Hall 1, or a meeting link',
-                      onChanged: (_) => setState(() {}),
-                    ),
+                  const SizedBox(height: GwdSpace.lg),
+                  GwdField(
+                    label: 'Where (optional)',
+                    controller: _venue,
+                    hint: 'Seminar Hall 1, or a meeting link',
+                    onChanged: (_) => setState(() {}),
+                  ),
 
-                    // ---------- who: whole teams ----------
-                    const SizedBox(height: GwdSpace.xl),
-                    Text('INVITE A WHOLE TEAM',
-                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Everyone in the department at this moment, Lead included. '
-                      'The list is fixed now, so it will not change if somebody '
-                      'moves department later.',
-                      style: GwdType.caption
-                          .copyWith(letterSpacing: 0, color: GwdColors.inkTertiaryOf(context)),
-                    ),
-                    const SizedBox(height: GwdSpace.sm),
-                    Wrap(
-                      spacing: GwdSpace.sm,
-                      runSpacing: GwdSpace.sm,
-                      children: [
-                        for (final d in store.departments.where((d) => d.active))
-                          _Tag(
-                            label: '${d.name} team',
-                            selected: _departments.contains(d.id),
-                            onTap: () => setState(() {
-                              if (!_departments.remove(d.id)) _departments.add(d.id);
-                            }),
-                          ),
-                      ],
-                    ),
-
-                    // ---------- who: named people ----------
-                    const SizedBox(height: GwdSpace.lg),
-                    Text('OR ADD PEOPLE INDIVIDUALLY',
-                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                    const SizedBox(height: GwdSpace.sm),
-                    if (people.isEmpty)
-                      Text('Nobody else to invite yet.',
-                          style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
-                    else
-                      for (final person in people.take(40))
-                        _PersonRow(
-                          member: person,
-                          departmentName: store.departmentById(person.departmentId)?.name,
-                          selected: _people.contains(person.id),
+                  // ---------- who: whole teams ----------
+                  const SizedBox(height: GwdSpace.xl),
+                  Text('INVITE A WHOLE TEAM',
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Everyone in the department at this moment, Lead included. '
+                    'The list is fixed now, so it will not change if somebody '
+                    'moves department later.',
+                    style: GwdType.caption
+                        .copyWith(letterSpacing: 0, color: GwdColors.inkTertiaryOf(context)),
+                  ),
+                  const SizedBox(height: GwdSpace.sm),
+                  Wrap(
+                    spacing: GwdSpace.sm,
+                    runSpacing: GwdSpace.sm,
+                    children: [
+                      for (final d in store.departments.where((d) => d.active))
+                        _Tag(
+                          label: '${d.name} team',
+                          selected: _departments.contains(d.id),
                           onTap: () => setState(() {
-                            if (!_people.remove(person.id)) _people.add(person.id);
+                            if (!_departments.remove(d.id)) _departments.add(d.id);
                           }),
                         ),
-
-                    const SizedBox(height: GwdSpace.lg),
-                    GwdField(
-                      label: 'Anything to add (optional)',
-                      controller: _description,
-                      maxLines: 3,
-                      hint: 'What to bring, what will be decided.',
-                    ),
-
-                    if (_error != null) ...[
-                      const SizedBox(height: GwdSpace.lg),
-                      ErrorNote(message: _error!),
                     ],
-                    const SizedBox(height: GwdSpace.xl),
-                    PrimaryButton(
-                      label: 'Call the meeting',
-                      icon: Icons.groups_2_rounded,
-                      busy: _busy,
-                      onPressed: _canSubmit ? _submit : null,
-                    ),
+                  ),
+
+                  // ---------- who: named people ----------
+                  const SizedBox(height: GwdSpace.lg),
+                  Text('OR ADD PEOPLE INDIVIDUALLY',
+                      style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                  const SizedBox(height: GwdSpace.sm),
+                  if (people.isEmpty)
+                    Text('Nobody else to invite yet.',
+                        style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
+                  else
+                    for (final person in people.take(40))
+                      _PersonRow(
+                        member: person,
+                        departmentName: store.departmentById(person.departmentId)?.name,
+                        selected: _people.contains(person.id),
+                        onTap: () => setState(() {
+                          if (!_people.remove(person.id)) _people.add(person.id);
+                        }),
+                      ),
+
+                  const SizedBox(height: GwdSpace.lg),
+                  GwdField(
+                    label: 'Anything to add (optional)',
+                    controller: _description,
+                    maxLines: 3,
+                    hint: 'What to bring, what will be decided.',
+                  ),
+
+                  if (_error != null) ...[
+                    const SizedBox(height: GwdSpace.lg),
+                    ErrorNote(message: _error!),
                   ],
-                ),
+                  const SizedBox(height: GwdSpace.xl),
+                  PrimaryButton(
+                    label: 'Call the meeting',
+                    icon: Icons.groups_2_rounded,
+                    busy: _busy,
+                    onPressed: _canSubmit ? _submit : null,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

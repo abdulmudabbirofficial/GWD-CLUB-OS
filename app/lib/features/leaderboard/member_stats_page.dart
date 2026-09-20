@@ -1084,7 +1084,6 @@ class _AwardSheetState extends State<_AwardSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
     final member = widget.member;
 
     return Container(
@@ -1092,7 +1091,6 @@ class _AwardSheetState extends State<_AwardSheet> {
         color: GwdColors.canvasOf(context),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
       ),
-      padding: EdgeInsets.only(bottom: inset),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

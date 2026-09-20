@@ -91,7 +91,18 @@ router.get('/assignable', async (request, response, next) => {
     );
 
     return response.json({
-      assignable: candidates.filter((c) => canAssignTo(actor, c)).map(publicUser),
+      // Yourself is never in the picker.
+      //
+      // `canAssignTo` permits it — a Lead taking a job on rather than handing
+      // it out is a real thing — but that is a *different action* from choosing
+      // somebody, and listing your own face among the people you might send
+      // work to reads as a mistake. Leaving it in is also what made the
+      // leadership picker show four names when the club has exactly three
+      // officers to address. The permission is unchanged, so assigning to
+      // yourself through the API still works.
+      assignable: candidates
+        .filter((c) => canAssignTo(actor, c) && String(c._id) !== String(actor._id))
+        .map(publicUser),
       requestable: candidates.filter((c) => canRequestTo(actor, c)).map(publicUser),
       departments: departments.map((d) => ({
         id: String(d._id),

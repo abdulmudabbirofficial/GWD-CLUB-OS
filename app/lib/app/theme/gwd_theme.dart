@@ -185,11 +185,7 @@ class GwdType {
   // --- interface: everything a person actually reads ------------------------
 
   static const headline = TextStyle(
-      fontFamily: ui,
-      fontSize: 15,
-      height: 1.3,
-      fontWeight: FontWeight.w600,
-      letterSpacing: -0.2);
+      fontFamily: ui, fontSize: 15, height: 1.3, fontWeight: FontWeight.w600, letterSpacing: -0.2);
   static const body = TextStyle(
       fontFamily: ui,
       fontSize: 14.5,
@@ -203,28 +199,27 @@ class GwdType {
       fontWeight: FontWeight.w500,
       letterSpacing: -0.08);
   static const subhead = TextStyle(
-      fontFamily: ui,
-      fontSize: 12.5,
-      height: 1.36,
-      fontWeight: FontWeight.w500,);
+    fontFamily: ui,
+    fontSize: 12.5,
+    height: 1.36,
+    fontWeight: FontWeight.w500,
+  );
   static const footnote = TextStyle(
-      fontFamily: ui,
-      fontSize: 11.5,
-      height: 1.32,
-      fontWeight: FontWeight.w500,);
+    fontFamily: ui,
+    fontSize: 11.5,
+    height: 1.32,
+    fontWeight: FontWeight.w500,
+  );
   static const caption = TextStyle(
-      fontFamily: ui,
-      fontSize: 11,
-      height: 1.26,
-      fontWeight: FontWeight.w600,);
+    fontFamily: ui,
+    fontSize: 11,
+    height: 1.26,
+    fontWeight: FontWeight.w600,
+  );
 
   /// Section eyebrow. Uppercase, wide tracking, never larger than 10.5pt.
   static const eyebrow = TextStyle(
-      fontFamily: ui,
-      fontSize: 10.5,
-      height: 1.2,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.9);
+      fontFamily: ui, fontSize: 10.5, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: 0.9);
 
   // --- the bottom of the ramp ----------------------------------------------
   //
@@ -242,20 +237,12 @@ class GwdType {
   /// No tracking — it sits directly under normal text and must not look
   /// like a heading.
   static const micro = TextStyle(
-      fontFamily: ui,
-      fontSize: 9.5,
-      height: 1.25,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0);
+      fontFamily: ui, fontSize: 9.5, height: 1.25, fontWeight: FontWeight.w600, letterSpacing: 0);
 
   /// The smallest tracked label: chips, badges, the month in a date block.
   /// Uppercase in use, so the tracking is doing real work.
   static const microLabel = TextStyle(
-      fontFamily: ui,
-      fontSize: 9.5,
-      height: 1.2,
-      fontWeight: FontWeight.w700,
-      letterSpacing: 0.5);
+      fontFamily: ui, fontSize: 9.5, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: 0.5);
 
   /// Figures: points, percentages, counts, money, dates.
   ///

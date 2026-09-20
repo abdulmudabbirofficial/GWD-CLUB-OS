@@ -104,137 +104,133 @@ class _AddEventTaskSheetState extends State<_AddEventTaskSheet> {
     // actually accept — offering the whole club here just produces a refusal.
     final candidates = store.members.where((m) => m.departmentId == _departmentId).toList();
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SheetHeader(
-                  title: 'Add to the board',
-                  subtitle: 'Leave it unassigned and somebody can pick it up.',
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GwdField(
-                        label: 'What needs doing',
-                        controller: _title,
-                        autofocus: true,
-                        hint: 'Print the banners',
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('DEPARTMENT',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
+    return Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SheetHeader(
+                title: 'Add to the board',
+                subtitle: 'Leave it unassigned and somebody can pick it up.',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GwdField(
+                      label: 'What needs doing',
+                      controller: _title,
+                      autofocus: true,
+                      hint: 'Print the banners',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('DEPARTMENT',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    Wrap(
+                      spacing: GwdSpace.sm,
+                      runSpacing: GwdSpace.sm,
+                      children: [
+                        for (final d in widget.departments)
+                          _Tag(
+                            label: d.name,
+                            selected: _departmentId == d.departmentId,
+                            onTap: () => setState(() {
+                              _departmentId = d.departmentId;
+                              _assignee = null;
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    Text('WHO (OPTIONAL)',
+                        style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+                    const SizedBox(height: GwdSpace.sm),
+                    if (candidates.isEmpty)
+                      Text('Nobody in that department yet.',
+                          style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
+                    else
                       Wrap(
                         spacing: GwdSpace.sm,
                         runSpacing: GwdSpace.sm,
                         children: [
-                          for (final d in widget.departments)
+                          for (final m in candidates)
                             _Tag(
-                              label: d.name,
-                              selected: _departmentId == d.departmentId,
-                              onTap: () => setState(() {
-                                _departmentId = d.departmentId;
-                                _assignee = null;
-                              }),
+                              label: m.firstName,
+                              selected: _assignee == m.id,
+                              onTap: () =>
+                                  setState(() => _assignee = _assignee == m.id ? null : m.id),
                             ),
                         ],
                       ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Text('WHO (OPTIONAL)',
-                          style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
-                      const SizedBox(height: GwdSpace.sm),
-                      if (candidates.isEmpty)
-                        Text('Nobody in that department yet.',
-                            style:
-                                GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
-                      else
-                        Wrap(
-                          spacing: GwdSpace.sm,
-                          runSpacing: GwdSpace.sm,
-                          children: [
-                            for (final m in candidates)
-                              _Tag(
-                                label: m.firstName,
-                                selected: _assignee == m.id,
-                                onTap: () =>
-                                    setState(() => _assignee = _assignee == m.id ? null : m.id),
-                              ),
-                          ],
+                    const SizedBox(height: GwdSpace.lg),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MiniPicker(
+                            label: 'Due',
+                            value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
+                            icon: Icons.event_rounded,
+                            muted: _due == null,
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _due ?? DateTime.now(),
+                                firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (picked != null) setState(() => _due = picked);
+                            },
+                          ),
                         ),
-                      const SizedBox(height: GwdSpace.lg),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _MiniPicker(
-                              label: 'Due',
-                              value: _due == null ? 'No date' : '${_due!.day}/${_due!.month}',
-                              icon: Icons.event_rounded,
-                              muted: _due == null,
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: _due ?? DateTime.now(),
-                                  firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                                );
-                                if (picked != null) setState(() => _due = picked);
-                              },
-                            ),
+                        const SizedBox(width: GwdSpace.sm),
+                        Expanded(
+                          child: _MiniPicker(
+                            label: 'Priority',
+                            value: _priority.label,
+                            icon: Icons.flag_outlined,
+                            muted: _priority == TaskPriority.normal,
+                            onTap: () => setState(() {
+                              _priority = switch (_priority) {
+                                TaskPriority.low => TaskPriority.normal,
+                                TaskPriority.normal => TaskPriority.high,
+                                TaskPriority.high => TaskPriority.low,
+                              };
+                            }),
                           ),
-                          const SizedBox(width: GwdSpace.sm),
-                          Expanded(
-                            child: _MiniPicker(
-                              label: 'Priority',
-                              value: _priority.label,
-                              icon: Icons.flag_outlined,
-                              muted: _priority == TaskPriority.normal,
-                              onTap: () => setState(() {
-                                _priority = switch (_priority) {
-                                  TaskPriority.low => TaskPriority.normal,
-                                  TaskPriority.normal => TaskPriority.high,
-                                  TaskPriority.high => TaskPriority.low,
-                                };
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: GwdSpace.lg),
-                      GwdField(
-                        label: 'Notes',
-                        controller: _description,
-                        maxLines: 3,
-                        hint: 'Anything the person picking this up should know.',
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: GwdSpace.lg),
-                        ErrorNote(message: _error!),
+                        ),
                       ],
-                      const SizedBox(height: GwdSpace.xl),
-                      PrimaryButton(
-                        label: 'Add to board',
-                        busy: _saving,
-                        onPressed: valid ? _save : null,
-                      ),
+                    ),
+                    const SizedBox(height: GwdSpace.lg),
+                    GwdField(
+                      label: 'Notes',
+                      controller: _description,
+                      maxLines: 3,
+                      hint: 'Anything the person picking this up should know.',
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: GwdSpace.lg),
+                      ErrorNote(message: _error!),
                     ],
-                  ),
+                    const SizedBox(height: GwdSpace.xl),
+                    PrimaryButton(
+                      label: 'Add to board',
+                      busy: _saving,
+                      onPressed: valid ? _save : null,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

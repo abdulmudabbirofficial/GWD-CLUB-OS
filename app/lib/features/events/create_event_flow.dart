@@ -549,33 +549,30 @@ class _StepWorkState extends State<_StepWork> {
     final added = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
-        child: Container(
-          decoration: BoxDecoration(
-            color: GwdColors.surfaceOf(sheetContext),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-          ),
-          padding: const EdgeInsets.all(GwdSpace.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SheetHeader(title: 'Add a task'),
-              const SizedBox(height: GwdSpace.lg),
-              GwdField(
-                label: 'What needs doing',
-                controller: controller,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (value) => Navigator.of(sheetContext).pop(value),
-              ),
-              const SizedBox(height: GwdSpace.lg),
-              PrimaryButton(
-                label: 'Add',
-                onPressed: () => Navigator.of(sheetContext).pop(controller.text),
-              ),
-            ],
-          ),
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: GwdColors.surfaceOf(sheetContext),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        ),
+        padding: const EdgeInsets.all(GwdSpace.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHeader(title: 'Add a task'),
+            const SizedBox(height: GwdSpace.lg),
+            GwdField(
+              label: 'What needs doing',
+              controller: controller,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (value) => Navigator.of(sheetContext).pop(value),
+            ),
+            const SizedBox(height: GwdSpace.lg),
+            PrimaryButton(
+              label: 'Add',
+              onPressed: () => Navigator.of(sheetContext).pop(controller.text),
+            ),
+          ],
         ),
       ),
     );

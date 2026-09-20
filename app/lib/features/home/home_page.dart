@@ -540,13 +540,11 @@ class _WhatsNextCard extends StatelessWidget {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: GwdColors.tintOf(
-                    context, failed ? GwdColors.critical : GwdColors.success),
+                color: GwdColors.tintOf(context, failed ? GwdColors.critical : GwdColors.success),
                 shape: BoxShape.circle,
               ),
               child: Icon(failed ? Icons.wifi_off_rounded : GwdIcons.done,
-                  size: 19,
-                  color: failed ? GwdColors.critical : GwdColors.success),
+                  size: 19, color: failed ? GwdColors.critical : GwdColors.success),
             ),
             const SizedBox(width: GwdSpace.md),
             Expanded(
@@ -561,8 +559,7 @@ class _WhatsNextCard extends StatelessWidget {
                     store.loadError ?? 'Nothing is waiting on you right now.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                   ),
                 ],
               ),

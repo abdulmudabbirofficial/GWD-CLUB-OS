@@ -308,14 +308,12 @@ class _DepartmentEditorState extends State<_DepartmentEditor> {
   @override
   Widget build(BuildContext context) {
     final existing = widget.existing;
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Container(
       decoration: BoxDecoration(
         color: GwdColors.canvasOf(context),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
       ),
-      padding: EdgeInsets.only(bottom: inset),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
