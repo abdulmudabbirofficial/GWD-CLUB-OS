@@ -162,61 +162,100 @@ class _Grouped extends StatelessWidget {
       if (holders.isNotEmpty) offices.add(MapEntry(role, holders));
     }
 
-    var step = 0;
-    int next() => step++;
+    // Flattened to one lazy list.
+    //
+    // This is every approved person in the club, and each row owns a reveal
+    // animation, so an eager `ListView(children: [...])` built and animated a
+    // hundred controllers to show the eight rows that fit on a phone. Slivers
+    // build a screenful at a time, and the section headers stay declarative
+    // rather than being folded into an index arithmetic problem.
+    final executives = [for (final office in offices) ...office.value];
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, GwdSpace.xxxl),
-      children: [
-        if (offices.isNotEmpty) ...[
-          AppleStaggerItem(
-            index: next(),
-            child: const SectionHeader(
-              title: 'Running the club',
-              subtitle: 'The people every department reports through',
-            ),
-          ),
-          for (final office in offices)
-            for (final person in office.value)
-              AppleStaggerItem(
-                index: next(),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                  child: MemberRow(member: person, subtitle: person.role.title),
+    Widget row(Widget child, int index) => Padding(
+          padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+          // Only what is on screen at first paint is staggered. Beyond that a
+          // row is built because somebody scrolled to it, and fading it in
+          // then reads as the list struggling to keep up.
+          child: index < _staggerDepth
+              ? AppleStaggerItem(index: index, child: child)
+              : child,
+        );
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(layout.gutter, 0, layout.gutter, 0),
+          sliver: SliverList.list(
+            children: [
+              if (executives.isNotEmpty)
+                const AppleStaggerItem(
+                  index: 0,
+                  child: SectionHeader(
+                    title: 'Running the club',
+                    subtitle: 'The people every department reports through',
+                  ),
                 ),
-              ),
-        ],
-        const SizedBox(height: GwdSpace.xl),
-        AppleStaggerItem(
-          index: next(),
-          child: SectionHeader(
-            title: 'Departments',
-            subtitle: departments.length == 1
-                ? 'Open it to see the Lead and members'
-                : 'Open one to see its Lead and members',
+            ],
           ),
         ),
-        for (final d in departments)
-          AppleStaggerItem(
-            index: next(),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-              child: _DepartmentTile(
-                department: d,
-                people: people.where((m) => m.departmentId == d.id).toList(),
-              ),
+        SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: layout.gutter),
+          sliver: SliverList.builder(
+            itemCount: executives.length,
+            itemBuilder: (context, i) => row(
+              MemberRow(member: executives[i], subtitle: executives[i].role.title),
+              i + 1,
             ),
           ),
-        if (departments.isEmpty && offices.isEmpty)
-          const EmptyState(
-            icon: Icons.person_search_outlined,
-            title: 'Nobody here yet',
-            message: 'Approved members appear here, grouped by department.',
+        ),
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(layout.gutter, GwdSpace.xl, layout.gutter, 0),
+          sliver: SliverList.list(
+            children: [
+              AppleStaggerItem(
+                index: 1,
+                child: SectionHeader(
+                  title: 'Departments',
+                  subtitle: departments.length == 1
+                      ? 'Open it to see the Lead and members'
+                      : 'Open one to see its Lead and members',
+                ),
+              ),
+            ],
           ),
+        ),
+        SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: layout.gutter),
+          sliver: SliverList.builder(
+            itemCount: departments.length,
+            itemBuilder: (context, i) => row(
+              _DepartmentTile(
+                department: departments[i],
+                people: people.where((m) => m.departmentId == departments[i].id).toList(),
+              ),
+              executives.length + i + 1,
+            ),
+          ),
+        ),
+        if (departments.isEmpty && executives.isEmpty)
+          const SliverToBoxAdapter(
+            child: EmptyState(
+              icon: Icons.person_search_outlined,
+              title: 'Nobody here yet',
+              message: 'Approved members appear here, grouped by department.',
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: GwdSpace.xxxl)),
       ],
     );
   }
 }
+
+/// How far down a lazily-built list the entrance stagger runs.
+///
+/// Roughly a screenful. Past that, a row exists because somebody scrolled to
+/// it, and animating it in is motion that reports nothing.
+const int _staggerDepth = 8;
 
 class _DepartmentTile extends StatelessWidget {
   const _DepartmentTile({required this.department, required this.people});

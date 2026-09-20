@@ -230,26 +230,20 @@ class _ClubShellState extends State<ClubShell> {
 
   @override
   Widget build(BuildContext context) {
-    final store = AppScope.storeOf(context);
+    // `readStore`, not `storeOf`: the shell wraps every screen in the app, and
+    // subscribing it to the whole store meant one socket event about somebody
+    // else's task rebuilt the shell, which rebuilt the current tab, which is a
+    // fifty-kilobyte widget tree. The only thing the shell itself displays from
+    // the store is three badge numbers, and those watch themselves below.
+    final store = AppScope.readStore(context);
     final layout = Layout.of(context);
 
-    final pages = [
-      HomePage(onNavigate: _selectTab),
-      const EventsPage(),
-      const TasksPage(),
-      const DepartmentsHubPage(),
-      const MorePage(),
-    ];
-
-    final items = <NavItem>[
-      const NavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
-      NavItem(Icons.event_outlined, Icons.event_rounded, 'Events',
-          badge: store.eventsOngoing.length, accentBadge: true),
-      NavItem(Icons.check_circle_outline, Icons.check_circle_rounded, 'Work',
-          badge: store.myTasks.where((t) => t.status.isOpen).length),
-      const NavItem(Icons.workspaces_outline, Icons.workspaces_rounded, 'Departments'),
-      NavItem(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
-          badge: store.unreadNotifications + store.pendingApprovals.length, accentBadge: true),
+    final builders = <WidgetBuilder>[
+      (_) => HomePage(onNavigate: _selectTab),
+      (_) => const EventsPage(),
+      (_) => const TasksPage(),
+      (_) => const DepartmentsHubPage(),
+      (_) => const MorePage(),
     ];
 
     // Tell everything inside the shell how tall the bar over it is.
@@ -274,10 +268,7 @@ class _ClubShellState extends State<ClubShell> {
       child: Navigator(
         key: _navigatorKey,
         onGenerateRoute: (_) => MaterialPageRoute(
-          builder: (_) => FluidTabSwitcher(
-            index: _index,
-            child: KeyedSubtree(key: ValueKey(_index), child: pages[_index]),
-          ),
+          builder: (_) => _TabStack(index: _index, builders: builders),
         ),
       ),
     );
@@ -297,11 +288,13 @@ class _ClubShellState extends State<ClubShell> {
         body: layout.usesRail
             ? Row(
                 children: [
-                  _ClubNavRail(
-                    index: _index,
-                    items: items,
-                    onChanged: _selectTab,
-                    extended: layout.twoColumn,
+                  _Badges(
+                    builder: (context, items) => _ClubNavRail(
+                      index: _index,
+                      items: items,
+                      onChanged: _selectTab,
+                      extended: layout.twoColumn,
+                    ),
                   ),
                   Expanded(child: body),
                 ],
@@ -309,8 +302,122 @@ class _ClubShellState extends State<ClubShell> {
             : body,
         bottomNavigationBar: layout.usesRail
             ? null
-            : _ClubNavBar(index: _index, items: items, onChanged: _selectTab),
+            : _Badges(
+                builder: (context, items) =>
+                    _ClubNavBar(index: _index, items: items, onChanged: _selectTab),
+              ),
       ),
+    );
+  }
+}
+
+/// The five tabs, each built once and then kept.
+///
+/// The shell used to hand `AnimatedSwitcher` a child keyed on the tab index,
+/// which meant every switch **destroyed the outgoing page**: scroll position
+/// gone, entrance animations replayed, and any `initState` fetch run again. A
+/// tab you flick to and back from should be where you left it, and should not
+/// cost a round trip to find that out.
+///
+/// Lazy, so an account that never opens Departments never builds it. Alive
+/// after that, so it never builds twice. And `TickerMode` is switched off for
+/// every hidden tab, because an `IndexedStack` keeps its children in the tree
+/// and their animation controllers would otherwise keep ticking on a page
+/// nobody is looking at.
+class _TabStack extends StatefulWidget {
+  const _TabStack({required this.index, required this.builders});
+
+  final int index;
+  final List<WidgetBuilder> builders;
+
+  @override
+  State<_TabStack> createState() => _TabStackState();
+}
+
+class _TabStackState extends State<_TabStack> with SingleTickerProviderStateMixin {
+  final Set<int> _built = {};
+
+  // One short fade-and-lift for the whole stack on each switch, rather than a
+  // transition per page. A tab change should read as a change without costing
+  // a composited layer per row of whatever is on screen.
+  late final AnimationController _enter = AnimationController(
+    vsync: this,
+    duration: AppleDuration.standard,
+    value: 1,
+  );
+
+  @override
+  void didUpdateWidget(_TabStack old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index && !prefersReducedMotion(context)) {
+      _enter.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _enter.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _built.add(widget.index);
+
+    final stack = IndexedStack(
+      index: widget.index,
+      sizing: StackFit.expand,
+      children: [
+        for (var i = 0; i < widget.builders.length; i++)
+          if (_built.contains(i))
+            TickerMode(enabled: i == widget.index, child: widget.builders[i](context))
+          else
+            const SizedBox.shrink(),
+      ],
+    );
+
+    if (prefersReducedMotion(context)) return stack;
+
+    final eased = CurvedAnimation(parent: _enter, curve: AppleCurves.enter);
+    return FadeTransition(
+      opacity: eased,
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.012), end: Offset.zero).animate(eased),
+        child: stack,
+      ),
+    );
+  }
+}
+
+/// The nav badges, and nothing else, watching the store.
+///
+/// Three numbers out of a store that notifies from sixty places. Pulled out so
+/// the counts stay live without the shell — and therefore the whole current
+/// tab — rebuilding underneath them.
+class _Badges extends StatelessWidget {
+  const _Badges({required this.builder});
+
+  final Widget Function(BuildContext context, List<NavItem> items) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScope.select<({int live, int mine, int needsYou})>(
+      context,
+      (store) => (
+        live: store.eventsOngoing.length,
+        mine: store.myTasks.where((t) => t.status.isOpen).length,
+        needsYou: store.unreadNotifications + store.pendingApprovals.length,
+      ),
+      (context, counts) => builder(context, [
+        const NavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
+        NavItem(Icons.event_outlined, Icons.event_rounded, 'Events',
+            badge: counts.live, accentBadge: true),
+        NavItem(Icons.check_circle_outline, Icons.check_circle_rounded, 'Work',
+            badge: counts.mine),
+        const NavItem(Icons.workspaces_outline, Icons.workspaces_rounded, 'Departments'),
+        NavItem(Icons.more_horiz_rounded, Icons.more_horiz_rounded, 'More',
+            badge: counts.needsYou, accentBadge: true),
+      ]),
     );
   }
 }

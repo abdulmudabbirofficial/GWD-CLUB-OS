@@ -72,44 +72,72 @@ class _MeetingsPageState extends State<MeetingsPage> {
                         : 'You will see meetings here as soon as you are invited to one.',
                   ),
                 ])
-              : ListView(
-                  padding: EdgeInsets.fromLTRB(
-                      layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl + 40),
-                  children: [
+              : CustomScrollView(
+                  slivers: [
                     if (upcoming.isNotEmpty) ...[
-                      const SectionHeader(title: 'Coming up'),
-                      for (var i = 0; i < upcoming.length; i++)
-                        AppleStaggerItem(
-                          index: i,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                            child: MeetingCard(meeting: upcoming[i]),
-                          ),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                            layout.gutter, GwdSpace.lg, layout.gutter, 0),
+                        sliver: const SliverToBoxAdapter(
+                          child: SectionHeader(title: 'Coming up'),
                         ),
+                      ),
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: layout.gutter),
+                        sliver: SliverList.builder(
+                          itemCount: upcoming.length,
+                          itemBuilder: (context, i) => _row(upcoming[i], i),
+                        ),
+                      ),
                     ],
                     if (past.isNotEmpty) ...[
-                      if (upcoming.isNotEmpty) const SizedBox(height: GwdSpace.xl),
-                      SectionHeader(
-                        title: 'Been and gone',
-                        subtitle: past.any((m) => !m.attendanceRecorded && !m.isCancelled)
-                            ? 'Some still need attendance recording'
-                            : null,
-                      ),
-                      for (var i = 0; i < past.length; i++)
-                        AppleStaggerItem(
-                          index: upcoming.length + i,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
-                            child: MeetingCard(meeting: past[i]),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          layout.gutter,
+                          upcoming.isEmpty ? GwdSpace.lg : GwdSpace.xl,
+                          layout.gutter,
+                          0,
+                        ),
+                        sliver: SliverToBoxAdapter(
+                          child: SectionHeader(
+                            title: 'Been and gone',
+                            subtitle:
+                                past.any((m) => !m.attendanceRecorded && !m.isCancelled)
+                                    ? 'Some still need attendance recording'
+                                    : null,
                           ),
                         ),
+                      ),
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: layout.gutter),
+                        sliver: SliverList.builder(
+                          itemCount: past.length,
+                          itemBuilder: (context, i) =>
+                              _row(past[i], upcoming.length + i),
+                        ),
+                      ),
                     ],
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: GwdSpace.xxxl + 40),
+                    ),
                   ],
                 ),
         ),
       ),
     );
   }
+
+  /// One row, staggered only while it is part of the first screenful.
+  ///
+  /// A meeting list runs the whole term. Building and animating every card to
+  /// show the five that fit is work nobody sees, and a card that fades in as
+  /// you scroll past it reads as the list lagging.
+  Widget _row(Meeting meeting, int index) => Padding(
+        padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+        child: index < 8
+            ? AppleStaggerItem(index: index, child: MeetingCard(meeting: meeting))
+            : MeetingCard(meeting: meeting),
+      );
 }
 
 /// One meeting, as a row.

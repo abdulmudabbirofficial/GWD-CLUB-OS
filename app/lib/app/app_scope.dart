@@ -42,6 +42,29 @@ class AppScope extends StatefulWidget {
   static ClubStore readStore(BuildContext context) => _stateOf(context).widget.store;
   static Session readSession(BuildContext context) => _stateOf(context).widget.session;
 
+  /// Watch **one slice** of the store.
+  ///
+  /// [storeOf] subscribes to the whole thing, which is fine for a screen that
+  /// genuinely redraws whenever anything changes and wrong for everything else.
+  /// `ClubStore` notifies from sixty-odd places and a live club fires those
+  /// constantly, so a widget showing a single number was being rebuilt by
+  /// somebody else's comment on somebody else's task.
+  ///
+  /// Use this where a widget shows a small, nameable part of the store. Leave
+  /// [storeOf] where a screen really does depend on most of it — narrowing a
+  /// subscription that was already correct buys nothing and costs a comparison.
+  ///
+  /// [pick] must return something with a meaningful `==`: a number, a string, a
+  /// record of those. Returning a `List` compares by identity and will rebuild
+  /// every time regardless, which is the one way to use this and gain nothing.
+  static Widget select<T>(
+    BuildContext context,
+    T Function(ClubStore store) pick,
+    Widget Function(BuildContext context, T value) build,
+  ) {
+    return StoreSelector<T>(pick: pick, builder: build);
+  }
+
   @override
   State<AppScope> createState() => _AppScopeState();
 }
@@ -98,4 +121,61 @@ class _StoreScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_StoreScope oldWidget) => oldWidget.tick != tick;
+}
+
+/// Rebuilds its subtree only when the value it picks out of the store changes.
+///
+/// The counterpart to [AppScope.storeOf], for widgets that depend on a slice
+/// rather than on everything. It listens to the store directly instead of
+/// through the inherited scope, so it is unaffected by — and does not
+/// participate in — the tree-wide rebuild that `storeOf` subscribers get.
+class StoreSelector<T> extends StatefulWidget {
+  const StoreSelector({super.key, required this.pick, required this.builder});
+
+  final T Function(ClubStore store) pick;
+  final Widget Function(BuildContext context, T value) builder;
+
+  @override
+  State<StoreSelector<T>> createState() => _StoreSelectorState<T>();
+}
+
+class _StoreSelectorState<T> extends State<StoreSelector<T>> {
+  ClubStore? _store;
+  late T _value;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final store = AppScope.readStore(context);
+    if (identical(store, _store)) return;
+    _store?.removeListener(_onChanged);
+    _store = store..addListener(_onChanged);
+    _value = widget.pick(store);
+  }
+
+  @override
+  void didUpdateWidget(StoreSelector<T> old) {
+    super.didUpdateWidget(old);
+    // The closure is usually rebuilt with the parent, so re-read through the
+    // new one rather than trusting a value picked by the old one.
+    final store = _store;
+    if (store != null) _value = widget.pick(store);
+  }
+
+  void _onChanged() {
+    final store = _store;
+    if (store == null || !mounted) return;
+    final next = widget.pick(store);
+    if (next == _value) return;
+    setState(() => _value = next);
+  }
+
+  @override
+  void dispose() {
+    _store?.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _value);
 }
