@@ -462,6 +462,13 @@ Future<T?> showMorphSheet<T>({
 /// Every sheet in the app goes through here rather than calling
 /// `showModalBottomSheet` directly, because the two things that keep going
 /// wrong are the two things no individual sheet should be deciding for itself.
+///
+/// The five `DraggableScrollableSheet` sheets are the deliberate exception and
+/// should stay that way. They size themselves as a fraction of the screen and
+/// add the keyboard inset as scroll room *inside* their own list, which is the
+/// right answer for a sheet you can drag to full height. Wrapping one in this
+/// would cap a height it is supposed to control and lift a sheet that has
+/// already made room for itself.
 Future<T?> showGwdSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,

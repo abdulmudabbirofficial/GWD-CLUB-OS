@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:gwd_club_os/features/analytics/audit_language.dart';
 import 'package:gwd_club_os/app/theme/gwd_theme.dart';
 import 'package:gwd_club_os/app/widgets/common.dart';
 import 'package:gwd_club_os/core/models/app_notification.dart';
@@ -1269,6 +1270,88 @@ void main() {
       ]) {
         expect(of(type).icon, isNot(generic), reason: type);
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // THE ACTIVITY LOG
+  // ---------------------------------------------------------------------
+  group('audit language', () {
+    // Every action name the backend writes, taken from the `audit(...)` calls
+    // in backend/src. A new one added there and forgotten here shows up in the
+    // club's activity log as a tidied-up machine string, which is how forty
+    // identical rows reading "Task create department" got shipped in the first
+    // place.
+    const actions = [
+      'alert.broadcast',
+      'bill.create', 'bill.decision', 'bill.delete', 'bill.settle',
+      'category.create', 'category.delete', 'category.update',
+      'department.create', 'department.deactivate', 'department.setLead',
+      'department.update',
+      'document.decision', 'document.delete', 'document.replace', 'document.upload',
+      'event.cancel', 'event.create', 'event.delete', 'event.department.add',
+      'event.status', 'event.task.claim', 'event.task.create', 'event.update',
+      'help.create', 'help.offer', 'help.status',
+      'meeting.attendance', 'meeting.create', 'meeting.update',
+      'password.change', 'password.forgot', 'password.reset',
+      'points.award',
+      'schedule.create', 'schedule.delete',
+      'signup',
+      'task.create', 'task.create.department', 'task.delete', 'task.distribute',
+      'task.update',
+      'taskRequest.accept', 'taskRequest.create',
+      'user.remove', 'user.rename', 'user.roleChange',
+    ];
+
+    test('every action the backend writes has a sentence of its own', () {
+      for (final action in actions) {
+        final sentence = describeAudit(action, const {});
+        expect(sentence, isNotEmpty, reason: action);
+        // The fallback is the tidied action name, so a hand-written sentence is
+        // one that does not merely echo the dotted action back.
+        expect(
+          sentence.toLowerCase(),
+          isNot(action.replaceAll(RegExp(r'[._]'), ' ').toLowerCase()),
+          reason: '$action still falls through to the generic tidy-up',
+        );
+      }
+    });
+
+    test('the detail names the thing that happened', () {
+      expect(
+        describeAudit('task.create.department', const {
+          'title': 'Book the auditorium',
+          'departmentName': 'Event Management',
+        }),
+        'Sent \u201cBook the auditorium\u201d to Event Management',
+      );
+      expect(
+        describeAudit('event.create', const {'name': 'Orientation Night'}),
+        'Created the event \u201cOrientation Night\u201d',
+      );
+      expect(
+        describeAudit('points.award', const {'points': 5}),
+        'Awarded 5 points by hand',
+      );
+    });
+
+    test('a missing detail leaves a sentence, never a dangling quote', () {
+      for (final action in actions) {
+        final sentence = describeAudit(action, const {});
+        expect(sentence.contains('\u201c'), isFalse, reason: action);
+        expect(sentence.trim(), sentence, reason: action);
+        expect(sentence.endsWith(' '), isFalse, reason: action);
+      }
+      // An empty string in the detail is the same as no detail: it must not
+      // produce `Created the event ""`.
+      expect(describeAudit('event.create', const {'name': '   '}),
+          'Created the event');
+    });
+
+    test('an action from a newer server still reads as something', () {
+      // Not a crash, not an empty row, and not the raw dotted string.
+      expect(describeAudit('rocket.launch.scheduled', const {}), 'Rocket launch scheduled');
+      expect(describeAudit('', const {}), 'Something happened');
     });
   });
 }

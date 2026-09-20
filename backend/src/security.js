@@ -61,6 +61,25 @@ const headers = (request, response, next) => {
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Referrer-Policy', 'no-referrer');
 
+  // Features this app has no use for. Denying them means a compromised page
+  // cannot quietly ask for them either, and none of it costs anything.
+  response.setHeader(
+    'Permissions-Policy',
+    'geolocation=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=()',
+  );
+
+  // HSTS, but only once the connection is already secure.
+  //
+  // The club's own server is a laptop on college Wi-Fi speaking plain HTTP, and
+  // sending HSTS from there would pin every phone that ever loaded it to an
+  // HTTPS endpoint that does not exist - a self-inflicted outage with a
+  // six-month memory. Behind a TLS terminator, `x-forwarded-proto` is how the
+  // proxy says it has already done the encrypting.
+  const proto = String(request.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  if (request.secure || proto === 'https') {
+    response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+
   // Two different things are served from this origin and they need different
   // policies. Getting this wrong is silent and total: a `default-src 'none'`
   // on the web build blocks its own scripts and the site renders a blank page
@@ -79,6 +98,13 @@ const headers = (request, response, next) => {
     //
     // 'wasm-unsafe-eval' is required: Flutter's web renderer instantiates
     // WebAssembly, and without it the app does not start at all.
+    //
+    // `connect-src` stays wide on purpose. The sign-in screen carries a server
+    // address override, which exists because this laptop's IP has already moved
+    // twice mid-term; narrowing this to 'self' would silently break the one
+    // control somebody has when that happens. It only guards exfiltration
+    // *after* a script injection, and script-src is what stops that.
+    response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     response.setHeader(
       'Content-Security-Policy',
       [
@@ -151,6 +177,27 @@ function rateLimit({ windowMs, max, name, keyOn }) {
   };
 }
 
+/**
+ * A ceiling on any one client, however it authenticates.
+ *
+ * Not a security boundary - everything behind it is already authorised - but a
+ * runaway client is indistinguishable from an attack and does the same damage.
+ * A load test of a hundred concurrent sign-ins starved every change stream in
+ * the process, taking live sync down for the whole club; one phone stuck in a
+ * retry loop can do the same thing more quietly.
+ *
+ * Keyed on the bearer token where there is one rather than on IP, because a
+ * club on a single hotspot shares one address and a per-IP ceiling would count
+ * eighty people as one very busy attacker. The limit is set where no real
+ * person reaches it: a heavy screen costs a handful of requests, not hundreds.
+ */
+const apiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 600,
+  name: 'api',
+  keyOn: (request) => request.headers.authorization || '',
+});
+
 /** The email a request is about, lowercased — never an object. */
 const emailKey = (request) =>
   typeof request.body?.email === 'string'
@@ -218,6 +265,7 @@ function dispositionFor(mimeType, filename) {
 }
 
 module.exports = {
+  apiLimiter,
   sanitize,
   headers,
   rateLimit,

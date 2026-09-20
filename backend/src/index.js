@@ -52,6 +52,11 @@ app.use(express.json({ limit: '1mb' }));
 // never meant to. Defence in depth: individual routes validate too.
 app.use(security.sanitize);
 
+// A ceiling on any one client. Mounted on /api only: the web build's own
+// assets are static files and a member loading the app pulls dozens of them at
+// once, which would burn a request budget meant for API calls.
+app.use('/api', security.apiLimiter);
+
 // The Flutter web build, when one has been produced.
 const webBuild = path.join(__dirname, '../../app/build/web');
 app.use(express.static(webBuild));

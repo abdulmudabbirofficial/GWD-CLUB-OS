@@ -6,6 +6,7 @@ import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/charts.dart';
 import '../../app/widgets/common.dart';
+import 'audit_language.dart';
 
 /// The club dashboard, for Directors, the Faculty Coordinator and the President.
 ///
@@ -486,7 +487,7 @@ class _AuditRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  describe(action, detail),
+                  describeAudit(action, detail),
                   style: GwdType.callout.copyWith(color: GwdColors.inkOf(context)),
                 ),
                 const SizedBox(height: 1),
@@ -500,91 +501,6 @@ class _AuditRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// What happened, in a sentence.
-  ///
-  /// Visible for testing, and deliberately total: an action this does not know
-  /// still produces something readable rather than an empty row, because a new
-  /// audit action added on the server must never make the log look broken on a
-  /// client that has not been rebuilt.
-  static String describe(String action, Map<String, dynamic> detail) {
-    String named(String key, [String fallback = '']) {
-      final value = detail[key];
-      if (value == null) return fallback;
-      final text = '$value'.trim();
-      return text.isEmpty ? fallback : text;
-    }
-
-    final title = named('title', named('name', named('departmentName')));
-    final quoted = title.isEmpty ? '' : ' \u201c$title\u201d';
-    final department = named('departmentName');
-
-    return switch (action) {
-      'task.create.department' => department.isEmpty
-          ? 'Sent$quoted to a department'
-          : 'Sent$quoted to $department',
-      'task.create' => 'Created the task$quoted',
-      'task.distribute' => 'Handed out$quoted',
-      'task.update' => 'Updated$quoted',
-      'task.delete' => 'Deleted$quoted',
-      'taskRequest.create' => 'Asked somebody to take on$quoted',
-      'taskRequest.accept' => 'Accepted a task request',
-      'event.create' => 'Created the event$quoted',
-      'event.update' => 'Updated the event$quoted',
-      'event.status' => 'Moved an event to ${named('status', 'a new stage')}',
-      'event.cancel' => 'Cancelled the event$quoted',
-      'event.delete' => 'Deleted the event$quoted',
-      'event.department.add' => department.isEmpty
-          ? 'Brought a department into an event'
-          : 'Brought $department into an event',
-      'event.task.create' => 'Added$quoted to an event',
-      'event.task.claim' => 'Picked up$quoted',
-      'document.upload' => 'Filed the document$quoted',
-      'document.replace' => 'Replaced the document$quoted',
-      'document.decision' => 'Decided on the document$quoted',
-      'document.delete' => 'Removed the document$quoted',
-      'bill.create' => 'Filed the expense$quoted',
-      'bill.decision' => 'Decided on the expense$quoted',
-      'bill.settle' => 'Marked an expense as paid',
-      'bill.delete' => 'Removed an expense',
-      'department.create' => 'Created the department$quoted',
-      'department.update' => 'Renamed a department',
-      'department.setLead' => 'Changed who leads a department',
-      'department.deactivate' => 'Retired a department',
-      'category.create' => 'Added the schedule category$quoted',
-      'category.update' => 'Changed a schedule category',
-      'category.delete' => 'Retired a schedule category',
-      'schedule.create' => 'Added$quoted to the schedule',
-      'schedule.delete' => 'Removed something from the schedule',
-      'meeting.create' => 'Called the meeting$quoted',
-      'meeting.update' => 'Changed a meeting',
-      'meeting.attendance' => 'Took attendance at a meeting',
-      'help.create' => 'Asked for help with$quoted',
-      'help.offer' => 'Offered to help',
-      'help.status' => 'Closed a request for help',
-      'alert.broadcast' => 'Sent a club alert',
-      'points.award' => 'Awarded ${named('points', 'some')} points by hand',
-      'signup' => 'Signed up',
-      'user.rename' => 'Set somebody\u2019s name',
-      'user.roleChange' => 'Changed somebody\u2019s role',
-      'user.remove' => 'Removed somebody from the club',
-      'password.change' => 'Changed their password',
-      'password.forgot' => 'Asked for a password reset',
-      'password.reset' => 'Reset somebody\u2019s password',
-      _ => _tidy(action),
-    };
-  }
-
-  /// Last resort for an action this build has never heard of.
-  static String _tidy(String action) {
-    final words = action
-        .split(RegExp(r'[._]'))
-        .where((w) => w.isNotEmpty)
-        .map((w) => w.replaceAllMapped(RegExp('([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}'))
-        .join(' ');
-    if (words.isEmpty) return 'Something happened';
-    return words[0].toUpperCase() + words.substring(1).toLowerCase();
   }
 
   static IconData _iconFor(String action) {
