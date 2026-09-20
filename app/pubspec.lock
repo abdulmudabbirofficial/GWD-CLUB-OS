@@ -41,14 +41,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  circular_clip_route:
-    dependency: "direct main"
-    description:
-      name: circular_clip_route
-      sha256: "9f5b38e405ad4b0713c2ba8767a7a2afb6da7f0076a12ea1511144765d0e6a13"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.0+3"
   clock:
     dependency: transitive
     description:

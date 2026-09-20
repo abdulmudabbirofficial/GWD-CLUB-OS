@@ -1,4 +1,3 @@
-import 'package:circular_clip_route/circular_clip_route.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
@@ -203,28 +202,22 @@ class _DepartmentTile extends StatelessWidget {
     return SurfaceCard(
       padding: const EdgeInsets.all(GwdSpace.lg),
       borderColor: mine ? tint.withValues(alpha: 0.3) : null,
-      // The department's page opens as a circle spreading from the row you
-      // tapped, in that department's own colour. It ties the tile to the page
-      // it became — you can see where you came from — where a slide would just
-      // be another screen arriving from the right.
+      // An ordinary push, like everywhere else in the app.
       //
-      // Reduced-motion is honoured: the flag comes from the platform, and
-      // somebody who has asked for less movement gets the ordinary transition.
-      onTap: () {
-        if (prefersReducedMotion(context)) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => DepartmentRecognitionPage(departmentId: group.departmentId),
-          ));
-          return;
-        }
-        Navigator.of(context).push(CircularClipRoute(
-          builder: (_) => DepartmentRecognitionPage(departmentId: group.departmentId),
-          expandFrom: context,
-          curve: AppleCurves.enter,
-          reverseCurve: AppleCurves.exit,
-          transitionDuration: AppleDuration.standard,
-        ));
-      },
+      // This used to open as a circle spreading from the row, via
+      // `CircularClipRoute`. That route declares `opaque => false` for its whole
+      // life rather than only while it animates, so the page underneath is
+      // never taken down — it keeps painting, forever. It was invisible only
+      // because the destination used to have an opaque background of its own;
+      // once every Scaffold went transparent so the app's backdrop could show
+      // through, Recognition and the department page rendered *on top of each
+      // other*, two app bars and two lists interleaved.
+      //
+      // A reveal that cannot be made correct is not worth one screen behaving
+      // differently from the other thirty.
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => DepartmentRecognitionPage(departmentId: group.departmentId),
+      )),
       child: Row(
         children: [
           Container(

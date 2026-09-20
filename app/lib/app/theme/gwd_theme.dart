@@ -158,30 +158,30 @@ class GwdColors {
           stops: [0.0, 0.07, 0.17, 0.29, 0.43, 0.60, 0.84],
         );
 
-  /// Colours that tell one department, member or category from another.
+  /// Colours that tell one department, event or member from another.
   ///
-  /// A distinguisher, not a brand statement: the reader needs to see that
-  /// Marketing and Creative are different at a glance, and nothing more. So
-  /// they are held to one band of lightness and the brand crimson leads.
+  /// All of them warm, and all of them inside the same band as the brand:
+  /// hues run from wine at 343 degrees round through crimson to ember at 22,
+  /// and nothing goes further. A colour past that starts reading gold, and a
+  /// gold header on an oxblood app looks like two products stitched together —
+  /// which is exactly what the drone event looked like.
   ///
-  /// The set this replaces was chosen against a white canvas and contained two
-  /// colours that could not work. `#0B0B0F` is near-black, and the avatar tile
-  /// paints the tint as its *text* on a 12% wash of itself — so a department
-  /// that hashed to it rendered black initials on a black circle, twice over on
-  /// a dark theme. `#6D28D9` is a violet, which in an app built on crimson
-  /// reads as something from another product.
+  /// They separate by *tone* as much as by hue, because eight colours cannot be
+  /// told apart inside a forty-degree band on hue alone. Relative luminance
+  /// runs 0.05 to 0.28 across the set, so plum and rose are obviously different
+  /// things even though they are nearly the same colour.
   ///
   /// Anything stored before this still comes back from the server, so nothing
-  /// here is load-bearing for legibility on its own — [readableOn] is.
+  /// here is load-bearing on its own — [readableOn] is.
   static const accents = <Color>[
-    Color(0xFFDC2626), // crimson — the brand, first so it is the most common
-    Color(0xFFE11D48), // rose
-    Color(0xFFEA580C), // orange
-    Color(0xFFCA8A04), // amber
-    Color(0xFF16A34A), // green
-    Color(0xFF0D9488), // teal
-    Color(0xFF2563EB), // blue
-    Color(0xFF64748B), // slate
+    Color(0xFFC81E2A), // crimson — the brand, first so it is the most common
+    Color(0xFFE2607A), // rose — the light end
+    Color(0xFF8E1538), // wine
+    Color(0xFFB33A22), // rust
+    Color(0xFFD9773F), // ember — the warmest, and still short of gold
+    Color(0xFF6E2439), // plum — the deep end
+    Color(0xFFA85C4E), // terracotta — the muted one
+    Color(0xFFC43C55), // raspberry
   ];
 
   /// The same colour, guaranteed to be readable on the current theme.

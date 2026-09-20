@@ -27,14 +27,14 @@
  * created badly.
  */
 const ACCENTS = [
-  '#DC2626', // crimson — the brand, first so it is the most common
-  '#E11D48', // rose
-  '#EA580C', // orange
-  '#CA8A04', // amber
-  '#16A34A', // green
-  '#0D9488', // teal
-  '#2563EB', // blue
-  '#64748B', // slate
+  '#C81E2A', // crimson — the brand, first so it is the most common
+  '#E2607A', // rose — the light end
+  '#8E1538', // wine
+  '#B33A22', // rust
+  '#D9773F', // ember — the warmest, and still short of gold
+  '#6E2439', // plum — the deep end
+  '#A85C4E', // terracotta — the muted one
+  '#C43C55', // raspberry
 ];
 
 /**
@@ -43,10 +43,10 @@ const ACCENTS = [
  */
 const CATEGORY_PALETTE = [
   ...ACCENTS,
-  '#BE123C', // deep rose
-  '#0F766E', // deep teal
-  '#A16207', // bronze
-  '#0891B2', // cyan
+  '#7F1D1D', // oxblood
+  '#9A3412', // burnt orange
+  '#BE185D', // deep rose
+  '#8C2F39', // brick
 ];
 
 /**
