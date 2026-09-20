@@ -78,3 +78,14 @@ build/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Database backups written by scripts/clean-slate.js.
+#
+# These are full dumps of the club's collections, and users.json carries every
+# member's bcrypt hash. Hashes are not plaintext, but they are still credential
+# material and a repository is not where they belong - especially one that gets
+# pushed. Keep the backups on the machine that made them.
+backend/backups/
+
+# Scratch credential dumps from local debugging sessions.
+*creds*.json
