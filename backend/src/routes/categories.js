@@ -32,16 +32,13 @@ const ICONS = [
   'volunteer', 'budget', 'flag',
 ];
 
-const PALETTE = [
-  '#DC2626', '#334155', '#7C3AED', '#B45309', '#0891B2',
-  '#15803D', '#BE123C', '#4338CA', '#A16207', '#0F766E',
-];
+const { CATEGORY_PALETTE: PALETTE } = require('../palette');
 
 /** Seeded on first run. Editable and removable like any other. */
 const STARTER = [
   { name: 'Event', icon: 'event', color: '#DC2626', blurb: 'Fests, sessions and everything the club puts on' },
   { name: 'Meeting', icon: 'meeting', color: '#334155', blurb: 'Team syncs and department meetings' },
-  { name: 'Marketing', icon: 'marketing', color: '#7C3AED', blurb: 'What goes out, where, and when' },
+  { name: 'Marketing', icon: 'marketing', color: '#EA580C', blurb: 'What goes out, where, and when' },
   { name: 'Shoot', icon: 'shoot', color: '#0891B2', blurb: 'Photo and video shoots' },
   { name: 'Rehearsal', icon: 'rehearsal', color: '#15803D', blurb: 'Run-throughs before the real thing' },
 ];

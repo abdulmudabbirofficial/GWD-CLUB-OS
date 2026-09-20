@@ -201,7 +201,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         child: BracketLoader(),
                       ))
                     else if (_error != null)
-                      ErrorNote(message: _error!)
+                      ErrorNote(message: _error!, onRetry: _load)
                     else ...[
                       // ---------- how to reach them ----------
                       const BrandedSectionHeader(title: 'Contact'),

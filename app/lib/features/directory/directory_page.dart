@@ -266,7 +266,7 @@ class _DepartmentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lead = people.where((m) => m.id == department.leadUserId).firstOrNull;
-    final tint = department.tint;
+    final tint = GwdColors.readableOn(context, department.tint);
 
     return SurfaceCard(
       padding: const EdgeInsets.all(GwdSpace.md),

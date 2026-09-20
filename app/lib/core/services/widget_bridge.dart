@@ -65,7 +65,7 @@ class WidgetBridge {
         iOSName: _iosWidgetKind,
       );
     } catch (error) {
-      debugPrint('[widget] update skipped: $error');
+      if (kDebugMode) debugPrint('[widget] update skipped: $error');
     }
   }
 

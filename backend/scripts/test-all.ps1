@@ -35,6 +35,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# A suite that throws must not look like a suite that passed.
+#
+# `Stop` turns any error into a terminating one, which aborts the script before
+# it reaches the summary and `exit $failed` at the bottom - and PowerShell then
+# exits 0 regardless. A run where the smoke server never started reported
+# itself green, which is the one way a test runner can be worse than nothing.
+trap {
+    Write-Host ''
+    Write-Host "  Aborted: $_" -ForegroundColor Red
+    exit 1
+}
 $backend = Split-Path -Parent $PSScriptRoot
 $mongosh = 'D:\dev\gwd-toolchain\mongosh\bin\mongosh.exe'
 $failed = 0

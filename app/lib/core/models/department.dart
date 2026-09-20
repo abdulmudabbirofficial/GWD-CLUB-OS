@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 /// A department.
 ///
 /// v1 modelled these as a Dart `enum`, which is precisely why the President
@@ -51,23 +53,18 @@ class Department {
   /// Departments are user-created, so their colour has to be derived rather
   /// than looked up. A stable hash keeps a department the same colour
   /// everywhere in the app and across sessions.
+  ///
+  /// The palette lives in the design system rather than here: the same eight
+  /// colours were copied into this file, the seed script, the signup route and
+  /// the category route, and the two unusable ones in it were therefore
+  /// shipped four times.
   Color get tint {
-    const palette = [
-      Color(0xFFDC2626), // crimson
-      Color(0xFF0B0B0F), // ink
-      Color(0xFF9F1239), // ruby
-      Color(0xFF334155), // slate
-      Color(0xFFB45309), // amber deep
-      Color(0xFF15803D), // green deep
-      Color(0xFF1D4ED8), // blue deep
-      Color(0xFF6D28D9), // violet deep
-    ];
     final seed = colorSeed ?? id;
     var hash = 0;
     for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7FFFFFFF;
     }
-    return palette[hash % palette.length];
+    return GwdColors.accents[hash % GwdColors.accents.length];
   }
 
   /// Two-letter monogram for the department avatar.

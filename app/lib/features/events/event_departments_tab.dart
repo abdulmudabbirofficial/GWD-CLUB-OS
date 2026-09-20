@@ -121,7 +121,10 @@ Future<void> _addDepartment(
                 leading: Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(color: d.tint, borderRadius: BorderRadius.circular(3)),
+                  decoration: BoxDecoration(
+                    color: GwdColors.readableOn(sheetContext, d.tint),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
                 title: Text(d.name,
                     style: GwdType.body.copyWith(color: GwdColors.inkOf(sheetContext))),
@@ -169,7 +172,9 @@ class _DepartmentCardState extends State<_DepartmentCard> {
     final d = widget.department;
     final store = AppScope.readStore(context);
     final department = store.departmentById(d.departmentId);
-    final tint = department?.tint ?? GwdColors.inkSecondaryOf(context);
+    final tint = department == null
+        ? GwdColors.inkSecondaryOf(context)
+        : GwdColors.readableOn(context, department.tint);
 
     // Encouraging, never comparative. "3 left" is a fact somebody can act on;
     // "72% — 3rd of 5" is a scoreboard nobody asked for.

@@ -100,12 +100,12 @@ class SocketClient {
         status.value = LiveStatus.unauthorized;
         socket.dispose();
         _socket = null;
-        debugPrint('[socket] handshake rejected, giving up: $message');
+        if (kDebugMode) debugPrint('[socket] handshake rejected, giving up: $message');
         onUnauthorized?.call();
         return;
       }
       status.value = LiveStatus.disconnected;
-      debugPrint('[socket] connect error: $message');
+      if (kDebugMode) debugPrint('[socket] connect error: $message');
     });
 
     socket.on('ready', (data) {

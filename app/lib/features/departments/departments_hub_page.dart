@@ -269,7 +269,7 @@ class _DepartmentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = AppScope.readStore(context);
-    final tint = department.tint;
+    final tint = GwdColors.readableOn(context, department.tint);
     final lead = store.memberById(department.leadUserId);
     final remaining = department.assigned - department.completed;
 

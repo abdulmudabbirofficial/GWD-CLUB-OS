@@ -3,6 +3,7 @@
 const express = require('express');
 const { ObjectId } = require('mongodb');
 const config = require('../config');
+const { accentFor } = require('../palette');
 const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
 const {
@@ -43,12 +44,8 @@ function text(value, name, { min = 1, max = 2000 } = {}) {
 }
 
 /** Colours an event's banner when there is no image. Stable per event. */
-const BANNERS = ['#DC2626', '#7C3AED', '#0891B2', '#B45309', '#15803D', '#4338CA', '#BE123C'];
-function bannerFor(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return BANNERS[hash % BANNERS.length];
-}
+/** An event's accent stripe. Same list as everything else the app colours. */
+const bannerFor = accentFor;
 
 function serialiseEvent(event, extra = {}) {
   return {

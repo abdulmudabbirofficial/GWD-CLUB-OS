@@ -30,12 +30,7 @@ function parsePeople(raw) {
     .filter((p) => p && p.name && p.email && p.password);
 }
 
-const AVATAR = ['#DC2626', '#0B0B0F', '#9F1239', '#334155', '#B45309', '#15803D', '#1D4ED8', '#6D28D9'];
-function avatarColorFor(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR[hash % AVATAR.length];
-}
+const { accentFor: avatarColorFor } = require('./palette');
 
 async function upsertPerson({ name, email, password }, role) {
   const existing = await col(C.users).findOne({ email });

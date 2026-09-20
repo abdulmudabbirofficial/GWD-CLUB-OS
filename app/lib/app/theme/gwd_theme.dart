@@ -158,6 +158,50 @@ class GwdColors {
           stops: [0.0, 0.07, 0.17, 0.29, 0.43, 0.60, 0.84],
         );
 
+  /// Colours that tell one department, member or category from another.
+  ///
+  /// A distinguisher, not a brand statement: the reader needs to see that
+  /// Marketing and Creative are different at a glance, and nothing more. So
+  /// they are held to one band of lightness and the brand crimson leads.
+  ///
+  /// The set this replaces was chosen against a white canvas and contained two
+  /// colours that could not work. `#0B0B0F` is near-black, and the avatar tile
+  /// paints the tint as its *text* on a 12% wash of itself — so a department
+  /// that hashed to it rendered black initials on a black circle, twice over on
+  /// a dark theme. `#6D28D9` is a violet, which in an app built on crimson
+  /// reads as something from another product.
+  ///
+  /// Anything stored before this still comes back from the server, so nothing
+  /// here is load-bearing for legibility on its own — [readableOn] is.
+  static const accents = <Color>[
+    Color(0xFFDC2626), // crimson — the brand, first so it is the most common
+    Color(0xFFE11D48), // rose
+    Color(0xFFEA580C), // orange
+    Color(0xFFCA8A04), // amber
+    Color(0xFF16A34A), // green
+    Color(0xFF0D9488), // teal
+    Color(0xFF2563EB), // blue
+    Color(0xFF64748B), // slate
+  ];
+
+  /// The same colour, guaranteed to be readable on the current theme.
+  ///
+  /// Accent colours arrive from the database — a member's avatar colour, a
+  /// category an admin picked from a colour well — so the app cannot assume
+  /// any of them suits the theme it is painting. A deep tint vanishes on the
+  /// dark canvas and a pale one vanishes on white, and the avatar tile uses the
+  /// tint for its text, where vanishing means unreadable rather than merely
+  /// dull.
+  ///
+  /// Only lightness moves, so the colour stays recognisably itself and two
+  /// departments that were distinguishable stay distinguishable.
+  static Color readableOn(BuildContext context, Color tint) {
+    final dark = _isDark(context);
+    final hsl = HSLColor.fromColor(tint);
+    final lightness = hsl.lightness.clamp(dark ? 0.56 : 0.26, dark ? 0.80 : 0.46);
+    return hsl.withLightness(lightness).toColor();
+  }
+
   /// Text that sits on the darkest part of the backdrop.
   ///
   /// Kept because a few surfaces genuinely sit on colour — the sign-in mark,

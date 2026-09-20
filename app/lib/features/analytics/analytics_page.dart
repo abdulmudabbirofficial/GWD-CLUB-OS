@@ -116,7 +116,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   padding: EdgeInsets.fromLTRB(gutter, GwdSpace.lg, gutter, GwdSpace.xxxl),
                   children: [
                     if (_error != null) ...[
-                      ErrorNote(message: _error!),
+                      ErrorNote(message: _error!, onRetry: _load),
                       const SizedBox(height: GwdSpace.lg),
                     ],
 

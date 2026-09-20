@@ -20,13 +20,49 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+/// Which deployment this build talks to.
+///
+/// Passed at build time. Everything about where the app points follows from
+/// it, so a release cannot accidentally be a debug build aimed at somebody's
+/// laptop — the one failure that looks completely normal until a phone leaves
+/// the building.
+enum AppEnvironment {
+  /// The club's own laptop on college Wi-Fi, over plain HTTP. The default,
+  /// because it is what somebody running `flutter run` means.
+  dev,
+
+  /// A hosted copy for testing. No address is committed for it; a build that
+  /// asks for staging must supply one.
+  staging,
+
+  /// The real deployment.
+  production;
+
+  static AppEnvironment get current => switch (
+        const String.fromEnvironment('GWD_ENV', defaultValue: 'dev')) {
+        'production' || 'prod' => AppEnvironment.production,
+        'staging' || 'stage' => AppEnvironment.staging,
+        _ => AppEnvironment.dev,
+      };
+
+  bool get isProduction => this == AppEnvironment.production;
+
+  /// Whether a plaintext address is acceptable here.
+  ///
+  /// It is on a LAN: the club's server is a laptop with no certificate, and
+  /// refusing HTTP would mean refusing to work at all. It is not on anything
+  /// hosted, where HTTP means a token travelling in the clear.
+  bool get allowsInsecure => this == AppEnvironment.dev;
+}
+
 /// Where the backend lives, when the user has not set an address themselves.
 ///
 /// Resolution order:
-///   1. --dart-define=GWD_API_BASE=...        (release builds, CI, production)
-///   2. the web origin the app was served from (so web "just works")
-///   3. 10.0.2.2 on an Android emulator, which is the host's loopback
-///   4. localhost for desktop and iOS simulator
+///   1. --dart-define=GWD_API_BASE=...   an explicit address, whatever the
+///      environment — this is what `scripts/build-apk.ps1` bakes in
+///   2. the environment's own address
+///   3. for dev only: the web origin, the Android emulator's host alias, or
+///      localhost, in that order
 ///
 /// A baked-in LAN address is fragile: the moment the router hands the laptop a
 /// different IP, every installed APK stops reaching it and looks broken. So
@@ -34,32 +70,76 @@ class ApiException implements Exception {
 /// the choice.
 class ApiConfig {
   static const _define = String.fromEnvironment('GWD_API_BASE');
+  static const _staging = String.fromEnvironment('GWD_STAGING_BASE');
+
+  /// The deployment this build was compiled for.
+  static AppEnvironment get environment => AppEnvironment.current;
+
+  /// The production service. The only address committed to the repository,
+  /// because it is the only one that does not move.
+  static const productionBase = 'https://gwd-club-os-abrw.onrender.com';
 
   static String resolve() {
     if (_define.isNotEmpty) return _define;
-    if (kIsWeb) return ''; // same origin
-    try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:4000';
-    } catch (_) {
-      // Platform is unavailable on some targets; fall through.
+
+    switch (environment) {
+      case AppEnvironment.production:
+        return productionBase;
+      case AppEnvironment.staging:
+        // Deliberately not invented. A staging build with no address is a
+        // mistake in the build command, and saying so beats silently talking
+        // to a laptop that is not there.
+        assert(
+          _staging.isNotEmpty,
+          'GWD_ENV=staging needs --dart-define=GWD_STAGING_BASE=https://...',
+        );
+        return _staging;
+      case AppEnvironment.dev:
+        if (kIsWeb) return ''; // same origin
+        try {
+          if (Platform.isAndroid) return 'http://10.0.2.2:4000';
+        } catch (_) {
+          // Platform is unavailable on some targets; fall through.
+        }
+        return 'http://localhost:4000';
     }
-    return 'http://localhost:4000';
+  }
+
+  /// Whether [base] is safe to send a bearer token to in this environment.
+  ///
+  /// Only `dev` may speak plaintext, and only there because the club's server
+  /// is a laptop without a certificate. Anywhere hosted, `http://` means every
+  /// token and every document travels readable across whatever network the
+  /// phone is on.
+  static bool isAcceptable(String base) {
+    if (base.isEmpty) return true; // same-origin web build
+    if (environment.allowsInsecure) return true;
+    return base.startsWith('https://');
   }
 
   /// Accepts what people actually type — "10.0.0.5", "10.0.0.5:4000",
   /// "http://10.0.0.5:4000" — and returns a usable origin, or null if it is
   /// not salvageable.
+  ///
+  /// Assumes `https` outside dev. Somebody typing a bare hostname into a
+  /// production build means the hosted service, and quietly turning that into
+  /// `http://` would be the app downgrading its own security on their behalf.
   static String? normalise(String input) {
     var value = input.trim();
     if (value.isEmpty) return null;
+    final secure = !environment.allowsInsecure;
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
-      value = 'http://$value';
+      value = '${secure ? 'https' : 'http'}://$value';
     }
     final uri = Uri.tryParse(value);
     if (uri == null || uri.host.isEmpty) return null;
-    // Default to the port the server actually listens on.
-    final port = uri.hasPort ? uri.port : 4000;
-    return '${uri.scheme}://${uri.host}:$port';
+    if (!isAcceptable('${uri.scheme}://${uri.host}')) return null;
+    // Default to the port the server actually listens on. A hosted address
+    // serves on the scheme's own port and should not be given 4000.
+    if (uri.hasPort) return '${uri.scheme}://${uri.host}:${uri.port}';
+    return uri.scheme == 'https'
+        ? '${uri.scheme}://${uri.host}'
+        : '${uri.scheme}://${uri.host}:4000';
   }
 }
 

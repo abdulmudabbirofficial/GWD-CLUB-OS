@@ -3,6 +3,7 @@
 const express = require('express');
 const { ObjectId } = require('mongodb');
 const { col, C } = require('../db');
+const { accentFor } = require('../palette');
 const config = require('../config');
 const {
   hashPassword, verifyPassword, signToken, publicUser,
@@ -36,13 +37,6 @@ function text(value, name, { min = 1, max = 200 } = {}) {
   return trimmed;
 }
 
-/** Deterministic avatar tint so a member looks the same everywhere. */
-function avatarColorFor(seed) {
-  const palette = ['#DC2626', '#0B0B0F', '#9F1239', '#334155', '#B45309', '#15803D', '#1D4ED8', '#6D28D9'];
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return palette[hash % palette.length];
-}
 
 /**
  * Sign up (Section 4).
@@ -104,7 +98,7 @@ router.post('/signup', signupLimiter, async (request, response, next) => {
       points: 0,
       approvalStatus: 'pending',
       passwordHash: await hashPassword(password),
-      avatarColor: avatarColorFor(email),
+      avatarColor: accentFor(email),
       createdAt: now,
       lastLoginAt: now,
     };

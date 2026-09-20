@@ -94,6 +94,11 @@ if ($BaseUrl) {
     $hosted = $false
 }
 
+# Which deployment the build believes it is. An https base means the hosted
+# service, and the app refuses to send a token over plaintext once it thinks so
+# - which is the point, and also why a LAN build has to stay `dev`.
+$environment = if ($base -like 'https://*') { 'production' } else { 'dev' }
+
 $network = (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).Name
 Write-Host ''
 Write-Host ('=' * 64)
@@ -140,12 +145,12 @@ Write-Host ''
 Push-Location $appDir
 try {
     Write-Host '  Building split-per-ABI...' -ForegroundColor Cyan
-    flutter build apk --release --split-per-abi "--dart-define=GWD_API_BASE=$base"
+    flutter build apk --release --split-per-abi "--dart-define=GWD_API_BASE=$base" "--dart-define=GWD_ENV=$environment"
     if ($LASTEXITCODE -ne 0) { throw 'Split build failed.' }
 
     if ($Universal) {
         Write-Host '  Building universal...' -ForegroundColor Cyan
-        flutter build apk --release "--dart-define=GWD_API_BASE=$base"
+        flutter build apk --release "--dart-define=GWD_API_BASE=$base" "--dart-define=GWD_ENV=$environment"
         if ($LASTEXITCODE -ne 0) { throw 'Universal build failed.' }
     }
 } finally {

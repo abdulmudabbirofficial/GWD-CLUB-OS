@@ -56,6 +56,11 @@ class Avatar extends StatelessWidget {
   }
 
   Widget _circle(BuildContext context) {
+    // The monogram is painted in the tint, on a wash of the same tint, so a
+    // colour too close to the background is not dull — it is invisible. Avatar
+    // colours come from the database and some of them predate the palette that
+    // replaced them, so this cannot be left to the palette to get right.
+    final ink = GwdColors.readableOn(context, tint);
     return AnimatedContainer(
       duration: AppleDuration.fast,
       curve: AppleCurves.standard,
@@ -63,17 +68,17 @@ class Avatar extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
+        color: ink.withValues(alpha: 0.12),
         shape: BoxShape.circle,
         border: Border.all(
-          color: selected ? tint : tint.withValues(alpha: 0.22),
+          color: selected ? ink : ink.withValues(alpha: 0.22),
           width: selected ? 2 : 1,
         ),
       ),
       child: Text(
         initials,
         style: GwdType.caption.copyWith(
-          color: tint,
+          color: ink,
           fontSize: size * 0.34,
           letterSpacing: 0,
         ),
@@ -450,8 +455,18 @@ class GwdField extends StatelessWidget {
 
 /// Inline error line. Server messages are written to be shown as-is.
 class ErrorNote extends StatelessWidget {
-  const ErrorNote({super.key, required this.message});
+  const ErrorNote({super.key, required this.message, this.onRetry, this.retryLabel = 'Try again'});
+
   final String message;
+
+  /// What to do about it.
+  ///
+  /// Most of what fails here fails because a laptop on college Wi-Fi went to
+  /// sleep or somebody walked out of range, and both of those fix themselves.
+  /// Telling somebody their tasks could not be loaded and leaving them holding
+  /// a dead screen turns a two-second problem into a reason to close the app.
+  final Future<void> Function()? onRetry;
+  final String retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -470,9 +485,84 @@ class ErrorNote extends StatelessWidget {
             const Icon(Icons.error_outline_rounded, size: 16, color: GwdColors.critical),
             const SizedBox(width: GwdSpace.sm),
             Expanded(
-              child: Text(
-                message,
-                style: GwdType.footnote.copyWith(color: GwdColors.rubyDark),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message,
+                    style: GwdType.footnote.copyWith(color: GwdColors.rubyDark),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: GwdSpace.sm),
+                    _RetryButton(onRetry: onRetry!, label: retryLabel),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The retry itself, which has to say that it is trying.
+///
+/// A button that does nothing visible for four seconds gets pressed again, and
+/// then a third time, and the screen ends up with three requests in flight for
+/// something that was only ever going to work once.
+class _RetryButton extends StatefulWidget {
+  const _RetryButton({required this.onRetry, required this.label});
+
+  final Future<void> Function() onRetry;
+  final String label;
+
+  @override
+  State<_RetryButton> createState() => _RetryButtonState();
+}
+
+class _RetryButtonState extends State<_RetryButton> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onRetry();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: !_busy,
+      label: widget.label,
+      child: PressableScale(
+        onTap: _busy ? null : _run,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_busy)
+              const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.6,
+                  color: GwdColors.critical,
+                ),
+              )
+            else
+              const Icon(Icons.refresh_rounded, size: 14, color: GwdColors.critical),
+            const SizedBox(width: 6),
+            Text(
+              _busy ? 'Trying…' : widget.label,
+              style: GwdType.footnote.copyWith(
+                color: GwdColors.critical,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],

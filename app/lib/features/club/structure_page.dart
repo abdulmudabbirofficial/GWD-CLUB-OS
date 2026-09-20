@@ -93,7 +93,7 @@ class _StructurePageState extends State<StructurePage> {
                       EdgeInsets.fromLTRB(layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
                   children: [
                     if (_error != null) ...[
-                      ErrorNote(message: _error!),
+                      ErrorNote(message: _error!, onRetry: _load),
                       const SizedBox(height: GwdSpace.lg),
                     ],
                     const BrandedSectionHeader(
@@ -410,7 +410,7 @@ class _DepartmentPageState extends State<DepartmentPage> {
                         layout.gutter, GwdSpace.lg, layout.gutter, GwdSpace.xxxl),
                     children: [
                       if (_error != null) ...[
-                        ErrorNote(message: _error!),
+                        ErrorNote(message: _error!, onRetry: _load),
                         const SizedBox(height: GwdSpace.lg),
                       ],
                       const BrandedSectionHeader(title: 'Lead'),
