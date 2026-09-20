@@ -6,8 +6,8 @@ import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
 import '../../core/search/club_search.dart';
 import '../departments/department_workspace_page.dart';
-import '../directory/directory_page.dart';
 import '../events/event_workspace_page.dart';
+import '../leaderboard/member_stats_page.dart';
 import '../meetings/meeting_detail_page.dart';
 import '../tasks/task_detail_page.dart';
 
@@ -53,10 +53,14 @@ class _SearchPageState extends State<SearchPage> {
     final navigator = Navigator.of(context);
     switch (hit.kind) {
       case SearchKind.member:
-        // The directory is where a person's record opens from, and it applies
-        // the visibility rules. Jumping straight to a profile would route
-        // around a permission the server would refuse anyway.
-        navigator.push(MaterialPageRoute(builder: (_) => const DirectoryPage()));
+        // Straight to the person, the way the directory does it. The server is
+        // the gate here, not the route: the record is fetched by id and the
+        // page has a designed state for a refusal. Landing somebody on the full
+        // directory after they searched a name and tapped it is making them do
+        // the search twice.
+        navigator.push(MaterialPageRoute(
+          builder: (_) => MemberStatsPage(userId: hit.id),
+        ));
       case SearchKind.department:
         navigator.push(MaterialPageRoute(
           builder: (_) => DepartmentWorkspacePage(departmentId: hit.id),

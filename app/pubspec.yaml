@@ -1,7 +1,7 @@
 name: gwd_club_os
 description: GWD Club OS — club management for GWD Global. Android, iOS and Web from one codebase.
 publish_to: "none"
-version: 6.0.0+8
+version: 6.1.0+9
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -22,7 +22,6 @@ dependencies:
   # widgets itself.
   home_widget: ^0.6.0
 
-  intl: ^0.19.0
   url_launcher: ^6.3.2
 
   # Official event paperwork has to come off the phone somehow: permission
