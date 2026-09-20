@@ -160,10 +160,21 @@ class ClubEvent {
         progress: (json['progress'] as num?)?.toInt() ?? 0,
       );
 
+  /// The event's accent, derived rather than read.
+  ///
+  /// The stored `banner` is ignored on purpose. It was assigned from a palette
+  /// that contained a violet, nobody ever chose it by hand, and every event
+  /// created before the palette was fixed still carries whatever it was given —
+  /// which showed up as a full-bleed purple header on the largest surface in
+  /// the app. Deriving from the id gives the same event the same colour
+  /// forever, out of the one list the rest of the app uses, and repairs the old
+  /// ones without a migration.
   Color get bannerColor {
-    final hex = banner;
-    if (hex == null || hex.length < 7) return const Color(0xFFDC2626);
-    return Color(int.parse('FF${hex.substring(1)}', radix: 16));
+    var hash = 0;
+    for (final unit in id.codeUnits) {
+      hash = (hash * 31 + unit) & 0x7FFFFFFF;
+    }
+    return GwdColors.accents[hash % GwdColors.accents.length];
   }
 
   int get daysAway {

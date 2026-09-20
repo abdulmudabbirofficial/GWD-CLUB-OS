@@ -153,7 +153,15 @@ class _EventHeader extends StatelessWidget {
     return SliverAppBar(
       pinned: true,
       expandedHeight: _expandedHeight,
-      backgroundColor: tint,
+      // The event's colour, carried at the weight the rest of the app uses it.
+      //
+      // This header was a slab of flat saturated colour filling the top third
+      // of the screen, which is the single most reliable way to make an
+      // interface look cheap and is the thing the backdrop was rewritten to
+      // stop doing. The event still needs to be identifiable at a glance, so
+      // the colour stays — as a deep tint over the dark ground and a rule under
+      // the title, rather than a billboard.
+      backgroundColor: Color.lerp(GwdColors.canvasOf(context), tint, 0.22),
       foregroundColor: Colors.white,
       actions: [
         if (workspace.canManage)
@@ -171,12 +179,19 @@ class _EventHeader extends StatelessWidget {
               ? 0.0
               : ((constraints.maxHeight - collapsedHeight) / range).clamp(0.0, 1.0);
 
+          final ground = GwdColors.canvasOf(context);
           return Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [tint, Color.lerp(tint, Colors.black, 0.42)!],
+                colors: [
+                  Color.lerp(ground, tint, 0.34)!,
+                  Color.lerp(ground, tint, 0.12)!,
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(color: tint.withValues(alpha: 0.55), width: 2),
               ),
             ),
             child: Stack(

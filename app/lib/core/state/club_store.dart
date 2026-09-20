@@ -169,6 +169,8 @@ class Capabilities {
     this.canManageDepartments = false,
     this.canViewAudit = false,
     this.canAwardPoints = false,
+    this.canChangeRole = false,
+    this.canAppointSupervisors = false,
     this.earnsPoints = true,
     this.onLeaderboard = true,
     this.pendingApprovals = 0,
@@ -181,6 +183,14 @@ class Capabilities {
   final bool canManageDepartments;
   final bool canViewAudit;
   final bool canAwardPoints;
+
+  /// Appoint somebody to an office. President and supervisors only.
+  final bool canChangeRole;
+
+  /// ...and into the supervisor tier, which is Directors alone. The client
+  /// offers the shorter list rather than a choice the server would refuse.
+  final bool canAppointSupervisors;
+
   final bool earnsPoints;
   final bool onLeaderboard;
   final int pendingApprovals;
@@ -193,6 +203,8 @@ class Capabilities {
         canManageDepartments: json['canManageDepartments'] as bool? ?? false,
         canViewAudit: json['canViewAudit'] as bool? ?? false,
         canAwardPoints: json['canAwardPoints'] as bool? ?? false,
+        canChangeRole: json['canChangeRole'] as bool? ?? false,
+        canAppointSupervisors: json['canAppointSupervisors'] as bool? ?? false,
         earnsPoints: json['earnsPoints'] as bool? ?? true,
         onLeaderboard: json['onLeaderboard'] as bool? ?? true,
         pendingApprovals: (json['pendingApprovals'] as num?)?.toInt() ?? 0,
@@ -1465,6 +1477,19 @@ class ClubStore extends ChangeNotifier {
       socket.connect(token);
     }
     await session.refresh();
+    notifyListeners();
+  }
+
+  /// Appoint somebody to a different office.
+  ///
+  /// The server is the authority on every rule around this - the singleton
+  /// caps, not promoting yourself, only a Director appointing a Director - and
+  /// it refuses with a message written to be shown as-is. The client's job is
+  /// to offer the choice and repeat the answer.
+  Future<void> changeRole(String userId, ClubRole role) async {
+    await _api.patch('/api/users/$userId/role', {'role': role.wire});
+    await loadMembers();
+    await loadDepartments();
     notifyListeners();
   }
 

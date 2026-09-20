@@ -462,6 +462,25 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         ),
                       ],
 
+                      // Appointing somebody to an office.
+                      //
+                      // The endpoint for this has existed and been enforced
+                      // since the beginning - caps, no self-promotion, only a
+                      // Director appointing a Director - and nothing in the app
+                      // ever called it. There was no way to make anybody a
+                      // Lead, a VP or a Secretary General from inside the app
+                      // at all.
+                      if (store.capabilities.canChangeRole &&
+                          member.id != session.me?.id) ...[
+                        const SizedBox(height: GwdSpace.md),
+                        SecondaryButton(
+                          label: 'Change their role',
+                          icon: Icons.badge_outlined,
+                          expand: true,
+                          onPressed: () => _changeRole(member),
+                        ),
+                      ],
+
                       // Removing somebody is a Director's call alone — it is
                       // the one action that can take the President out. Kept at
                       // the very bottom, quiet, and two confirmations deep.
@@ -668,6 +687,82 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
   /// because handing it over in person is a stronger identity check than an
   /// inbox. It is not recoverable afterwards, so the dialog says so and offers
   /// a copy button.
+  /// Appoint somebody to a different office.
+  ///
+  /// The list offered is the one this actor may actually grant: only a Director
+  /// can appoint into the supervisor tier, so a President is not shown a choice
+  /// the server would refuse. Everything else - the singleton caps, not
+  /// promoting yourself - is the server's to enforce, and its refusal is
+  /// written to be shown as-is.
+  Future<void> _changeRole(Member member) async {
+    final store = AppScope.readStore(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final caps = store.capabilities;
+
+    final choices = [
+      if (caps.canAppointSupervisors) ...[
+        ClubRole.clubDirector,
+        ClubRole.facultyCoordinator,
+      ],
+      ClubRole.president,
+      ClubRole.vicePresident,
+      ClubRole.secretaryGeneral,
+      ClubRole.clubLead,
+      ClubRole.clubMember,
+    ].where((r) => r != member.role).toList();
+
+    final chosen = await showGwdSheet<ClubRole>(
+      context: context,
+      builder: (sheetContext) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: GwdColors.surfaceOf(sheetContext),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SheetHeader(
+                  title: 'Change ${member.firstName}\u2019s role',
+                  subtitle: 'They are ${member.role.title} now',
+                ),
+                for (final role in choices)
+                  ListTile(
+                    leading: Icon(Icons.badge_outlined,
+                        size: 20, color: GwdColors.inkSecondaryOf(sheetContext)),
+                    title: Text(role.title,
+                        style: GwdType.body.copyWith(color: GwdColors.inkOf(sheetContext))),
+                    onTap: () => Navigator.of(sheetContext).pop(role),
+                  ),
+                const SizedBox(height: GwdSpace.md),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (chosen == null || !mounted) return;
+
+    try {
+      await store.changeRole(member.id, chosen);
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text('${member.firstName} is now ${chosen.title}.'),
+      ));
+      setState(() {});
+      await _load();
+    } on ApiException catch (e) {
+      // The server's messages here name the actual rule that was broken -
+      // which office is full, why a Director is required - so they are shown
+      // rather than replaced with something generic.
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _resetPassword(Member member) async {
     final store = AppScope.readStore(context);
     final messenger = ScaffoldMessenger.of(context);

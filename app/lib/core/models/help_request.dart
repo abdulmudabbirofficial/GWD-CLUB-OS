@@ -40,7 +40,7 @@ enum HelpStatus {
   Color get tint => switch (this) {
         HelpStatus.open => const Color(0xFFD97706),
         HelpStatus.assigned => const Color(0xFF2563EB),
-        HelpStatus.inProgress => const Color(0xFF7C3AED),
+        HelpStatus.inProgress => const Color(0xFF0D9488),
         HelpStatus.resolved => const Color(0xFF16A34A),
       };
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/theme/gwd_theme.dart';
+
 import 'member.dart';
 
 /// Recognition, **per department**.
@@ -51,22 +53,12 @@ class DepartmentRecognition {
   /// Stable per department, so it looks the same here as it does everywhere
   /// else in the app.
   Color get tint {
-    const palette = [
-      Color(0xFFDC2626),
-      Color(0xFF0B0B0F),
-      Color(0xFF9F1239),
-      Color(0xFF334155),
-      Color(0xFFB45309),
-      Color(0xFF15803D),
-      Color(0xFF1D4ED8),
-      Color(0xFF6D28D9),
-    ];
     final seed = colorSeed ?? departmentId;
     var hash = 0;
     for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7FFFFFFF;
     }
-    return palette[hash % palette.length];
+    return GwdColors.accents[hash % GwdColors.accents.length];
   }
 }
 

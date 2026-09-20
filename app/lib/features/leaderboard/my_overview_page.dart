@@ -367,6 +367,6 @@ class _PersonProgress extends StatelessWidget {
     if (hex != null && hex.startsWith('#') && hex.length == 7) {
       return Color(int.parse('FF${hex.substring(1)}', radix: 16));
     }
-    return const Color(0xFF52525B);
+    return GwdColors.inkTertiary;
   }
 }

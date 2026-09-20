@@ -320,7 +320,7 @@ class _DepartmentCard extends StatelessWidget {
     if (rate >= 80) return GwdColors.success;
     if (rate >= 50) return GwdColors.info;
     if (rate > 0) return GwdColors.warning;
-    return const Color(0xFF9A9AA4);
+    return GwdColors.inkTertiary;
   }
 }
 

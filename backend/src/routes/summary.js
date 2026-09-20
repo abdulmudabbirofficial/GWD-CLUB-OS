@@ -8,7 +8,8 @@ const {
   taskVisibilityFilter, canAssign, canViewAudit, canManageDepartments,
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
   earnsPoints, appearsOnLeaderboard,
-} = require('../permissions');
+  canChangeRole,
+  isDirector,} = require('../permissions');
 const { serialiseTask } = require('../realtime');
 
 const router = express.Router();
@@ -250,6 +251,14 @@ router.get('/home', async (request, response, next) => {
         canManageDepartments: canManageDepartments(user.role),
         canViewAudit: canViewAudit(user.role),
         canAwardPoints: canAwardPoints(user.role),
+        // Appointing people. Narrower than canManageDepartments on purpose --
+        // a VP may reorganise the club's structure and may not decide who
+        // holds which office, including their own.
+        canChangeRole: canChangeRole(user.role),
+        // Only a Director may appoint into the supervisor tier, so the client
+        // needs to know which of the two it is to offer the right list rather
+        // than a choice the server will refuse.
+        canAppointSupervisors: isDirector(user.role),
         earnsPoints: earnsPoints(user.role),
         onLeaderboard: appearsOnLeaderboard(user.role),
         pendingApprovals:

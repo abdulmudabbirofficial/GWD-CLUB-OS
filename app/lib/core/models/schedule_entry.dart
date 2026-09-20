@@ -90,7 +90,7 @@ enum MarketingStage {
         MarketingStage.planned => const Color(0xFF9A9AA4),
         MarketingStage.inProduction => const Color(0xFF2563EB),
         MarketingStage.ready => const Color(0xFF16A34A),
-        MarketingStage.published => const Color(0xFF7C3AED),
+        MarketingStage.published => const Color(0xFF0D9488),
       };
 }
 

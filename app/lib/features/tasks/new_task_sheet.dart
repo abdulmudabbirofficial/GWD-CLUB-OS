@@ -616,23 +616,17 @@ class _DepartmentRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// The same hash over the same shared palette [Department.tint] uses, so a
+  /// department is the same colour in this picker as it is everywhere else.
+  /// This was a sixth private copy of that list, near-black and violet
+  /// included.
   Color get _tint {
-    const palette = [
-      Color(0xFFDC2626),
-      Color(0xFF0B0B0F),
-      Color(0xFF9F1239),
-      Color(0xFF334155),
-      Color(0xFFB45309),
-      Color(0xFF15803D),
-      Color(0xFF1D4ED8),
-      Color(0xFF6D28D9),
-    ];
     final seed = department.colorSeed ?? department.id;
     var hash = 0;
     for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7FFFFFFF;
     }
-    return palette[hash % palette.length];
+    return GwdColors.accents[hash % GwdColors.accents.length];
   }
 
   @override
