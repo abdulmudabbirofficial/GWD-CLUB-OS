@@ -115,6 +115,8 @@ function serialiseTask(task) {
     assignedTo: idOf(task.assignedTo),
     departmentId: idOf(task.departmentId),
     eventId: idOf(task.eventId),
+    // Where the work came from, so the task page can offer the way back.
+    meetingId: idOf(task.meetingId),
     status: task.status,
     dueDate: task.dueDate ?? null,
     points: task.points ?? 0,

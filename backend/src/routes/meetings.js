@@ -4,8 +4,10 @@ const express = require('express');
 const { ObjectId } = require('mongodb');
 const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
+const config = require('../config');
 const {
   canScheduleMeeting, canMarkAttendance, ROLES, isSupervisor, rankOf, RANK,
+  canAssign, canAssignToDepartment, canAssignTo, isValidTaskPoints,
 } = require('../permissions');
 const { notify, audit } = require('../services/notify');
 
@@ -58,6 +60,7 @@ function serialise(meeting, { userName, deptName, actorId }) {
     endTime: meeting.endTime ?? '',
     venue: meeting.venue ?? '',
     meetingUrl: meeting.meetingUrl ?? '',
+    notes: meeting.notes ?? '',
     status: meeting.status,
     createdBy: String(meeting.createdBy),
     createdByName: userName.get(String(meeting.createdBy)) ?? 'Member',
@@ -275,6 +278,14 @@ router.patch('/:id', async (request, response, next) => {
     if (request.body.title !== undefined) update.title = text(request.body.title, 160);
     if (request.body.description !== undefined) update.description = text(request.body.description, 2000);
     if (request.body.venue !== undefined) update.venue = text(request.body.venue, 200);
+    // What was decided.
+    //
+    // Deliberately one free-text field rather than a structured minutes format.
+    // Nobody in a club takes formal minutes, and a form with "motion", "seconder"
+    // and "resolution" on it gets left empty — whereas four lines of "we agreed
+    // to move the fest to the 20th" is what actually gets written and is what
+    // anybody needs three weeks later.
+    if (request.body.notes !== undefined) update.notes = text(request.body.notes, 8000);
     if (request.body.startTime !== undefined) update.startTime = text(request.body.startTime, 10);
     if (request.body.endTime !== undefined) update.endTime = text(request.body.endTime, 10);
     if (request.body.date !== undefined) {
@@ -311,6 +322,187 @@ router.patch('/:id', async (request, response, next) => {
     next(error);
   }
 });
+
+/* ---------------------------------------------------------- action items */
+
+/**
+ * What somebody agreed to do.
+ *
+ * **An action item is a task, not a note about one.** That distinction is the
+ * whole feature. A meeting screen with its own private checklist is exactly how
+ * things get forgotten: it is written down in the room, it appears in nobody's
+ * work, nobody is notified, and it is next read when the same thing goes wrong
+ * at the next meeting. So this writes a real row in `tasks` carrying the
+ * meeting's id, which means it lands on the Work tab, sends the same
+ * notification, counts for the same points, and is ticked off in exactly one
+ * place however you reach it.
+ *
+ * Unlike event work, meeting tasks are **not** filtered out of `/api/tasks`.
+ * Event work is excluded because one festival would bury everybody's own to-do
+ * list; an action item from a meeting is the opposite - it is personal work
+ * somebody accepted out loud, and burying it is the failure being fixed.
+ *
+ * Who may assign follows the ordinary matrix, checked by the same functions the
+ * task route uses rather than a parallel set that would drift: the executive
+ * addresses a department, a Lead names one of their own people. Calling a
+ * meeting does not extend anybody's authority over who does what.
+ */
+router.post('/:id/actions', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Meeting id');
+    const meeting = await col(C.meetings).findOne({ _id: id });
+    if (!meeting) fail('That meeting no longer exists.', 404);
+
+    const actor = request.user;
+    // Being in the room is not enough to hand out work, but not being in it
+    // and handing out work off the back of it would be stranger still.
+    const inTheRoom = (meeting.participants ?? [])
+      .some((p) => String(p.userId) === String(actor._id));
+    if (!inTheRoom && !canMarkAttendance(actor, meeting)) {
+      fail('Only somebody who was at the meeting can record what came out of it.', 403);
+    }
+    if (!canAssign(actor.role)) fail('Your role cannot assign tasks.', 403);
+
+    const title = text(request.body.title, 200);
+    if (title.length < 3) fail('Say what needs doing.');
+    const description = text(request.body.description, 2000);
+    const dueDate = request.body.dueDate ? new Date(request.body.dueDate) : null;
+    if (dueDate && Number.isNaN(dueDate.getTime())) fail('That due date is not a date.');
+    const points = isValidTaskPoints(request.body.points)
+      ? Number(request.body.points)
+      : config.pointsPerTask;
+
+    const now = new Date();
+    const base = {
+      title,
+      description,
+      assignedBy: actor._id,
+      meetingId: id,
+      status: 'pending',
+      dueDate,
+      points,
+      priority: ['low', 'normal', 'high'].includes(request.body.priority)
+        ? request.body.priority : 'normal',
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+    };
+
+    // ---- addressed to a department ---------------------------------------
+    if (request.body.departmentId) {
+      if (!canAssignToDepartment(actor.role)) {
+        fail('Your role assigns to people, not to whole departments.', 403);
+      }
+      const departmentId = oid(request.body.departmentId, 'Department');
+      const department = await col(C.departments).findOne({ _id: departmentId });
+      if (!department || department.active === false) fail('That department is not available.');
+
+      const doc = { ...base, assignedTo: null, departmentId };
+      const inserted = await col(C.tasks).insertOne(doc);
+      doc._id = inserted.insertedId;
+
+      if (department.leadUserId) {
+        await notify(department.leadUserId, 'departmentTaskAssigned', {
+          taskTitle: title,
+          byName: actor.name,
+          departmentName: department.name,
+          taskId: String(doc._id),
+          meetingId: String(id),
+        });
+      }
+      await audit(actor._id, 'meeting.action', {
+        meetingId: String(id), title, departmentName: department.name,
+      });
+      return response.status(201).json({ task: serialiseAction(doc) });
+    }
+
+    // ---- addressed to a person -------------------------------------------
+    const targetId = oid(request.body.assignedTo, 'Assignee');
+    const target = await col(C.users)
+      .findOne({ _id: targetId, approvalStatus: 'approved' });
+    if (!target) fail('That person is not available.');
+    if (!canAssignTo(actor, target)) {
+      fail('You cannot assign work to ' + target.name + ' directly. '
+        + 'Send it to their department and their Lead will pass it on.', 403);
+    }
+
+    const doc = {
+      ...base,
+      assignedTo: target._id,
+      departmentId: target.departmentId ?? actor.departmentId ?? null,
+    };
+    const inserted = await col(C.tasks).insertOne(doc);
+    doc._id = inserted.insertedId;
+
+    if (String(target._id) !== String(actor._id)) {
+      await notify(target._id, 'taskAssigned', {
+        taskTitle: title,
+        byName: actor.name,
+        taskId: String(doc._id),
+        meetingId: String(id),
+      });
+    }
+    await audit(actor._id, 'meeting.action', {
+      meetingId: String(id), title, assignedTo: target.name,
+    });
+    return response.status(201).json({ task: serialiseAction(doc) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * What came out of this meeting, and where each of those has got to.
+ *
+ * Read live from `tasks` rather than kept on the meeting, so a row somebody
+ * completed from the Work tab shows as done here without anything having to
+ * keep the two in step.
+ */
+router.get('/:id/actions', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Meeting id');
+    const tasks = await col(C.tasks)
+      .find({ meetingId: id, status: { $ne: 'cancelled' } })
+      .sort({ createdAt: 1 })
+      .toArray();
+
+    const ids = tasks.map((t) => t.assignedTo).filter(Boolean);
+    const [people, departments] = await Promise.all([
+      ids.length === 0 ? [] : col(C.users)
+        .find({ _id: { $in: ids } }, { projection: { name: 1, mustSetName: 1 } }).toArray(),
+      col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
+    ]);
+    const userName = new Map(people.map((p) => [
+      String(p._id), p.mustSetName ? 'No name set' : p.name,
+    ]));
+    const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
+
+    response.json({
+      actions: tasks.map((t) => serialiseAction(t, { userName, deptName })),
+      done: tasks.filter((t) => t.status === 'completed').length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+function serialiseAction(task, { userName, deptName } = {}) {
+  return {
+    id: String(task._id),
+    title: task.title,
+    description: task.description ?? '',
+    status: task.status,
+    dueDate: task.dueDate ?? null,
+    points: task.points ?? 0,
+    assignedTo: task.assignedTo ? String(task.assignedTo) : null,
+    assigneeName: task.assignedTo
+      ? (userName?.get(String(task.assignedTo)) ?? null) : null,
+    departmentId: task.departmentId ? String(task.departmentId) : null,
+    departmentName: task.departmentId
+      ? (deptName?.get(String(task.departmentId)) ?? null) : null,
+    createdAt: task.createdAt,
+  };
+}
 
 /* ------------------------------------------------------------- attendance */
 

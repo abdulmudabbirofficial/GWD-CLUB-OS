@@ -417,6 +417,108 @@ const login = async (email, password) => {
   const purge = await api(`/api/events/${eventId}?purge=true`, { method: 'DELETE', token: who.president.token });
   ok('R20', 'and only then delete it outright', purge.status === 200, `${purge.status} ${purge.txt.slice(0, 120)}`);
 
+  // ------------------------------------------ what comes out of a meeting
+  //
+  // The failure being closed: a decision gets made, somebody writes it in a
+  // notes app, and it is next read when the same thing goes wrong at the
+  // following meeting. An action item has to be a real task or it is a note.
+  console.log('\nmeeting notes and action items');
+
+  const planningMeeting = await api('/api/meetings', {
+    method: 'POST',
+    token: who.president.token,
+    body: {
+      title: 'Fest planning',
+      date: new Date(Date.now() - 864e5).toISOString(),
+      // Deliberately not the Tech Lead: the check below needs somebody who
+      // can hand work out but was not in the room.
+      userIds: [who.production.user.id, mateId],
+    },
+  });
+  ok('M1', 'A meeting can be called', planningMeeting.status === 201, planningMeeting.txt.slice(0, 140));
+  const meetingId = planningMeeting.body.meeting && planningMeeting.body.meeting.id;
+
+  const noted = await api(`/api/meetings/${meetingId}`, {
+    method: 'PATCH',
+    token: who.president.token,
+    body: { notes: 'Agreed to move the fest to the 20th.' },
+  });
+  ok('M1', 'and what was decided can be written down',
+    noted.status === 200
+    && noted.body.meeting.notes === 'Agreed to move the fest to the 20th.',
+    noted.txt.slice(0, 140));
+
+  const action = await api(`/api/meetings/${meetingId}/actions`, {
+    method: 'POST',
+    token: who.president.token,
+    body: { title: 'Redo the poster with the new date', departmentId: production.id, points: 3 },
+  });
+  ok('M2', 'Something agreed in the room becomes work',
+    action.status === 201, action.txt.slice(0, 160));
+  const actionId = action.body.task && action.body.task.id;
+
+  // The whole point: it is a task, not a note on a meeting page.
+  const inWork = (await api('/api/tasks', { token: who.production.token })).body.tasks || [];
+  ok('M2', 'and it is a real task, in the real task list',
+    inWork.some((t) => t.id === actionId),
+    `${inWork.length} tasks visible to the Production Lead`);
+  ok('M2', 'carrying the meeting it came out of, so there is a way back',
+    (inWork.find((t) => t.id === actionId) || {}).meetingId === meetingId);
+
+  const actionsBefore = await api(`/api/meetings/${meetingId}/actions`, { token: who.tech.token });
+  ok('M2', 'The meeting lists what came out of it',
+    actionsBefore.status === 200 && (actionsBefore.body.actions || []).length === 1
+    && actionsBefore.body.done === 0,
+    actionsBefore.txt.slice(0, 140));
+
+  // Completing it anywhere completes it everywhere, because there is only one
+  // of it. A separate checklist would have the two disagree here.
+  await api(`/api/tasks/${actionId}/assign`, {
+    method: 'POST',
+    token: who.production.token,
+    body: { assignedTo: who.production.user.id, points: 3 },
+  });
+  await api(`/api/tasks/${actionId}`, {
+    method: 'PATCH', token: who.production.token, body: { status: 'inProgress' },
+  });
+  const finished = await api(`/api/tasks/${actionId}`, {
+    method: 'PATCH', token: who.production.token, body: { status: 'completed' },
+  });
+  ok('M2', 'The person it landed on can finish it', finished.status === 200,
+    finished.txt.slice(0, 140));
+  const after = await api(`/api/meetings/${meetingId}/actions`, { token: who.tech.token });
+  ok('M2', 'and finishing it on the Work tab shows as done on the meeting',
+    after.body.done === 1,
+    `done ${after.body.done} of ${(after.body.actions || []).length}`);
+
+  // Calling a meeting does not extend anybody's authority over who does what.
+  const memberAction = await api(`/api/meetings/${meetingId}/actions`, {
+    method: 'POST',
+    token: mate.token,
+    body: { title: 'Something for somebody else', departmentId: production.id },
+  });
+  ok('M3', 'An ordinary member still cannot hand work out',
+    memberAction.status === 403, `got ${memberAction.status}`);
+
+  // A Lead who was not in the room cannot record what came out of it either.
+  const outsiderAction = await api(`/api/meetings/${meetingId}/actions`, {
+    method: 'POST',
+    token: who.tech.token,
+    body: { title: 'I was not there', departmentId: tech.id },
+  });
+  ok('M3', 'nor can a Lead who was not at the meeting',
+    outsiderAction.status === 403, `got ${outsiderAction.status}`);
+
+  // The executive deliberately can, on the same footing as marking attendance:
+  // somebody has to be able to tidy up after a meeting they did not attend.
+  const execAction = await api(`/api/meetings/${meetingId}/actions`, {
+    method: 'POST',
+    token: who.gensec.token,
+    body: { title: 'Tidying up after the meeting', departmentId: tech.id },
+  });
+  ok('M3', 'but the executive can, as with attendance',
+    execAction.status === 201, `got ${execAction.status}`);
+
   // -------------------------------------------- templates, day mode, report
   //
   // The three surfaces an event grows once a club runs the same thing twice:

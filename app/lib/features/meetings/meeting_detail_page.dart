@@ -7,6 +7,9 @@ import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/meeting.dart';
+import '../../core/models/club_task.dart';
+import '../tasks/task_detail_page.dart';
+import 'meeting_action_sheet.dart';
 
 /// One meeting, and the attendance sheet.
 ///
@@ -34,6 +37,13 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   /// halfway through recording.
   final Map<String, AttendanceMark> _draft = {};
 
+  /// What came out of the meeting.
+  ///
+  /// These are real tasks, read live from the task list rather than stored on
+  /// the meeting, so one completed from the Work tab shows as done here with
+  /// nothing keeping the two in step.
+  List<ClubTask> _actions = const [];
+
   @override
   void initState() {
     super.initState();
@@ -42,11 +52,20 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
 
   Future<void> _load() async {
     try {
-      final json = await AppScope.readStore(context).meetingDetail(widget.meetingId);
+      final store = AppScope.readStore(context);
+      // Both in one round trip's worth of waiting rather than two sequential
+      // ones: this screen is opened from a notification as often as from a
+      // list, and a second spinner after the first is what makes it feel slow.
+      final results = await Future.wait([
+        store.meetingDetail(widget.meetingId),
+        store.meetingActions(widget.meetingId),
+      ]);
       if (!mounted) return;
+      final json = results[0] as Map<String, dynamic>;
       setState(() {
         _meeting = Meeting.fromJson((json['meeting'] as Map).cast<String, dynamic>());
         _canMark = json['canMarkAttendance'] == true;
+        _actions = results[1] as List<ClubTask>;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -99,6 +118,82 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
         }
       }
     });
+  }
+
+  /// Recording what came out of a meeting takes being able to hand work out at
+  /// all. A cancelled meeting produced nothing, so it offers nothing.
+  bool _canAddActions(Meeting meeting) =>
+      !meeting.isCancelled && AppScope.storeOf(context).capabilities.canAssign;
+
+  Future<void> _addAction() async {
+    final added = await showMeetingActionSheet(context, widget.meetingId);
+    if (added && mounted) await _load();
+  }
+
+  Future<void> _editNotes() async {
+    final meeting = _meeting;
+    if (meeting == null) return;
+    final controller = TextEditingController(text: meeting.notes);
+    final messenger = ScaffoldMessenger.of(context);
+    final store = AppScope.readStore(context);
+
+    final save = await showGwdSheet<bool>(
+      context: context,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: GwdColors.canvasOf(sheetContext),
+          borderRadius:
+              const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SheetHeader(
+                title: 'What was decided',
+                subtitle: 'Plain sentences, not formal minutes \u2014 those never '
+                    'get written.',
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                      GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+                  child: Column(
+                    children: [
+                      GwdField(
+                        label: 'Notes',
+                        controller: controller,
+                        maxLines: 8,
+                        autofocus: true,
+                        hint: 'We agreed to move the fest to the 20th, and '
+                            'Marketing will redo the poster.',
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: GwdSpace.xl),
+                      PrimaryButton(
+                        label: 'Save',
+                        onPressed: () => Navigator.of(sheetContext).pop(true),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final notes = controller.text.trim();
+    controller.dispose();
+    if (save != true) return;
+    try {
+      await store.saveMeetingNotes(widget.meetingId, notes);
+      await _load();
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('$error')));
+    }
   }
 
   @override
@@ -187,6 +282,74 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                           ),
                         ),
                       ],
+                      // --- what was decided, and what came of it ---------
+                      //
+                      // Placed above attendance deliberately. Who turned up is
+                      // a record; what was agreed is the reason anybody opens a
+                      // past meeting at all.
+                      if (meeting.notes.isNotEmpty || _canMark) ...[
+                        const SizedBox(height: GwdSpace.xl),
+                        SectionHeader(
+                          title: 'What was decided',
+                          trailing: _canMark
+                              ? TextButton(
+                                  onPressed: _editNotes,
+                                  child: Text(
+                                      meeting.notes.isEmpty ? 'Write it' : 'Edit',
+                                      style: GwdType.footnote
+                                          .copyWith(color: GwdColors.primaryRed)),
+                                )
+                              : null,
+                        ),
+                        if (meeting.notes.isEmpty)
+                          Text(
+                            'Nothing written down yet. Four lines of what was '
+                            'agreed is what anybody needs three weeks later.',
+                            style: GwdType.footnote
+                                .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                          )
+                        else
+                          SurfaceCard(
+                            child: Text(meeting.notes,
+                                style: GwdType.body.copyWith(
+                                    color: GwdColors.inkSecondaryOf(context),
+                                    height: 1.45)),
+                          ),
+                      ],
+
+                      const SizedBox(height: GwdSpace.xl),
+                      SectionHeader(
+                        title: 'What came out of it',
+                        subtitle: _actions.isEmpty
+                            ? null
+                            : '${_actions.where((t) => t.status == TaskStatus.completed).length}'
+                                ' of ${_actions.length} done',
+                        trailing: _canAddActions(meeting)
+                            ? TextButton(
+                                onPressed: _addAction,
+                                child: Text('Add',
+                                    style: GwdType.footnote
+                                        .copyWith(color: GwdColors.primaryRed)),
+                              )
+                            : null,
+                      ),
+                      if (_actions.isEmpty)
+                        Text(
+                          _canAddActions(meeting)
+                              ? 'Anything somebody agreed to do becomes a real '
+                                  'task on their Work tab \u2014 not a note here '
+                                  'that nobody sees again.'
+                              : 'No tasks came out of this meeting.',
+                          style: GwdType.footnote
+                              .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                        )
+                      else
+                        for (final task in _actions)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(task: task, onOpened: _load),
+                          ),
+
                       const SizedBox(height: GwdSpace.xl),
                       SectionHeader(
                         title: 'Who was asked',
@@ -393,6 +556,68 @@ class _MarkButton extends StatelessWidget {
         ),
         child:
             Icon(icon, size: 18, color: selected ? Colors.white : GwdColors.inkTertiaryOf(context)),
+      ),
+    );
+  }
+}
+
+/// One thing that came out of the meeting.
+///
+/// A row rather than a checkbox, because it opens the task. Ticking it off from
+/// here would need the same permission rules the task page already enforces,
+/// and a second place to complete work is a second place for the two to
+/// disagree about who did it.
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({required this.task, required this.onOpened});
+
+  final ClubTask task;
+  final Future<void> Function() onOpened;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = task.status == TaskStatus.completed;
+    return SurfaceCard(
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: task.id)),
+        );
+        await onOpened();
+      },
+      padding: const EdgeInsets.symmetric(
+          horizontal: GwdSpace.lg, vertical: GwdSpace.md),
+      child: Row(
+        children: [
+          Icon(task.status.icon, size: 17, color: task.status.tint),
+          const SizedBox(width: GwdSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  task.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GwdType.headline.copyWith(
+                    color: done
+                        ? GwdColors.inkTertiaryOf(context)
+                        : GwdColors.inkOf(context),
+                    decoration: done ? TextDecoration.lineThrough : null,
+                    decorationColor: GwdColors.inkTertiaryOf(context),
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  task.status.label,
+                  style: GwdType.caption
+                      .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              size: 18, color: GwdColors.inkTertiaryOf(context)),
+        ],
       ),
     );
   }

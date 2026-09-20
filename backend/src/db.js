@@ -148,6 +148,10 @@ async function ensureIndexes() {
     d.collection(C.eventDocuments).createIndex({ eventId: 1, kind: 1 }),
     // Event work is the hot path on the Kanban board.
     d.collection(C.tasks).createIndex({ eventId: 1, status: 1 }),
+    // What came out of a meeting. Sparse, because only a handful of tasks ever
+    // carry one and an index over a null the whole collection shares buys
+    // nothing but write cost.
+    d.collection(C.tasks).createIndex({ meetingId: 1 }, { sparse: true }),
 
     // Meetings are read two ways: "what is coming up" and "what was this
     // person invited to", the second being how every attendance figure in the

@@ -145,6 +145,7 @@ class ClubTask {
     this.assignedTo,
     this.departmentId,
     this.eventId,
+    this.meetingId,
     this.dueDate,
     this.points = 0,
     this.priority = TaskPriority.normal,
@@ -163,6 +164,11 @@ class ClubTask {
   /// Set when this task is part of an event, which is what keeps event work
   /// off the general task list — it lives on the event's board instead.
   final String? eventId;
+
+  /// Set when this came out of a meeting. The task page offers the way
+  /// back, because "why am I doing this?" is answered by the room it was
+  /// agreed in.
+  final String? meetingId;
   final TaskStatus status;
   final DateTime? dueDate;
   final int points;
@@ -185,6 +191,7 @@ class ClubTask {
         assignedTo: json['assignedTo'] as String?,
         departmentId: json['departmentId'] as String?,
         eventId: json['eventId'] as String?,
+        meetingId: json['meetingId'] as String?,
         status: TaskStatus.fromWire(json['status'] as String?),
         dueDate: _date(json['dueDate']),
         points: (json['points'] as num?)?.toInt() ?? 0,

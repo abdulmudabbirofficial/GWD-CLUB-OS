@@ -120,6 +120,7 @@ class Meeting {
     this.startTime = '',
     this.endTime = '',
     this.venue = '',
+    this.notes = '',
     this.departments = const [],
     this.invitedCount = 0,
     this.attendedCount = 0,
@@ -135,6 +136,15 @@ class Meeting {
   final String startTime;
   final String endTime;
   final String venue;
+
+  /// What was decided.
+  ///
+  /// One free-text field rather than a structured minutes format. Nobody in
+  /// a club takes formal minutes, and a form with "motion" and "resolution"
+  /// on it gets left empty — whereas four lines of "we agreed to move the
+  /// fest to the 20th" is what actually gets written, and is what anybody
+  /// needs three weeks later.
+  final String notes;
   final MeetingStatus status;
   final String createdByName;
 
@@ -198,6 +208,7 @@ class Meeting {
         startTime: json['startTime'] as String? ?? '',
         endTime: json['endTime'] as String? ?? '',
         venue: json['venue'] as String? ?? '',
+        notes: json['notes'] as String? ?? '',
         status: MeetingStatus.fromWire(json['status'] as String?),
         createdByName: json['createdByName'] as String? ?? 'Member',
         departments: ((json['departments'] as List?) ?? const [])

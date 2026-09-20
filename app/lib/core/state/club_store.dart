@@ -1666,6 +1666,44 @@ class ClubStore extends ChangeNotifier {
   /// would refuse.
   Future<Map<String, dynamic>> meetingDetail(String id) => _api.get('/api/meetings/$id');
 
+  /// What came out of a meeting.
+  ///
+  /// These are ordinary tasks carrying the meeting's id, not a private
+  /// checklist — which is the whole point. A meeting screen with its own list
+  /// of agreements is exactly how they get forgotten: written down in the room,
+  /// appearing in nobody's work, read again only when the same thing goes wrong
+  /// at the next meeting. Read live from the task list, so one completed on the
+  /// Work tab shows as done here with nothing keeping the two in step.
+  Future<List<ClubTask>> meetingActions(String id) async {
+    final json = await _api.get('/api/meetings/$id/actions');
+    return listFrom(json, 'actions', ClubTask.fromJson);
+  }
+
+  Future<void> addMeetingAction(
+    String meetingId, {
+    required String title,
+    String description = '',
+    String? assignedTo,
+    String? departmentId,
+    DateTime? dueDate,
+    int? points,
+  }) async {
+    await _api.post('/api/meetings/$meetingId/actions', {
+      'title': title,
+      'description': description,
+      if (assignedTo != null) 'assignedTo': assignedTo,
+      if (departmentId != null) 'departmentId': departmentId,
+      if (dueDate != null) 'dueDate': dueDate.toUtc().toIso8601String(),
+      if (points != null) 'points': points,
+    });
+    // It is a real task, so it belongs in the real task list immediately —
+    // including the asker's own, if they gave it to themselves.
+    await Future.wait([loadTasks(), loadIncoming()]);
+  }
+
+  Future<void> saveMeetingNotes(String meetingId, String notes) =>
+      _api.patch('/api/meetings/$meetingId', {'notes': notes});
+
   /// Call a meeting. Invitees arrive as named people, whole departments, or
   /// both — the server resolves a department to its members once, at creation,
   /// so the attendance sheet cannot change underneath the record later.
