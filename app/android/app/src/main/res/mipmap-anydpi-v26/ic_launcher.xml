@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon (Android 8+). The launcher masks these two layers into whatever
+  shape the device uses - circle, squircle, teardrop - so the mark has to sit
+  inside the middle 66% of the foreground or it gets clipped.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

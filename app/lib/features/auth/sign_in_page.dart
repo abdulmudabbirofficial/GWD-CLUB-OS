@@ -41,150 +41,157 @@ class _SignInPageState extends State<SignInPage> {
 
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
-      // Capped on a wide window: rows stretching the full width of a
-      // desktop browser or a tablet are unreadable however nicely the
-      // type is set.
-      body: ContentWidth(
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: GwdSpace.gutter(MediaQuery.sizeOf(context).width),
-                vertical: GwdSpace.xxl,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // The club's actual mark, drawn and animated in. First
-                    // impression of the app is its own logo, not a stock glyph.
-                    const AppleStaggerItem(
-                      index: 0,
-                      child: Center(child: GwdLogo(size: 110)),
-                    ),
-                    const SizedBox(height: GwdSpace.xl),
-                    AppleStaggerItem(
-                      index: 1,
-                      child: Center(
-                        child: Text(
-                          'Get Work Done',
-                          style: GwdType.eyebrow.copyWith(
-                            color: GwdColors.inkTertiaryOf(context),
-                            letterSpacing: 2.2,
-                          ),
-                        ),
+      // The brand ramp, not a flat rectangle.
+      //
+      // This is the first screen anybody sees, and a wall of near-black says
+      // nothing about whose app it is. The crimson holds its shoulder at the
+      // top and falls away into the canvas well before the form, so the fields
+      // still sit on plain ground and nothing has to fight the background to
+      // stay readable.
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: GwdColors.heroOf(context)),
+        child: ContentWidth(
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: GwdSpace.gutter(MediaQuery.sizeOf(context).width),
+                  vertical: GwdSpace.xxl,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // The club's actual mark, drawn and animated in. First
+                      // impression of the app is its own logo, not a stock glyph.
+                      const AppleStaggerItem(
+                        index: 0,
+                        child: Center(child: GwdLogo(size: 110)),
                       ),
-                    ),
-                    const SizedBox(height: GwdSpace.xxxl),
-
-                    AppleStaggerItem(
-                      index: 1,
-                      child: Text('Sign in',
-                          style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
-                    ),
-                    const SizedBox(height: GwdSpace.xl),
-
-                    AppleStaggerItem(
-                      index: 2,
-                      child: GwdField(
-                        label: 'Email',
-                        controller: _email,
-                        hint: 'you@college.edu',
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(height: GwdSpace.lg),
-                    AppleStaggerItem(
-                      index: 3,
-                      child: GwdField(
-                        label: 'Password',
-                        controller: _password,
-                        obscure: true,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _submit(),
-                      ),
-                    ),
-
-                    if (session.error != null) ...[
-                      const SizedBox(height: GwdSpace.lg),
-                      ErrorNote(message: session.error!),
-                    ],
-
-                    const SizedBox(height: GwdSpace.xxl),
-                    AppleStaggerItem(
-                      index: 4,
-                      child: PrimaryButton(
-                        label: 'Sign in',
-                        busy: session.busy,
-                        onPressed: _submit,
-                      ),
-                    ),
-
-                    const SizedBox(height: GwdSpace.md),
-                    AppleStaggerItem(
-                      index: 4,
-                      child: Center(
-                        child: PressableScale(
-                          onTap: () => showForgotPasswordSheet(
-                            context,
-                            email: _email.text.trim(),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(GwdSpace.sm),
-                            child: Text(
-                              'Forgotten your password?',
-                              style: GwdType.footnote
-                                  .copyWith(color: GwdColors.inkTertiaryOf(context)),
+                      const SizedBox(height: GwdSpace.xl),
+                      AppleStaggerItem(
+                        index: 1,
+                        child: Center(
+                          child: Text(
+                            'Get Work Done',
+                            style: GwdType.eyebrow.copyWith(
+                              color: GwdColors.inkTertiaryOf(context),
+                              letterSpacing: 2.2,
                             ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: GwdSpace.xxxl),
 
-                    const SizedBox(height: GwdSpace.md),
-                    AppleStaggerItem(
-                      index: 5,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('New to the club?',
-                              style: GwdType.callout
-                                  .copyWith(color: GwdColors.inkSecondaryOf(context))),
-                          const SizedBox(width: GwdSpace.xs),
-                          PressableScale(
-                            haptic: HapticStrength.selection,
-                            onTap: () {
-                              session.clearError();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SignUpPage()),
-                              );
-                            },
-                            child: Text(
-                              'Request access',
-                              style: GwdType.callout.copyWith(
-                                color: GwdColors.primaryRed,
-                                fontWeight: FontWeight.w700,
+                      AppleStaggerItem(
+                        index: 1,
+                        child: Text('Sign in',
+                            style: GwdType.largeTitle.copyWith(color: GwdColors.inkOf(context))),
+                      ),
+                      const SizedBox(height: GwdSpace.xl),
+
+                      AppleStaggerItem(
+                        index: 2,
+                        child: GwdField(
+                          label: 'Email',
+                          controller: _email,
+                          hint: 'you@college.edu',
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                      const SizedBox(height: GwdSpace.lg),
+                      AppleStaggerItem(
+                        index: 3,
+                        child: GwdField(
+                          label: 'Password',
+                          controller: _password,
+                          obscure: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                        ),
+                      ),
+
+                      if (session.error != null) ...[
+                        const SizedBox(height: GwdSpace.lg),
+                        ErrorNote(message: session.error!),
+                      ],
+
+                      const SizedBox(height: GwdSpace.xxl),
+                      AppleStaggerItem(
+                        index: 4,
+                        child: PrimaryButton(
+                          label: 'Sign in',
+                          busy: session.busy,
+                          onPressed: _submit,
+                        ),
+                      ),
+
+                      const SizedBox(height: GwdSpace.md),
+                      AppleStaggerItem(
+                        index: 4,
+                        child: Center(
+                          child: PressableScale(
+                            onTap: () => showForgotPasswordSheet(
+                              context,
+                              email: _email.text.trim(),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(GwdSpace.sm),
+                              child: Text(
+                                'Forgotten your password?',
+                                style: GwdType.footnote
+                                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
 
-                    // The server address is baked in at build time, and a router
-                    // handing the laptop a new IP silently breaks every installed
-                    // copy. Being able to retype it beats reinstalling — so it is
-                    // quiet normally, and offers itself when a connection fails.
-                    const SizedBox(height: GwdSpace.xxl),
-                    AppleStaggerItem(
-                      index: 6,
-                      child: _ServerAddress(
-                        highlighted: session.error?.contains("reach") ?? false,
+                      const SizedBox(height: GwdSpace.md),
+                      AppleStaggerItem(
+                        index: 5,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('New to the club?',
+                                style: GwdType.callout
+                                    .copyWith(color: GwdColors.inkSecondaryOf(context))),
+                            const SizedBox(width: GwdSpace.xs),
+                            PressableScale(
+                              haptic: HapticStrength.selection,
+                              onTap: () {
+                                session.clearError();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const SignUpPage()),
+                                );
+                              },
+                              child: Text(
+                                'Request access',
+                                style: GwdType.callout.copyWith(
+                                  color: GwdColors.primaryRed,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+
+                      // The server address is baked in at build time, and a router
+                      // handing the laptop a new IP silently breaks every installed
+                      // copy. Being able to retype it beats reinstalling — so it is
+                      // quiet normally, and offers itself when a connection fails.
+                      const SizedBox(height: GwdSpace.xxl),
+                      AppleStaggerItem(
+                        index: 6,
+                        child: _ServerAddress(
+                          highlighted: session.error?.contains("reach") ?? false,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

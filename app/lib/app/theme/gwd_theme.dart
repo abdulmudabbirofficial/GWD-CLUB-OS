@@ -12,46 +12,102 @@ import 'apple_motion.dart';
 class GwdColors {
   const GwdColors._();
 
-  // --- Light: paper & ink -------------------------------------------------
-  static const canvas = Color(0xFFF6F6F8);
+  // ---------------------------------------------------------------- light --
+  //
+  // Warm, not neutral. Every grey here carries a trace of the brand red, so a
+  // crimson button sits *in* the page rather than on top of it. The difference
+  // is a couple of points of hue and it is most of what separates a palette
+  // that was designed from one that was picked.
+  static const canvas = Color(0xFFFAF7F7);
   static const canvasLight = canvas; // legacy alias
   static const surface = Color(0xFFFFFFFF);
   static const surfaceWhite = surface; // legacy alias
   static const cardWhite = surface; // legacy alias
   static const canvasWhite = surface; // legacy alias
-  static const surfaceSunken = Color(0xFFF0F0F3);
-  static const hairline = Color(0xFFE6E6EA);
-  static const hairlineSoft = Color(0xFFF0F0F3);
+  static const surfaceSunken = Color(0xFFF4EEEF);
+  static const hairline = Color(0xFFEAE0E1);
+  static const hairlineSoft = Color(0xFFF4EEEF);
   static const line = hairline; // legacy alias
   static const lineSubtle = hairlineSoft; // legacy alias
 
-  static const ink = Color(0xFF0B0B0F);
-  static const inkSecondary = Color(0xFF5C5C66);
-  static const inkTertiary = Color(0xFF9A9AA4);
+  static const ink = Color(0xFF16090C);
+  static const inkSecondary = Color(0xFF6A585C);
+  static const inkTertiary = Color(0xFFA39195);
 
-  // --- Dark: obsidian -----------------------------------------------------
-  static const canvasDark = Color(0xFF08080A);
-  static const surfaceDark = Color(0xFF141417);
-  static const surfaceDarkRaised = Color(0xFF1C1C20);
-  static const hairlineDark = Color(0xFF2A2A30);
+  // ----------------------------------------------------------------- dark --
+  //
+  // Near-black, deliberately *not* black. Pure #000 is where a dark theme goes
+  // to look cheap: it flattens every surface into the same void, kills the
+  // sense of depth that raised cards depend on, and smears on OLED as you
+  // scroll. These carry the same red cast as the light side, so the two themes
+  // read as one product rather than two.
+  static const canvasDark = Color(0xFF0D0709);
+  static const surfaceDark = Color(0xFF181013);
+  static const surfaceDarkRaised = Color(0xFF211619);
+  static const sunkenDark = Color(0xFF120B0D);
+  static const hairlineDark = Color(0xFF2F2126);
 
-  static const obsidian = Color(0xFF0B0B0F);
+  static const obsidian = Color(0xFF0D0709);
   static const jetBlack = Color(0xFF000000);
-  static const charcoal = Color(0xFF18181B);
+  static const charcoal = Color(0xFF1B1215);
 
-  // --- Brand accent (spend sparingly) -------------------------------------
-  static const primaryRed = Color(0xFFDC2626);
-  static const rubyDark = Color(0xFF9F1239);
-  static const rubyLight = Color(0xFFFFE9E9);
-  static const accentCoral = Color(0xFFEF4444);
-  static const redGlow = Color(0x1FDC2626);
-  static const borderRed = Color(0x33DC2626);
+  // ---------------------------------------------------------------- brand --
+  //
+  // Taken from the logo rather than from a palette generator: the mark is a
+  // deep crimson, so the app is a deep crimson. [primaryRed] is the one that
+  // gets spent on the single thing per screen that needs attention.
+  static const primaryRed = Color(0xFFC81E2A);
+  static const crimson = primaryRed;
+  static const crimsonDeep = Color(0xFF8E1219);
+  static const crimsonBright = Color(0xFFE8434F);
+  static const rubyDark = crimsonDeep;
+  static const rubyLight = Color(0xFFFCE9EA);
+  static const accentCoral = crimsonBright;
+  static const redGlow = Color(0x1FC81E2A);
+  static const borderRed = Color(0x33C81E2A);
 
-  // --- Semantic -----------------------------------------------------------
-  static const success = Color(0xFF16A34A);
-  static const warning = Color(0xFFD97706);
-  static const critical = Color(0xFFDC2626);
-  static const info = Color(0xFF2563EB);
+  // ------------------------------------------------------------- semantic --
+  //
+  // Pulled fractionally warm so they belong to the same family as the brand.
+  // A stock material green next to this crimson looks borrowed.
+  static const success = Color(0xFF1E9E5A);
+  static const warning = Color(0xFFD98324);
+  static const critical = Color(0xFFD93544);
+  static const info = Color(0xFF3B6FD4);
+
+  /// The brand ramp: a crimson shoulder at the top, gone by the first third.
+  ///
+  /// The one place the app uses a large area of colour, so that the screens
+  /// that should feel like an *arrival* — signing in, the top of Home — are not
+  /// a flat dark rectangle.
+  ///
+  /// It falls away fast on purpose. A full-height wash looks impressive in a
+  /// mockup and then eats every piece of secondary text on the screen: grey
+  /// labels on deep crimson are unreadable, and lightening them to compensate
+  /// wrecks the hierarchy everywhere else. Colour behind the brand, plain
+  /// ground under the content, and nothing has to fight to stay legible.
+  static LinearGradient heroOf(BuildContext context, {double strength = 1.0}) {
+    final dark = _isDark(context);
+    final top = dark ? crimsonDeep : primaryRed;
+    final ground = dark ? canvasDark : canvas;
+    Color at(double t) => Color.lerp(ground, top, (t * strength).clamp(0.0, 1.0))!;
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [at(0.62), at(0.34), at(0.10), ground],
+      // Eased rather than evenly spaced: a linear two-stop ramp reads as a
+      // band with a visible edge, and the eye finds that edge immediately.
+      stops: const [0.0, 0.16, 0.30, 0.48],
+    );
+  }
+
+  /// The same ramp turned on its side, for a card that wants brand weight
+  /// without becoming a billboard.
+  static const accent = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [primaryRed, crimsonDeep],
+  );
 
   /// A semantic colour as a **background**, correct in either theme.
   ///
@@ -75,18 +131,17 @@ class GwdColors {
 
   static Color canvasOf(BuildContext context) => _isDark(context) ? canvasDark : canvas;
 
-  static Color sunkenOf(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF0F0F12) : surfaceSunken;
+  static Color sunkenOf(BuildContext context) => _isDark(context) ? sunkenDark : surfaceSunken;
 
   static Color hairlineOf(BuildContext context) => _isDark(context) ? hairlineDark : hairline;
 
-  static Color inkOf(BuildContext context) => _isDark(context) ? const Color(0xFFF5F5F7) : ink;
+  static Color inkOf(BuildContext context) => _isDark(context) ? const Color(0xFFF7F2F3) : ink;
 
   static Color inkSecondaryOf(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF9E9EA8) : inkSecondary;
+      _isDark(context) ? const Color(0xFFA79599) : inkSecondary;
 
   static Color inkTertiaryOf(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF6B6B75) : inkTertiary;
+      _isDark(context) ? const Color(0xFF756368) : inkTertiary;
 
   static bool _isDark(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
 }
