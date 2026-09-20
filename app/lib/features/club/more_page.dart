@@ -18,6 +18,7 @@ import '../profile/profile_sheet.dart';
 import '../schedule/schedule_page.dart';
 import 'structure_page.dart';
 import '../../core/plural.dart';
+import '../events/event_templates_page.dart';
 
 /// Everything that does not earn a tab of its own.
 ///
@@ -183,6 +184,22 @@ class MorePage extends StatelessWidget {
                 ),
 
               // ---------- running the club ----------
+              // Templates sit with "what is happening" rather than under
+              // Running the club: everybody can read them, and the member being
+              // asked to help run a guest lecture is exactly who benefits from
+              // seeing what one involves.
+              if (store.eventTemplates.isNotEmpty)
+                AppleStaggerItem(
+                  index: next(),
+                  child: _Tile(
+                    icon: Icons.bookmarks_outlined,
+                    tint: GwdColors.accents[3],
+                    title: 'Event templates',
+                    subtitle: 'The shapes the club runs again',
+                    onTap: () => _push(context, const EventTemplatesPage()),
+                  ),
+                ),
+
               if (caps.canManageDepartments || caps.canViewAudit) ...[
                 const SizedBox(height: GwdSpace.xl),
                 AppleStaggerItem(

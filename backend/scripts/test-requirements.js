@@ -417,6 +417,171 @@ const login = async (email, password) => {
   const purge = await api(`/api/events/${eventId}?purge=true`, { method: 'DELETE', token: who.president.token });
   ok('R20', 'and only then delete it outright', purge.status === 200, `${purge.status} ${purge.txt.slice(0, 120)}`);
 
+  // -------------------------------------------- templates, day mode, report
+  //
+  // The three surfaces an event grows once a club runs the same thing twice:
+  // a saved shape to start from, a run sheet for the day itself, and an
+  // account of what happened afterwards.
+  console.log('\ntemplates, day mode and the report');
+
+  const template = await api('/api/event-templates', {
+    method: 'POST',
+    token: who.president.token,
+    body: {
+      name: 'Guest Lecture',
+      type: 'lecture',
+      venue: 'Seminar Hall',
+      organizingDepartmentId: tech.id,
+      responsibilities: [{
+        departmentId: production.id,
+        notes: 'Stage and sound',
+        tasks: [
+          { title: 'Book the hall', offsetDays: -14, points: 3 },
+          { title: 'Sound check', offsetDays: -1, points: 1 },
+          { title: 'Return the equipment', offsetDays: 2, points: 1 },
+        ],
+      }],
+    },
+  });
+  ok('T1', 'An event template can be saved', template.status === 201, template.txt.slice(0, 160));
+  const templateId = template.body.template && template.body.template.id;
+  const tmpl = template.body.template || {};
+  ok('T1', 'and it counts what applying it would create',
+    tmpl.taskCount === 3 && tmpl.departmentCount === 1,
+    `${tmpl.taskCount} tasks / ${tmpl.departmentCount} departments`);
+  // The offset is the whole point: a stored date would be wrong the second
+  // time the template was used.
+  ok('T1', 'its tasks carry an offset from the event date, not a date',
+    ((tmpl.responsibilities || [])[0] || {}).tasks
+      .every((t) => typeof t.offsetDays === 'number'),
+    JSON.stringify(((tmpl.responsibilities || [])[0] || {}).tasks || []).slice(0, 120));
+
+  const readTemplates = await api('/api/event-templates', { token: who.production.token });
+  ok('T1', 'and everybody can read the templates the club has',
+    readTemplates.status === 200
+    && (readTemplates.body.templates || []).some((t) => t.id === templateId));
+
+  // An ordinary member cannot invent one - a template shapes what the club
+  // does, which is the same standing it takes to create the event itself.
+  const memberTemplate = await api('/api/event-templates', {
+    method: 'POST',
+    token: mate.token,
+    body: { name: 'Nope', organizingDepartmentId: tech.id },
+  });
+  ok('T1', 'but an ordinary member cannot create one',
+    memberTemplate.status === 403, `got ${memberTemplate.status}`);
+
+  const fromTemplate = await api('/api/events', {
+    method: 'POST',
+    token: who.president.token,
+    body: {
+      name: 'Guest Lecture: Systems',
+      date: new Date(Date.now() + 9 * 864e5).toISOString(),
+      organizingDepartmentId: tech.id,
+      leadUserId: who.tech.user.id,
+      teamUserIds: [who.production.user.id],
+      templateId,
+    },
+  });
+  ok('T2', 'An event records the template it was started from',
+    fromTemplate.status === 201 && fromTemplate.body.event.templateId === templateId,
+    fromTemplate.txt.slice(0, 140));
+  const liveId = fromTemplate.body.event && fromTemplate.body.event.id;
+
+  const usage = (await api(`/api/event-templates/${templateId}`, { token: who.president.token }))
+    .body.template || {};
+  ok('T2', 'and using it moves the template up the list', usage.usageCount === 1,
+    `usageCount ${usage.usageCount}`);
+
+  // --- the day itself ------------------------------------------------------
+  const row = await api(`/api/events/${liveId}/runsheet`, {
+    method: 'POST',
+    token: who.tech.token,
+    body: { time: '9:05', title: 'Doors open', ownerUserId: who.production.user.id },
+  });
+  ok('T3', 'The event lead can put something on the run sheet',
+    row.status === 201, row.txt.slice(0, 140));
+  ok('T3', 'and the time is normalised so the sheet sorts without parsing',
+    row.body.item && row.body.item.time === '09:05',
+    (row.body.item || {}).time);
+  const rowId = row.body.item && row.body.item.id;
+
+  await api(`/api/events/${liveId}/runsheet`, {
+    method: 'POST',
+    token: who.tech.token,
+    body: { title: 'Tidy the hall' },
+  });
+  const day = await api(`/api/events/${liveId}/day`, { token: who.tech.token });
+  ok('T3', 'The day view returns the sheet in order, untimed rows last',
+    day.status === 200
+    && day.body.runSheet.length === 2
+    && day.body.runSheet[0].time === '09:05'
+    && day.body.runSheet[1].time === '',
+    JSON.stringify((day.body.runSheet || []).map((i) => i.time)));
+  ok('T3', 'with the team reachable by phone for whoever is running it',
+    day.body.canEdit === true && day.body.team.length === 2);
+
+  // Anyone on the team can tick a row off; only the lead can rewrite one.
+  const tick = await api(`/api/events/${liveId}/runsheet/${rowId}`, {
+    method: 'PATCH', token: who.production.token, body: { done: true },
+  });
+  ok('T3', 'Anyone on the team can tick a row off on the day',
+    tick.status === 200 && tick.body.item.done === true, tick.txt.slice(0, 140));
+  const rewrite = await api(`/api/events/${liveId}/runsheet/${rowId}`, {
+    method: 'PATCH', token: who.production.token, body: { title: 'Something else' },
+  });
+  ok('T3', 'but rewriting one is the event lead’s call',
+    rewrite.status === 403, `got ${rewrite.status}`);
+
+  // A member with no part in the event still sees what is happening - the
+  // club is not secret - but nobody's phone number comes with it.
+  const outsider = await api(`/api/events/${liveId}/day`, { token: mate.token });
+  ok('T3', 'Somebody outside the event still sees what is happening',
+    outsider.status === 200 && outsider.body.runSheet.length === 2,
+    `${outsider.status} / ${(outsider.body.runSheet || []).length} rows`);
+  ok('T3', 'but phone numbers are only for whoever is running it',
+    outsider.body.canEdit === false
+    && (outsider.body.team || []).every((m) => m.phone === ''),
+    JSON.stringify((outsider.body.team || []).map((m) => m.phone)));
+
+  // --- afterwards ----------------------------------------------------------
+  const saved = await api(`/api/events/${liveId}/report`, {
+    method: 'PUT',
+    token: who.tech.token,
+    body: { attendance: 120, highlights: 'Full hall', challenges: 'Projector', learnings: 'Test it' },
+  });
+  ok('T4', 'The event lead can write the report', saved.status === 200, saved.txt.slice(0, 140));
+
+  const report = await api(`/api/events/${liveId}/report`, { token: mate.token });
+  ok('T4', 'and it reads back with what was typed',
+    report.status === 200 && report.body.report.attendance === 120
+    && report.body.report.highlights === 'Full hall',
+    report.txt.slice(0, 140));
+  // The half nobody types is the half that has to be right.
+  ok('T4', 'alongside figures derived from the event, not typed in',
+    report.body.derived
+    && report.body.derived.teamSize === 2
+    && report.body.derived.runSheetTotal === 2
+    && report.body.derived.runSheetDone === 1,
+    JSON.stringify(report.body.derived || {}).slice(0, 160));
+  ok('T4', 'and a reader who cannot edit is told so',
+    report.body.canEdit === false, `canEdit ${report.body.canEdit}`);
+
+  const memberReport = await api(`/api/events/${liveId}/report`, {
+    method: 'PUT', token: mate.token, body: { highlights: 'I was there' },
+  });
+  ok('T4', 'but an ordinary member cannot write it',
+    memberReport.status === 403, `got ${memberReport.status}`);
+  const badReport = await api(`/api/events/${liveId}/report`, {
+    method: 'PUT', token: who.tech.token, body: { attendance: -4 },
+  });
+  ok('T4', 'and a negative attendance is refused rather than stored',
+    badReport.status === 400, `got ${badReport.status}`);
+
+  await api(`/api/events/${liveId}`, { method: 'DELETE', token: who.president.token });
+  await api(`/api/events/${liveId}?purge=true`, { method: 'DELETE', token: who.president.token });
+  await api(`/api/event-templates/${templateId}`, { method: 'DELETE', token: who.president.token });
+
   // --------------------------------------------------------------- schedule
   console.log('\nschedule');
   const categories = (await api('/api/categories/schedule', { token: who.president.token }))

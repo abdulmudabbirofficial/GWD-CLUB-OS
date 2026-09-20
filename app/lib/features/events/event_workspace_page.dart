@@ -10,9 +10,11 @@ import '../../core/models/club_role.dart';
 import '../../core/models/club_event.dart';
 import '../../core/state/club_store.dart';
 import 'event_board_tab.dart';
+import 'event_day_page.dart';
 import 'event_departments_tab.dart';
 import 'event_documents_tab.dart';
 import 'event_finance_tab.dart';
+import 'event_report_page.dart';
 import 'event_updates_tab.dart';
 import '../../core/plural.dart';
 
@@ -171,6 +173,45 @@ class _EventHeader extends StatelessWidget {
             icon: const Icon(Icons.tune_rounded),
             onPressed: () => _showStatusSheet(context, event, eventId),
           ),
+        // Everything else lives behind one overflow. Day mode and the report
+        // are also promoted onto the Overview tab at the point each becomes
+        // the obvious next thing, so this menu is the way back to them rather
+        // than the only way to them.
+        PopupMenuButton<String>(
+          tooltip: 'More',
+          icon: const Icon(Icons.more_vert_rounded),
+          onSelected: (value) => _onMenu(context, value, eventId, event),
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'day',
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.play_circle_outline_rounded, size: 20),
+                title: Text('Run the day'),
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'report',
+              child: ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.history_edu_rounded, size: 20),
+                title: Text('Event report'),
+              ),
+            ),
+            if (workspace.canManage)
+              const PopupMenuItem(
+                value: 'template',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.bookmark_add_outlined, size: 20),
+                  title: Text('Save as a template'),
+                ),
+              ),
+          ],
+        ),
       ],
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
@@ -285,6 +326,167 @@ class _EventHeader extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// Is the day near enough that running it is what somebody came here for?
+///
+/// The day before, the day itself, or any event marked as happening now. Not a
+/// week out — at that range the question is still "is this on track", which is
+/// what the rest of the workspace answers.
+bool _dayIsClose(ClubEvent event) {
+  if (event.status == EventStatus.ongoing) return true;
+  if (event.status == EventStatus.cancelled ||
+      event.status == EventStatus.completed) {
+    return false;
+  }
+  final days = event.daysAway;
+  return days >= 0 && days <= 1;
+}
+
+/// A card that exists to send you somewhere. One line of why, and a whole
+/// tappable surface rather than a link somebody has to aim at.
+class _JumpCard extends StatelessWidget {
+  const _JumpCard({
+    required this.icon,
+    required this.tint,
+    required this.title,
+    required this.message,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color tint;
+  final String title;
+  final String message;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = GwdColors.readableOn(context, tint);
+    return SurfaceCard(
+      emphasis: SurfaceEmphasis.raised,
+      onTap: onTap,
+      padding: const EdgeInsets.all(GwdSpace.lg),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(GwdRadius.md),
+            ),
+            child: Icon(icon, size: 19, color: accent),
+          ),
+          const SizedBox(width: GwdSpace.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title,
+                    style: GwdType.headline
+                        .copyWith(color: GwdColors.inkOf(context))),
+                const SizedBox(height: 1),
+                Text(message,
+                    style: GwdType.footnote
+                        .copyWith(color: GwdColors.inkTertiaryOf(context))),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              size: 18, color: GwdColors.inkTertiaryOf(context)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The overflow menu's three destinations.
+///
+/// Saving as a template is the odd one out: it writes rather than navigates, so
+/// it confirms the name first. A template silently appearing in everybody's
+/// create-event wizard because somebody's thumb brushed a menu is a poor
+/// trade for one saved tap.
+Future<void> _onMenu(
+    BuildContext context, String value, String eventId, ClubEvent event) async {
+  final navigator = Navigator.of(context);
+  switch (value) {
+    case 'day':
+      await navigator.push(
+        MaterialPageRoute(builder: (_) => EventDayPage(eventId: eventId)),
+      );
+    case 'report':
+      await navigator.push(
+        MaterialPageRoute(builder: (_) => EventReportPage(eventId: eventId)),
+      );
+    case 'template':
+      await _saveAsTemplate(context, eventId, event);
+  }
+}
+
+Future<void> _saveAsTemplate(
+    BuildContext context, String eventId, ClubEvent event) async {
+  final store = AppScope.readStore(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final controller = TextEditingController(text: event.name);
+
+  final confirmed = await showGwdSheet<bool>(
+    context: context,
+    builder: (sheetContext) => Container(
+      decoration: BoxDecoration(
+        color: GwdColors.surfaceOf(sheetContext),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SheetHeader(
+              title: 'Save this as a template',
+              subtitle: 'Its departments and their tasks are kept, with each '
+                  'deadline stored as "so many days before the event" so it '
+                  'still makes sense next time.',
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
+              child: Column(
+                children: [
+                  GwdField(
+                    label: 'Call it',
+                    controller: controller,
+                    hint: 'Guest Lecture',
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: GwdSpace.xl),
+                  PrimaryButton(
+                    label: 'Save the template',
+                    onPressed: () => Navigator.of(sheetContext).pop(true),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  final name = controller.text.trim();
+  controller.dispose();
+  if (confirmed != true) return;
+
+  try {
+    await store.saveEventAsTemplate(eventId, name: name);
+    messenger.showSnackBar(SnackBar(
+      content: Text('Saved. "$name" is now offered when anyone creates an event.'),
+    ));
+  } on ApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
   }
 }
 
@@ -659,6 +861,45 @@ class _OverviewTab extends StatelessWidget {
           index: next(),
           child: _ProgressCard(workspace: workspace),
         ),
+
+        // Day mode and the report are each promoted here at exactly the point
+        // it becomes the obvious next thing, and nowhere else. Both live in the
+        // overflow menu permanently; what this adds is that on the morning of
+        // the event, and on the week after it, the screen leads with the one
+        // thing the person opening it came to do. A tab that is right twice in
+        // an event's life does not deserve to be on screen for the rest of it.
+        if (_dayIsClose(event)) ...[
+          const SizedBox(height: GwdSpace.lg),
+          AppleStaggerItem(
+            index: next(),
+            child: _JumpCard(
+              icon: Icons.play_circle_outline_rounded,
+              tint: GwdColors.primaryRed,
+              title: event.status == EventStatus.ongoing ? 'Running now' : 'Event day',
+              message: 'The run sheet, the team’s numbers, and what is '
+                  'still open — on one screen.',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => EventDayPage(eventId: event.id)),
+              ),
+            ),
+          ),
+        ],
+        if (event.status == EventStatus.completed) ...[
+          const SizedBox(height: GwdSpace.lg),
+          AppleStaggerItem(
+            index: next(),
+            child: _JumpCard(
+              icon: Icons.history_edu_rounded,
+              tint: GwdColors.info,
+              title: 'Write it up',
+              message: 'What went well, what did not, and what the next person '
+                  'running this should know.',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => EventReportPage(eventId: event.id)),
+              ),
+            ),
+          ),
+        ],
         if (event.description.isNotEmpty) ...[
           const SizedBox(height: GwdSpace.lg),
           AppleStaggerItem(

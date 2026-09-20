@@ -16,7 +16,10 @@ import '../models/club_role.dart';
 import '../models/club_task.dart';
 import '../models/department.dart';
 import '../models/event_bill.dart';
+import '../models/event_day.dart';
 import '../models/event_document.dart';
+import '../models/event_report.dart';
+import '../models/event_template.dart';
 import '../models/help_request.dart';
 import '../models/meeting.dart';
 import '../models/member.dart';
@@ -292,6 +295,13 @@ class ClubStore extends ChangeNotifier {
   final Map<String, List<EventTaskCard>> _boards = {};
   final Map<String, EventDocuments> _documents = {};
   final Map<String, List<EventActivity>> _timelines = {};
+  final Map<String, EventDay> _days = {};
+  final Map<String, EventReport> _reports = {};
+
+  /// Saved event shapes, club-wide rather than per-event, so the create wizard
+  /// can offer them the moment it opens instead of loading behind a spinner on
+  /// the first screen somebody sees.
+  List<EventTemplate> eventTemplates = const [];
 
   // --- help & collaboration -------------------------------------------------
   List<HelpRequest> helpRequests = const [];
@@ -416,6 +426,7 @@ class ClubStore extends ChangeNotifier {
         // so a Lead's triage pile was empty until they happened to assign
         // something. Anything the app must have on open belongs in this list.
         loadMeetings(),
+        loadEventTemplates(),
       ]);
       if (capabilities.canViewAudit || session.role == ClubRole.clubLead) {
         await loadPendingApprovals();
@@ -1071,6 +1082,132 @@ class ClubStore extends ChangeNotifier {
 
   Future<Map<String, dynamic>> eventChecklist(String id) => _api.get('/api/events/$id/checklist');
 
+  // --- the day itself -------------------------------------------------------
+
+  EventDay? dayFor(String id) => _days[id];
+
+  Future<void> loadEventDay(String id) async {
+    final json = await _api.get('/api/events/$id/day');
+    _days[id] = EventDay.fromJson(json);
+    notifyListeners();
+  }
+
+  Future<void> addRunSheetItem(
+    String eventId, {
+    required String title,
+    String time = '',
+    String note = '',
+    String? ownerUserId,
+  }) async {
+    await _api.post('/api/events/$eventId/runsheet', {
+      'title': title,
+      'time': time,
+      'note': note,
+      if (ownerUserId != null) 'ownerUserId': ownerUserId,
+    });
+    await loadEventDay(eventId);
+  }
+
+  /// Tick a row off, or edit it.
+  ///
+  /// Only the keys actually passed are sent. The server lets anyone on the team
+  /// tick a row but only the event lead rewrite one, and it decides that by
+  /// looking at whether the body contains anything beyond `done` — so sending
+  /// the whole item back on every tick would have a helper's tick refused as an
+  /// edit they are not allowed to make.
+  Future<void> updateRunSheetItem(
+    String eventId,
+    String itemId, {
+    bool? done,
+    String? title,
+    String? time,
+    String? note,
+    String? ownerUserId,
+  }) async {
+    await _api.patch('/api/events/$eventId/runsheet/$itemId', {
+      if (done != null) 'done': done,
+      if (title != null) 'title': title,
+      if (time != null) 'time': time,
+      if (note != null) 'note': note,
+      if (ownerUserId != null) 'ownerUserId': ownerUserId,
+    });
+    await loadEventDay(eventId);
+  }
+
+  Future<void> deleteRunSheetItem(String eventId, String itemId) async {
+    await _api.delete('/api/events/$eventId/runsheet/$itemId');
+    await loadEventDay(eventId);
+  }
+
+  // --- afterwards -----------------------------------------------------------
+
+  EventReport? reportFor(String id) => _reports[id];
+
+  Future<void> loadEventReport(String id) async {
+    final json = await _api.get('/api/events/$id/report');
+    _reports[id] = EventReport.fromJson(json);
+    notifyListeners();
+  }
+
+  Future<void> saveEventReport(
+    String eventId, {
+    int? attendance,
+    String highlights = '',
+    String challenges = '',
+    String learnings = '',
+  }) async {
+    await _api.put('/api/events/$eventId/report', {
+      'attendance': attendance,
+      'highlights': highlights,
+      'challenges': challenges,
+      'learnings': learnings,
+    });
+    await loadEventReport(eventId);
+  }
+
+  // --- templates ------------------------------------------------------------
+
+  Future<void> loadEventTemplates() async {
+    final json = await _api.get('/api/event-templates');
+    eventTemplates = listFrom(json, 'templates', EventTemplate.fromJson);
+    notifyListeners();
+  }
+
+  Future<EventTemplate?> createEventTemplate(Map<String, dynamic> body) async {
+    final json = await _api.post('/api/event-templates', body);
+    await loadEventTemplates();
+    final created = json['template'];
+    return created is Map
+        ? EventTemplate.fromJson(created.cast<String, dynamic>())
+        : null;
+  }
+
+  /// Save an event that already exists as a template.
+  ///
+  /// This is how most templates actually get made. Nobody sits down to write an
+  /// abstract plan; they finish running a workshop, it went well, and they want
+  /// the next one to start from the same place.
+  Future<EventTemplate?> saveEventAsTemplate(String eventId, {String name = ''}) async {
+    final json = await _api.post('/api/event-templates/from-event/$eventId', {
+      if (name.isNotEmpty) 'name': name,
+    });
+    await loadEventTemplates();
+    final created = json['template'];
+    return created is Map
+        ? EventTemplate.fromJson(created.cast<String, dynamic>())
+        : null;
+  }
+
+  Future<void> updateEventTemplate(String id, Map<String, dynamic> changes) async {
+    await _api.patch('/api/event-templates/$id', changes);
+    await loadEventTemplates();
+  }
+
+  Future<void> deleteEventTemplate(String id) async {
+    await _api.delete('/api/event-templates/$id');
+    await loadEventTemplates();
+  }
+
   /// Create an event and everything under it in one commit.
   ///
   /// The wizard collects the team and each department's opening tasks before
@@ -1092,6 +1229,7 @@ class ClubStore extends ChangeNotifier {
     String guestDetails = '',
     String externalOrganisation = '',
     List<Map<String, dynamic>> responsibilities = const [],
+    String? templateId,
   }) async {
     final json = await _api.post('/api/events', {
       'name': name,
@@ -1109,8 +1247,11 @@ class ClubStore extends ChangeNotifier {
       'guestDetails': guestDetails,
       'externalOrganisation': externalOrganisation,
       'responsibilities': responsibilities,
+      // Attribution only. The template was applied in the wizard, so what is
+      // posted here is whatever the person left after editing it.
+      if (templateId != null) 'templateId': templateId,
     });
-    await loadEvents();
+    await Future.wait([loadEvents(), loadEventTemplates()]);
     notifyListeners();
     final created = json['event'];
     return created is Map ? ClubEvent.fromJson(created.cast<String, dynamic>()) : null;

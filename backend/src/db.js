@@ -72,6 +72,22 @@ const C = {
   // A record and an approval trail — it never moves money, and deliberately
   // stores no bank details.
   eventBills: 'eventBills',
+
+  /**
+   * The shape of an event the club runs more than once.
+   *
+   * A club's calendar is mostly repeats: a workshop every month, a guest
+   * lecture every term, the same fest every year. Rebuilding the same six
+   * departments and their same twenty opening tasks from scratch each time is
+   * both tedious and how things get forgotten — the poster brief that was in
+   * last year's plan and nobody remembered this year.
+   *
+   * A template's tasks carry `offsetDays` relative to the event date, never a
+   * date of their own. "Book the venue, fourteen days before" survives being
+   * used again; "book the venue, 3 March" is wrong the second time and every
+   * time after.
+   */
+  eventTemplates: 'eventTemplates',
 };
 
 function database() {
@@ -145,6 +161,11 @@ async function ensureIndexes() {
 
     d.collection(C.eventBills).createIndex({ eventId: 1, status: 1 }),
     d.collection(C.eventBills).createIndex({ createdBy: 1 }),
+
+    // Templates are listed whole — there are a handful — but sorted by how
+    // much use they get, so the one the club actually runs is at the top.
+    d.collection(C.eventTemplates).createIndex({ active: 1, usageCount: -1 }),
+    d.collection(C.eventTemplates).createIndex({ name: 1 }),
 
     d.collection(C.broadcasts).createIndex({ createdAt: -1 }),
     d.collection(C.broadcasts).createIndex({ audience: 1, departmentId: 1 }),

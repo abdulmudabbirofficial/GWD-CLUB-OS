@@ -67,6 +67,7 @@ function serialiseEvent(event, extra = {}) {
     speakerName: event.speakerName ?? '',
     guestDetails: event.guestDetails ?? '',
     externalOrganisation: event.externalOrganisation ?? '',
+    templateId: event.templateId ? String(event.templateId) : null,
     createdBy: event.createdBy ? String(event.createdBy) : null,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
@@ -208,6 +209,15 @@ router.post('/', async (request, response, next) => {
         ? request.body.guestDetails.trim().slice(0, 1000) : '',
       externalOrganisation: typeof request.body.externalOrganisation === 'string'
         ? request.body.externalOrganisation.trim().slice(0, 160) : '',
+      // Which template this was started from, if any.
+      //
+      // The template is applied *client-side*, in the wizard: it prefills the
+      // fields and resolves each task's offset into a real date, and the person
+      // then edits the result before committing. That keeps one creation path
+      // instead of two that would drift, and it makes the template a starting
+      // point rather than a contract — which is the only kind anybody trusts.
+      // This field is attribution, not a live link.
+      templateId: maybeOid(request.body.templateId),
       createdBy: actor._id,
       createdAt: now,
       updatedAt: now,
@@ -290,8 +300,23 @@ router.post('/', async (request, response, next) => {
       });
     }
 
+    // A template earns its place in the list by being used, so the ordering
+    // reflects what the club actually runs rather than what somebody once
+    // imagined it might. Failing to count a use must never fail the event, so
+    // this is deliberately not awaited into the response path.
+    if (event.templateId) {
+      await col(C.eventTemplates).updateOne(
+        { _id: event.templateId },
+        { $inc: { usageCount: 1 }, $set: { lastUsedAt: now } },
+      ).catch(() => {});
+    }
+
     await audit(actor._id, 'event.create', {
-      eventId: String(event._id), name, departments: responsibilities.length, tasks: taskCount,
+      eventId: String(event._id),
+      name,
+      departments: responsibilities.length,
+      tasks: taskCount,
+      ...(event.templateId ? { templateId: String(event.templateId) } : {}),
     });
 
     response.status(201).json({
@@ -804,6 +829,389 @@ function describeAudit(entry) {
     default: return entry.action;
   }
 }
+
+/* --------------------------------------------------------------- day mode */
+
+/**
+ * Running the event on the day.
+ *
+ * Every other event screen answers "is this on track?", which is a planning
+ * question asked at a desk. On the day itself nobody is planning: somebody is
+ * standing in a corridor with fifteen minutes to go, and the questions are
+ * "what is happening right now", "what is next", and "who do I ring about the
+ * projector". The workspace answers none of those, and a tab that made them
+ * scroll past a burndown chart to find a phone number would go unused.
+ *
+ * The run sheet lives **on the event document** rather than in a collection of
+ * its own. It is a dozen or so rows, it is never read without the event, and
+ * nothing ever queries across the run sheets of different events. A collection
+ * would buy a join and nothing else.
+ */
+
+/** Times are stored as `HH:MM` so they sort lexicographically without parsing. */
+function clockTime(value) {
+  if (typeof value !== 'string') return '';
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return '';
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return '';
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+/** Untimed rows sort last: they are the "at some point" jobs, not the schedule. */
+const byTime = (a, b) => (a.time || '99:99').localeCompare(b.time || '99:99');
+
+function serialiseRunSheet(event, userById) {
+  return [...(event.runSheet ?? [])].sort(byTime).map((item) => ({
+    id: String(item.id),
+    time: item.time ?? '',
+    title: item.title,
+    note: item.note ?? '',
+    ownerUserId: item.ownerUserId ? String(item.ownerUserId) : null,
+    ownerName: item.ownerUserId
+      ? (userById?.get(String(item.ownerUserId))?.name ?? null) : null,
+    done: Boolean(item.done),
+    doneAt: item.doneAt ?? null,
+    doneBy: item.doneBy ? String(item.doneBy) : null,
+  }));
+}
+
+/**
+ * Everything the day view needs, in one request.
+ *
+ * Deliberately **not** computing "what is on now" server-side. The person
+ * holding the phone is the one standing in the room, their clock is the one
+ * that matters, and a `currentItem` baked into a response goes stale the
+ * moment it is cached or the screen is left open. The client derives it from
+ * the sorted list, which is one source of truth rather than two that disagree
+ * five minutes apart.
+ */
+router.get('/:id/day', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+
+    const actor = request.user;
+    // Phone numbers are the useful half of this screen and also the only
+    // private thing on it, so they go to the people who would actually be
+    // ringing somebody: whoever can manage the event. Everybody else gets the
+    // same run sheet without them. A club directory that quietly hands every
+    // member's number to every member is not something anyone asked for.
+    const mayCall = canManageEvent(actor, event);
+
+    const teamIds = [...new Set([
+      String(event.leadUserId ?? ''),
+      ...(event.teamUserIds ?? []).map(String),
+      ...(event.runSheet ?? []).map((i) => String(i.ownerUserId ?? '')),
+    ])].filter(Boolean).filter(ObjectId.isValid).map((uid) => new ObjectId(uid));
+
+    const [people, openTasks, pendingApprovals] = await Promise.all([
+      col(C.users).find(
+        { _id: { $in: teamIds } },
+        { projection: { name: 1, role: 1, avatarColor: 1, phone: 1, mustSetName: 1, departmentId: 1 } },
+      ).toArray(),
+      col(C.tasks).find({ eventId: id, status: { $nin: ['completed', 'cancelled'] } })
+        .sort({ dueDate: 1 }).limit(50).toArray(),
+      col(C.eventDocuments)
+        .countDocuments({ eventId: id, kind: 'approval', status: 'pending' }),
+    ]);
+    const userById = new Map(people.map((p) => [String(p._id), p]));
+
+    const runSheet = serialiseRunSheet(event, userById);
+    response.json({
+      event: serialiseEvent(event),
+      runSheet,
+      runSheetDone: runSheet.filter((i) => i.done).length,
+      canEdit: mayCall,
+      team: [...new Set([
+        String(event.leadUserId ?? ''),
+        ...(event.teamUserIds ?? []).map(String),
+      ])].filter(Boolean).map((uid) => {
+        const u = userById.get(uid);
+        return {
+          id: uid,
+          name: u?.name ?? 'Member',
+          role: u?.role ?? 'clubMember',
+          departmentId: u?.departmentId ? String(u.departmentId) : null,
+          avatarColor: u?.avatarColor ?? null,
+          mustSetName: Boolean(u?.mustSetName),
+          phone: mayCall ? (u?.phone ?? '') : '',
+          isLead: uid === String(event.leadUserId),
+        };
+      }),
+      openTasks: openTasks.map((t) => ({
+        id: String(t._id),
+        title: t.title,
+        status: t.status,
+        dueDate: t.dueDate ?? null,
+        departmentId: t.departmentId ? String(t.departmentId) : null,
+        assignedTo: t.assignedTo ? String(t.assignedTo) : null,
+      })),
+      openTaskCount: openTasks.length,
+      pendingApprovals,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/runsheet', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+    const actor = request.user;
+    if (!canManageEvent(actor, event)) {
+      fail('Only the event lead can change the run sheet.', 403);
+    }
+    // A run sheet is a page of a clipboard, not a work-breakdown structure. A
+    // cap keeps one runaway paste from producing a screen nobody can scroll.
+    if ((event.runSheet ?? []).length >= 100) {
+      fail('That run sheet is full. Ninety-nine things is already more than a day holds.', 409);
+    }
+
+    const item = {
+      id: new ObjectId(),
+      time: clockTime(request.body.time),
+      title: text(request.body.title, 'What happens', { min: 2, max: 200 }),
+      note: typeof request.body.note === 'string' ? request.body.note.trim().slice(0, 500) : '',
+      ownerUserId: maybeOid(request.body.ownerUserId),
+      done: false,
+      doneAt: null,
+      doneBy: null,
+    };
+    await col(C.events).updateOne(
+      { _id: id },
+      { $push: { runSheet: item }, $set: { updatedAt: new Date() } },
+    );
+    await audit(actor._id, 'event.runsheet.add', {
+      eventId: String(id), title: item.title,
+    });
+    response.status(201).json({ item: serialiseRunSheet({ runSheet: [item] })[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Tick a run-sheet row off, or edit it.
+ *
+ * **Ticking is open to anyone on the team**, editing is not. On the day the
+ * person who finishes setting the stage is whoever was nearest, and making
+ * them find the event lead to have it marked done is how a run sheet stops
+ * being updated by eleven in the morning.
+ */
+router.patch('/:id/runsheet/:itemId', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const itemId = oid(request.params.itemId, 'Run sheet item id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+    const existing = (event.runSheet ?? []).find((i) => String(i.id) === String(itemId));
+    if (!existing) fail('That run sheet item no longer exists.', 404);
+
+    const actor = request.user;
+    const onTeam = [
+      String(event.leadUserId ?? ''),
+      ...(event.teamUserIds ?? []).map(String),
+      String(existing.ownerUserId ?? ''),
+    ].includes(String(actor._id));
+    const mayEdit = canManageEvent(actor, event);
+    const body = request.body ?? {};
+    const onlyTicking = Object.keys(body).every((key) => key === 'done');
+
+    if (!mayEdit && !(onlyTicking && onTeam)) {
+      fail('Only the event lead can change the run sheet.', 403);
+    }
+
+    const set = { updatedAt: new Date() };
+    if (body.done !== undefined) {
+      const done = Boolean(body.done);
+      set['runSheet.$[row].done'] = done;
+      set['runSheet.$[row].doneAt'] = done ? new Date() : null;
+      set['runSheet.$[row].doneBy'] = done ? actor._id : null;
+    }
+    if (mayEdit) {
+      if (body.time !== undefined) set['runSheet.$[row].time'] = clockTime(body.time);
+      if (body.title !== undefined) {
+        set['runSheet.$[row].title'] = text(body.title, 'What happens', { min: 2, max: 200 });
+      }
+      if (body.note !== undefined) {
+        set['runSheet.$[row].note'] = typeof body.note === 'string'
+          ? body.note.trim().slice(0, 500) : '';
+      }
+      if (body.ownerUserId !== undefined) {
+        set['runSheet.$[row].ownerUserId'] = maybeOid(body.ownerUserId);
+      }
+    }
+
+    await col(C.events).updateOne(
+      { _id: id },
+      { $set: set },
+      { arrayFilters: [{ 'row.id': itemId }] },
+    );
+    const updated = await col(C.events).findOne({ _id: id });
+    const item = serialiseRunSheet(updated).find((i) => i.id === String(itemId));
+    response.json({ item });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/:id/runsheet/:itemId', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const itemId = oid(request.params.itemId, 'Run sheet item id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+    const actor = request.user;
+    if (!canManageEvent(actor, event)) {
+      fail('Only the event lead can change the run sheet.', 403);
+    }
+    await col(C.events).updateOne(
+      { _id: id },
+      { $pull: { runSheet: { id: itemId } }, $set: { updatedAt: new Date() } },
+    );
+    response.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ----------------------------------------------------------------- report */
+
+/**
+ * What happened, and what to do differently.
+ *
+ * Half of this is **derived and never typed**: how many tasks were completed,
+ * what it cost, how many people were on it, what paperwork is on file. Asking
+ * somebody to fill those in by hand produces numbers that are wrong, and a
+ * report with one wrong number in it is a report nobody reads the rest of.
+ *
+ * The typed half is three questions, deliberately not ten: what went well,
+ * what did not, and what the next person should know. A form long enough to
+ * feel like homework is a form that gets submitted empty, and an empty report
+ * is worse than none — it looks like the event went fine.
+ */
+router.get('/:id/report', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+
+    const [taskRows, bills, documents, responsibilities] = await Promise.all([
+      col(C.tasks).aggregate([
+        { $match: { eventId: id, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            done: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+            points: {
+              $sum: { $cond: [{ $eq: ['$status', 'completed'] }, { $ifNull: ['$points', 0] }, 0] },
+            },
+          },
+        },
+      ]).toArray(),
+      col(C.eventBills).find({ eventId: id }).toArray(),
+      col(C.eventDocuments).find({ eventId: id }, { projection: { kind: 1, status: 1 } }).toArray(),
+      col(C.eventResponsibilities).countDocuments({ eventId: id }),
+    ]);
+
+    const tasks = taskRows[0] ?? { total: 0, done: 0, points: 0 };
+    // Cancelled bills are not spending. Everything else was money out of
+    // somebody's pocket whether or not it has been signed off yet, which is
+    // the figure anybody asking "what did it cost" means.
+    const counted = bills.filter((b) => b.status !== 'rejected');
+    const spentPaise = counted.reduce((sum, b) => sum + (b.amountPaise ?? 0), 0);
+    const owedPaise = counted
+      .filter((b) => b.status !== 'paid')
+      .reduce((sum, b) => sum + (b.amountPaise ?? 0), 0);
+
+    const stored = event.report ?? null;
+    const submittedBy = stored?.submittedBy
+      ? await col(C.users).findOne(
+        { _id: stored.submittedBy }, { projection: { name: 1, role: 1 } },
+      )
+      : null;
+
+    response.json({
+      event: serialiseEvent(event),
+      canEdit: canManageEvent(request.user, event),
+      report: stored ? {
+        attendance: stored.attendance ?? null,
+        highlights: stored.highlights ?? '',
+        challenges: stored.challenges ?? '',
+        learnings: stored.learnings ?? '',
+        submittedBy: stored.submittedBy ? String(stored.submittedBy) : null,
+        submittedByName: submittedBy?.name ?? null,
+        submittedAt: stored.submittedAt ?? null,
+        updatedAt: stored.updatedAt ?? null,
+      } : null,
+      derived: {
+        taskCount: tasks.total,
+        taskCompleted: tasks.done,
+        pointsEarned: tasks.points,
+        departmentCount: responsibilities,
+        teamSize: [...new Set([
+          String(event.leadUserId ?? ''),
+          ...(event.teamUserIds ?? []).map(String),
+        ])].filter(Boolean).length,
+        spentPaise,
+        owedPaise,
+        billCount: counted.length,
+        documentCount: documents.length,
+        approvalsApproved: documents
+          .filter((d) => d.kind === 'approval' && d.status === 'approved').length,
+        runSheetTotal: (event.runSheet ?? []).length,
+        runSheetDone: (event.runSheet ?? []).filter((i) => i.done).length,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id/report', async (request, response, next) => {
+  try {
+    const id = oid(request.params.id, 'Event id');
+    const event = await col(C.events).findOne({ _id: id });
+    if (!event) fail('That event no longer exists.', 404);
+    const actor = request.user;
+    if (!canManageEvent(actor, event)) {
+      fail('Only the event lead can write the report.', 403);
+    }
+
+    const body = request.body ?? {};
+    let attendance = null;
+    if (body.attendance !== undefined && body.attendance !== null && body.attendance !== '') {
+      const n = Number(body.attendance);
+      if (!Number.isFinite(n) || n < 0) fail('Attendance has to be a number, or left blank.');
+      attendance = Math.min(1_000_000, Math.round(n));
+    }
+
+    const now = new Date();
+    const report = {
+      attendance,
+      highlights: typeof body.highlights === 'string' ? body.highlights.trim().slice(0, 4000) : '',
+      challenges: typeof body.challenges === 'string' ? body.challenges.trim().slice(0, 4000) : '',
+      learnings: typeof body.learnings === 'string' ? body.learnings.trim().slice(0, 4000) : '',
+      // Who wrote it first stays who wrote it, so a later tidy-up by somebody
+      // else does not quietly reassign authorship of the account.
+      submittedBy: event.report?.submittedBy ?? actor._id,
+      submittedAt: event.report?.submittedAt ?? now,
+      updatedAt: now,
+    };
+    await col(C.events).updateOne({ _id: id }, { $set: { report, updatedAt: now } });
+    await audit(actor._id, 'event.report', { eventId: String(id), name: event.name });
+
+    response.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.delete('/:id', async (request, response, next) => {
   try {

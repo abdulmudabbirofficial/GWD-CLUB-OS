@@ -106,6 +106,9 @@ app.use('/api/schedule', require('./routes/schedule'));
 // mount at /api because they are addressed both under an event and on their
 // own (a decision or a download names the document, not the event).
 app.use('/api/events', require('./routes/events'));
+// Its own path rather than /api/events/templates, which would be shadowed by
+// the `/:id` route above and answer "templates is not a valid event id".
+app.use('/api/event-templates', require('./routes/eventTemplates'));
 app.use('/api', require('./routes/documents'));
 // Bookkeeping for what an event cost, and an approval trail for repaying it.
 // Mounted at /api for the same reason as documents: a bill is addressed both

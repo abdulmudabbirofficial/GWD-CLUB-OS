@@ -7,7 +7,9 @@ import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/department.dart';
+import '../../core/models/event_template.dart';
 import '../../core/models/member.dart';
+import '../../core/plural.dart';
 import 'event_workspace_page.dart';
 
 /// Creating an event, in three steps.
@@ -56,6 +58,17 @@ class _Responsibility {
   final notes = TextEditingController();
   final List<String> tasks = [];
 
+  /// The extra detail a template carried, keyed by task title.
+  ///
+  /// [tasks] stays a plain list of titles because that is all the step-three UI
+  /// ever shows or edits, and a hand-typed task genuinely has nothing else on
+  /// it. A template's tasks also carry a deadline and a points value, and
+  /// throwing those away at apply time would make a template worth barely more
+  /// than a list of reminders. This holds them alongside, so a title present
+  /// here is submitted with its date and points and everything else is
+  /// submitted exactly as before.
+  final Map<String, TemplateTask> planned = {};
+
   void dispose() => notes.dispose();
 }
 
@@ -83,6 +96,10 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
 
   // Step 3 — who does what
   final List<_Responsibility> _responsibilities = [];
+
+  /// Which saved shape this started from, if any. Attribution only — what gets
+  /// posted is whatever is on screen after the person has edited it.
+  String? _templateId;
 
   static const _types = ['Event', 'Workshop', 'Seminar', 'Competition', 'Meetup', 'Drive'];
 
@@ -114,6 +131,71 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
       r.dispose();
     }
     super.dispose();
+  }
+
+  /// Fill the wizard in from a saved shape.
+  ///
+  /// Applied **here**, in the client, rather than on the server: the person
+  /// then edits the result before anything is committed, which is what makes a
+  /// template a starting point rather than a contract. It also keeps one
+  /// creation path instead of two that would drift apart.
+  ///
+  /// Each task's `offsetDays` is resolved against the date currently chosen, so
+  /// "fourteen days before" becomes a real deadline the person can see and
+  /// change. That is the whole reason templates store an offset — a stored date
+  /// would be wrong the second time the template was used.
+  void _applyTemplate(EventTemplate template) {
+    setState(() {
+      _templateId = template.id;
+      // The name is the one field left alone: it is what makes this event
+      // *this* event, and overwriting what somebody has already typed with
+      // "Guest Lecture" would be taking the screen off them.
+      if (_name.text.trim().isEmpty) _name.text = template.name;
+      if (_description.text.trim().isEmpty) _description.text = template.description;
+      if (template.venue.isNotEmpty) _venue.text = template.venue;
+      if (_types.contains(template.type)) _type = template.type;
+      _start = _parseClock(template.startTime) ?? _start;
+      _end = _parseClock(template.endTime) ?? _end;
+      if (template.organizingDepartmentId != null) {
+        _organisingDepartmentId = template.organizingDepartmentId;
+      }
+
+      for (final r in _responsibilities) {
+        r.dispose();
+      }
+      _responsibilities.clear();
+      for (final entry in template.responsibilities) {
+        final r = _Responsibility(entry.departmentId);
+        r.notes.text = entry.notes;
+        for (final task in entry.tasks) {
+          // Titles are the key, so a template listing the same title twice
+          // would otherwise produce two rows the UI cannot tell apart.
+          if (r.tasks.contains(task.title)) continue;
+          r.tasks.add(task.title);
+          r.planned[task.title] = task;
+        }
+        _responsibilities.add(r);
+      }
+    });
+  }
+
+  /// Forget the template and start from nothing again.
+  void _clearTemplate() {
+    setState(() {
+      _templateId = null;
+      for (final r in _responsibilities) {
+        r.dispose();
+      }
+      _responsibilities.clear();
+    });
+  }
+
+  static TimeOfDay? _parseClock(String value) {
+    if (value.length != 5 || value[2] != ':') return null;
+    final hours = int.tryParse(value.substring(0, 2));
+    final mins = int.tryParse(value.substring(3));
+    if (hours == null || mins == null || hours > 23 || mins > 59) return null;
+    return TimeOfDay(hour: hours, minute: mins);
   }
 
   bool get _step1Valid => _name.text.trim().length >= 2;
@@ -164,10 +246,19 @@ class _CreateEventFlowState extends State<CreateEventFlow> {
               'departmentId': r.departmentId,
               'notes': r.notes.text.trim(),
               'tasks': [
-                for (final t in r.tasks) {'title': t},
+                for (final t in r.tasks)
+                  {
+                    'title': t,
+                    if (r.planned[t]?.description.isNotEmpty ?? false)
+                      'description': r.planned[t]!.description,
+                    if (r.planned[t]?.dueFor(_date) != null)
+                      'dueDate': r.planned[t]!.dueFor(_date)!.toUtc().toIso8601String(),
+                    if (r.planned[t] != null) 'points': r.planned[t]!.points,
+                  },
               ],
             },
         ],
+        templateId: _templateId,
       );
       if (!mounted) return;
       // Hand the id back; `open` decides where to show it.
@@ -336,9 +427,55 @@ class _StepBasicsState extends State<_StepBasics> {
   @override
   Widget build(BuildContext context) {
     final gutter = Layout.of(context).gutter;
+    final templates = AppScope.storeOf(context).eventTemplates;
+
     return ListView(
       padding: EdgeInsets.fromLTRB(gutter, 0, gutter, GwdSpace.xxl),
       children: [
+        // Offered first, because a template is worth nothing once somebody has
+        // already typed the whole thing out. Only shown when the club has any:
+        // an empty "start from a template" rail on a club's first event is a
+        // dead control that has to be explained.
+        if (templates.isNotEmpty) ...[
+          Text('START FROM',
+              style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
+          const SizedBox(height: GwdSpace.sm),
+          Wrap(
+            spacing: GwdSpace.sm,
+            runSpacing: GwdSpace.sm,
+            children: [
+              _Choice(
+                label: 'Blank',
+                selected: s._templateId == null,
+                onTap: s._clearTemplate,
+              ),
+              for (final template in templates)
+                _Choice(
+                  label: template.name,
+                  selected: s._templateId == template.id,
+                  icon: Icons.bookmark_outline_rounded,
+                  onTap: () => s._applyTemplate(template),
+                ),
+            ],
+          ),
+          if (s._templateId != null) ...[
+            const SizedBox(height: GwdSpace.sm),
+            Builder(builder: (context) {
+              final applied =
+                  templates.where((t) => t.id == s._templateId).firstOrNull;
+              if (applied == null) return const SizedBox.shrink();
+              return Text(
+                'Filled in ${countOf(applied.departmentCount, 'department')} and '
+                '${countOf(applied.taskCount, 'task')}. Change anything you like '
+                'before creating it.',
+                style: GwdType.caption
+                    .copyWith(color: GwdColors.inkTertiaryOf(context)),
+              );
+            }),
+          ],
+          const SizedBox(height: GwdSpace.lg),
+        ],
+
         GwdField(
           label: 'Event name',
           controller: s._name,
