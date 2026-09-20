@@ -12,6 +12,7 @@ import 'hand_out_sheet.dart';
 import 'new_task_sheet.dart';
 import 'task_card.dart';
 import 'task_detail_page.dart';
+import 'work_grouping.dart';
 
 /// Section 6.2 — one page, two tabs.
 ///
@@ -173,30 +174,54 @@ class _TasksPageState extends State<TasksPage> {
               else
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 96),
-                  sliver: SliverList.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, i) {
-                      final task = visible[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                        child: AppleStaggerItem(
-                          index: i,
+                  sliver: Builder(builder: (context) {
+                    // Grouped by *when*, not by status.
+                    //
+                    // "Nine to do, two in progress" does not answer the question
+                    // somebody opens this screen with, which is what they have to
+                    // do today. Status is still available as a filter, and while
+                    // one is applied the grouping steps out of the way — a flat
+                    // list is the right answer to "show me everything blocked".
+                    final rows = _filter == null && _tab == 0
+                        ? groupWork(visible)
+                        : [for (final t in visible) WorkRow.task(t)];
+
+                    return SliverList.builder(
+                      itemCount: rows.length,
+                      itemBuilder: (context, i) {
+                        final row = rows[i];
+                        final heading = row.heading;
+                        if (heading != null) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              top: i == 0 ? 0 : GwdSpace.lg,
+                              bottom: GwdSpace.xs,
+                            ),
+                            child: SectionHeader(title: heading),
+                          );
+                        }
+                        final task = row.task!;
+                        final card = TaskCard(
                           // Keyed by id so a live update animates in place rather
                           // than the whole list rebuilding underneath the user.
-                          child: TaskCard(
-                            key: ValueKey(task.id),
-                            task: task,
-                            subtitle: _tab == 0
-                                ? 'From ${store.memberName(task.assignedBy)}'
-                                : 'To ${store.memberName(task.assignedTo)}',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: task.id)),
-                            ),
+                          key: ValueKey(task.id),
+                          task: task,
+                          subtitle: _tab == 0
+                              ? 'From ${store.memberName(task.assignedBy)}'
+                              : 'To ${store.memberName(task.assignedTo)}',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: task.id)),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                          // Only the first screenful is staggered; past that a
+                          // row is built because somebody scrolled to it.
+                          child: i < 8 ? AppleStaggerItem(index: i, child: card) : card,
+                        );
+                      },
+                    );
+                  }),
                 ),
             ],
           ),

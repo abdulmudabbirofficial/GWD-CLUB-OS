@@ -88,12 +88,16 @@ enum TaskStatus {
         TaskStatus.cancelled => 0,
       };
 
+  /// One colour per state, all of them distinct at a glance and none of them
+  /// violet. Review used to be `#7C3AED`, which was the last of the neon
+  /// palette still in the app: a purple speech bubble in a list of crimson,
+  /// blue and green reads as belonging to a different product.
   Color get tint => switch (this) {
-        TaskStatus.pending => const Color(0xFF9A9AA4),
-        TaskStatus.inProgress => const Color(0xFF2563EB),
-        TaskStatus.review => const Color(0xFF7C3AED),
-        TaskStatus.completed => const Color(0xFF16A34A),
-        TaskStatus.blocked => const Color(0xFFD97706),
+        TaskStatus.pending => const Color(0xFF9A9AA4), // grey — not started
+        TaskStatus.inProgress => const Color(0xFF2563EB), // blue — moving
+        TaskStatus.review => const Color(0xFF0D9488), // teal — with somebody else
+        TaskStatus.completed => const Color(0xFF16A34A), // green — done
+        TaskStatus.blocked => const Color(0xFFD97706), // amber — stuck
         TaskStatus.cancelled => const Color(0xFF9A9AA4),
       };
 

@@ -533,8 +533,8 @@ class _RailButton extends StatelessWidget {
                   Icon(selected ? item.activeIcon : item.icon, size: 21, color: color),
                   if (item.badge > 0)
                     Positioned(
-                      top: -4,
-                      right: -7,
+                      top: -7,
+                      right: -11,
                       child: _Badge(item: item, selected: selected),
                     ),
                 ],
@@ -662,8 +662,8 @@ class _NavButton extends StatelessWidget {
                 ),
                 if (item.badge > 0)
                   Positioned(
-                    top: -3,
-                    right: -7,
+                    top: -7,
+                    right: -11,
                     child: _Badge(item: item, selected: false),
                   ),
               ],
@@ -705,21 +705,32 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No ring around it any more.
+    //
+    // The ring was `surfaceOf` — an opaque colour, drawn to separate the badge
+    // from the glyph behind it. That worked while the bar was opaque. The bar
+    // is frosted over the backdrop now, so the ring painted a solid grey collar
+    // that matched nothing, and with the badge sitting on the icon the whole
+    // thing read as a clipping artifact. Clearing the glyph does the separating
+    // instead, which needs no colour at all.
+    final fill = selected
+        ? Colors.white
+        : (item.accentBadge ? GwdColors.primaryRed : GwdColors.inkOf(context));
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-      constraints: const BoxConstraints(minWidth: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      constraints: const BoxConstraints(minWidth: 16),
       decoration: BoxDecoration(
-        color: selected
-            ? Colors.white
-            : (item.accentBadge ? GwdColors.primaryRed : GwdColors.inkSecondaryOf(context)),
+        color: fill,
         borderRadius: BorderRadius.circular(GwdRadius.pill),
-        border: Border.all(color: GwdColors.surfaceOf(context), width: 1.5),
       ),
       child: Text(
         item.badge > 99 ? '99+' : '${item.badge}',
         textAlign: TextAlign.center,
         style: GwdType.micro.copyWith(
-          color: selected ? GwdColors.primaryRed : Colors.white,
+          color: selected
+              ? GwdColors.primaryRed
+              : (item.accentBadge ? Colors.white : GwdColors.canvasOf(context)),
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
