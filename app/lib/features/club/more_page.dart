@@ -208,8 +208,8 @@ class MorePage extends StatelessWidget {
                     child: _Tile(
                       icon: Icons.insights_outlined,
                       tint: GwdColors.rubyDark,
-                      title: 'Analytics & activity',
-                      subtitle: 'Completion by department, and the full audit log',
+                      title: 'Dashboard',
+                      subtitle: 'The club in numbers, and the full audit log',
                       onTap: () => _push(context, const AnalyticsPage()),
                     ),
                   ),

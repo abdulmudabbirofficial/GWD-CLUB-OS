@@ -237,10 +237,10 @@ class FluidReveal extends StatefulWidget {
     super.key,
     required this.child,
     this.index = 0,
-    this.stepMs = 46,
-    this.maxDelayMs = 420,
-    this.offsetY = 16,
-    this.scaleFrom = 0.985,
+    this.stepMs = 28,
+    this.maxDelayMs = 200,
+    this.offsetY = 14,
+    this.scaleFrom = 0.988,
   });
 
   final Widget child;
@@ -255,9 +255,15 @@ class FluidReveal extends StatefulWidget {
 }
 
 class _FluidRevealState extends State<FluidReveal> with SingleTickerProviderStateMixin {
+  // Was 620ms on a 46ms step capped at 420, so the last row of a long screen
+  // settled a little over a second after the screen appeared. That is long
+  // enough to be read as the app being slow rather than as the app arriving —
+  // which is exactly how it was reported. Entrances are now about half that,
+  // and the difference between a 620ms reveal and a 340ms one is not elegance,
+  // it is whether the first tap lands on something that has stopped moving.
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: AppleDuration.deliberate,
+    duration: AppleDuration.slow,
   );
   late final Animation<double> _eased =
       CurvedAnimation(parent: _controller, curve: AppleCurves.enter);

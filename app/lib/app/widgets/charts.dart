@@ -243,24 +243,43 @@ class BarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ceiling = math.max(1, max ?? bars.fold<int>(1, (m, b) => math.max(m, b.value)));
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < bars.length; i++)
-          Padding(
-            padding: EdgeInsets.only(bottom: i == bars.length - 1 ? 0 : GwdSpace.lg),
-            child: _Bar(bar: bars[i], ceiling: ceiling, index: i),
-          ),
-      ],
+    // One ticker for the chart, not one per bar. Six bars on Home plus six on
+    // the departments hub plus a donut is a dozen animation controllers running
+    // a dozen separate 600ms timelines to draw one screenful of static figures.
+    return _Reveal(
+      builder: (t) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < bars.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == bars.length - 1 ? 0 : GwdSpace.lg),
+              child: _Bar(
+                bar: bars[i],
+                ceiling: ceiling,
+                progress: _staggered(t, i, bars.length),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
+/// Slices one shared 0..1 timeline into overlapping per-item ones.
+///
+/// Item `i` starts a little after item `i - 1` and they all finish together, so
+/// the row still reads as arriving in order without each item owning a clock.
+double _staggered(double t, int index, int count) {
+  if (count <= 1) return t;
+  final start = (index / count) * 0.45;
+  return ((t - start) / (1 - start)).clamp(0.0, 1.0);
+}
+
 class _Bar extends StatelessWidget {
-  const _Bar({required this.bar, required this.ceiling, required this.index});
+  const _Bar({required this.bar, required this.ceiling, required this.progress});
   final ChartBar bar;
   final int ceiling;
-  final int index;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -287,11 +306,10 @@ class _Bar extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 7),
-        _RevealPaint(
+        CustomPaint(
           size: const Size(double.infinity, 8),
-          delayMs: 40 * index,
-          painter: (t) => _BarPainter(
-            fraction: (bar.value / ceiling).clamp(0.0, 1.0) * t,
+          painter: _BarPainter(
+            fraction: (bar.value / ceiling).clamp(0.0, 1.0) * progress,
             tint: bar.tint,
             track: GwdColors.sunkenOf(context),
           ),
@@ -365,7 +383,8 @@ class ColumnChart extends StatelessWidget {
 
     return SizedBox(
       height: height,
-      child: Row(
+      child: _Reveal(
+        builder: (t) => Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           for (var i = 0; i < columns.length; i++)
@@ -384,11 +403,11 @@ class ColumnChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Expanded(
-                      child: _RevealPaint(
+                      child: CustomPaint(
                         size: const Size(double.infinity, double.infinity),
-                        delayMs: 30 * i,
-                        painter: (t) => _ColumnPainter(
-                          fraction: (columns[i].value / ceiling).clamp(0.0, 1.0) * t,
+                        painter: _ColumnPainter(
+                          fraction: (columns[i].value / ceiling).clamp(0.0, 1.0) *
+                              _staggered(t, i, columns.length),
                           tint: columns[i].highlight
                               ? tint
                               : (columns[i].value == 0
@@ -411,6 +430,7 @@ class ColumnChart extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }
@@ -440,38 +460,21 @@ class _ColumnPainter extends CustomPainter {
   bool shouldRepaint(_ColumnPainter old) => old.fraction != fraction || old.tint != tint;
 }
 
-/// Runs a painter from 0 to 1 once, then leaves it alone.
-class _RevealPaint extends StatefulWidget {
-  const _RevealPaint({
-    required this.size,
-    required this.painter,
-    this.child,
-    this.delayMs = 0,
-  });
-
-  final Size size;
-  final CustomPainter Function(double t) painter;
-  final Widget? child;
-  final int delayMs;
+/// Runs one 0..1 timeline for a whole chart, once, then leaves it alone.
+class _Reveal extends StatefulWidget {
+  const _Reveal({required this.builder});
+  final Widget Function(double t) builder;
 
   @override
-  State<_RevealPaint> createState() => _RevealPaintState();
+  State<_Reveal> createState() => _RevealState();
 }
 
-class _RevealPaintState extends State<_RevealPaint> with SingleTickerProviderStateMixin {
+class _RevealState extends State<_Reveal> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 620),
-  );
+    duration: AppleDuration.slow,
+  )..forward();
   late final Animation<double> _t = CurvedAnimation(parent: _c, curve: AppleCurves.enter);
-
-  @override
-  void initState() {
-    super.initState();
-    Future<void>.delayed(Duration(milliseconds: widget.delayMs), () {
-      if (mounted) _c.forward();
-    });
-  }
 
   @override
   void dispose() {
@@ -481,14 +484,65 @@ class _RevealPaintState extends State<_RevealPaint> with SingleTickerProviderSta
 
   @override
   Widget build(BuildContext context) {
+    if (prefersReducedMotion(context)) return widget.builder(1);
+    return AnimatedBuilder(animation: _t, builder: (_, __) => widget.builder(_t.value));
+  }
+}
+
+/// Runs a painter from 0 to 1 once, then leaves it alone.
+class _RevealPaint extends StatefulWidget {
+  const _RevealPaint({
+    required this.size,
+    required this.painter,
+    this.child,
+  });
+
+  final Size size;
+  final CustomPainter Function(double t) painter;
+  final Widget? child;
+
+  @override
+  State<_RevealPaint> createState() => _RevealPaintState();
+}
+
+class _RevealPaintState extends State<_RevealPaint> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: AppleDuration.slow,
+  );
+  late final Animation<double> _t = CurvedAnimation(parent: _c, curve: AppleCurves.enter);
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// `CustomPaint.size` is only consulted when there is no child: with one, the
+  /// painter is handed the *child's* size instead. A donut whose centre label
+  /// happens to be 90pt wide therefore painted itself into a 90pt box and came
+  /// out as a squashed pie with its text hanging over the edge. Boxing the
+  /// child to the requested size is what makes the two agree.
+  Widget? get _boxed => widget.child == null
+      ? null
+      : SizedBox(
+          width: widget.size.width,
+          height: widget.size.height,
+          child: Center(child: widget.child),
+        );
+
+  @override
+  Widget build(BuildContext context) {
     // Somebody who has asked the system to stop animating is usually asking
     // because motion makes a screen hard to use, not because they dislike it.
     if (prefersReducedMotion(context)) {
-      return CustomPaint(
-        size: widget.size,
-        painter: widget.painter(1),
-        child: widget.child == null ? null : Center(child: widget.child),
-      );
+      return CustomPaint(size: widget.size, painter: widget.painter(1), child: _boxed);
     }
     return AnimatedBuilder(
       animation: _t,
@@ -497,7 +551,7 @@ class _RevealPaintState extends State<_RevealPaint> with SingleTickerProviderSta
         painter: widget.painter(_t.value),
         child: child,
       ),
-      child: widget.child == null ? null : Center(child: widget.child),
+      child: _boxed,
     );
   }
 }

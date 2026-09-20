@@ -4,13 +4,21 @@ import '../../app/app_scope.dart';
 import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
+import '../../app/widgets/charts.dart';
 import '../../app/widgets/common.dart';
 
-/// Section 10 — one clean chart screen for Directors and the President.
+/// The club dashboard, for Directors, the Faculty Coordinator and the President.
 ///
-/// Explicitly *not* a BI dashboard with many charts: that is the stacked-cards
-/// problem this rebuild exists to escape. One comparison, one list, nothing
-/// else.
+/// Four questions, in the order somebody running a club actually asks them:
+/// how big is the club, what state is its work in, is it speeding up or slowing
+/// down, and which departments are carrying it. Then the activity log, for the
+/// times the answer to one of those is "why?".
+///
+/// Deliberately not a BI dashboard. Every chart here answers a question that was
+/// already being asked out loud in meetings; none of them exist because the
+/// space looked empty. That restraint is the same one the rest of the app runs
+/// on — one focal point per screen, depth by drilling down — and it is why this
+/// screen lives behind More rather than adding weight to a tab.
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
 
@@ -21,6 +29,9 @@ class AnalyticsPage extends StatefulWidget {
 class _AnalyticsPageState extends State<AnalyticsPage> {
   List<Map<String, dynamic>> _departments = const [];
   List<Map<String, dynamic>> _audit = const [];
+  List<Map<String, dynamic>> _completions = const [];
+  Map<String, dynamic> _status = const {};
+  Map<String, dynamic> _totals = const {};
   bool _loading = true;
   String? _error;
 
@@ -37,14 +48,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       final audit = await store.auditLog();
       if (!mounted) return;
       setState(() {
-        _departments = ((analytics['departments'] as List?) ?? [])
-            .whereType<Map>()
-            .map((e) => e.cast<String, dynamic>())
-            .toList();
-        _audit = ((audit['entries'] as List?) ?? [])
-            .whereType<Map>()
-            .map((e) => e.cast<String, dynamic>())
-            .toList();
+        _departments = _rows(analytics['departments']);
+        _completions = _rows(analytics['completions']);
+        _status = (analytics['status'] as Map?)?.cast<String, dynamic>() ?? const {};
+        _totals = (analytics['totals'] as Map?)?.cast<String, dynamic>() ?? const {};
+        _audit = _rows(audit['entries']);
         _loading = false;
       });
     } catch (error) {
@@ -57,16 +65,39 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
   }
 
+  static List<Map<String, dynamic>> _rows(Object? value) => ((value as List?) ?? [])
+      .whereType<Map>()
+      .map((e) => e.cast<String, dynamic>())
+      .toList();
+
+  int _count(Map<String, dynamic> from, String key) => (from[key] as num?)?.toInt() ?? 0;
+
   @override
   Widget build(BuildContext context) {
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
-    final maxTotal = _departments.fold<int>(
-        1, (max, d) => (d['total'] as num?)!.toInt() > max ? (d['total'] as num).toInt() : max);
+
+    final pending = _count(_status, 'pending');
+    final inProgress = _count(_status, 'inProgress');
+    final review = _count(_status, 'review');
+    final blocked = _count(_status, 'blocked');
+    final completed = _count(_status, 'completed');
+    final open = pending + inProgress + review + blocked;
+
+    // The fortnight arrives oldest first, so the last seven entries are this
+    // week and the seven before them are the week to compare it against.
+    final week = _completions.length >= 7
+        ? _completions.sublist(_completions.length - 7)
+        : _completions;
+    final previous = _completions.length >= 14
+        ? _completions.sublist(_completions.length - 14, _completions.length - 7)
+        : const <Map<String, dynamic>>[];
+    final thisWeek = week.fold<int>(0, (sum, d) => sum + _count(d, 'count'));
+    final lastWeek = previous.fold<int>(0, (sum, d) => sum + _count(d, 'count'));
 
     return Scaffold(
       backgroundColor: GwdColors.canvasOf(context),
       appBar: AppBar(
-        title: Text('Activity', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
+        title: Text('Dashboard', style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the
@@ -87,6 +118,102 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       ErrorNote(message: _error!),
                       const SizedBox(height: GwdSpace.lg),
                     ],
+
+                    // ---------- how big is the club ----------
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _Tile(
+                            value: _count(_totals, 'people'),
+                            label: 'people',
+                          ),
+                        ),
+                        const SizedBox(width: GwdSpace.sm),
+                        Expanded(
+                          child: _Tile(
+                            value: _count(_totals, 'departments'),
+                            label: 'departments',
+                          ),
+                        ),
+                        const SizedBox(width: GwdSpace.sm),
+                        Expanded(
+                          child: _Tile(
+                            value: _count(_totals, 'openEvents'),
+                            label: 'events on',
+                          ),
+                        ),
+                        const SizedBox(width: GwdSpace.sm),
+                        Expanded(
+                          child: _Tile(
+                            value: _count(_totals, 'overdue'),
+                            label: 'overdue',
+                            // The only figure here anybody has to do something
+                            // about, so it is the only one that gets a colour.
+                            tint: _count(_totals, 'overdue') > 0 ? GwdColors.critical : null,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // ---------- what state is the work in ----------
+                    const SizedBox(height: GwdSpace.xxl),
+                    const SectionHeader(
+                      title: 'The club\'s work',
+                      subtitle: 'Every task in the club, by where it has got to',
+                    ),
+                    if (open + completed == 0)
+                      const EmptyState(
+                        compact: true,
+                        icon: Icons.donut_large_rounded,
+                        title: 'No work yet',
+                        message: 'The shape of the club\'s work appears once tasks exist.',
+                      )
+                    else
+                      SurfaceCard(
+                        child: DonutChart(
+                          centreValue: '$open',
+                          centreLabel: 'still open',
+                          slices: [
+                            ChartSlice(
+                                label: 'To do',
+                                value: pending,
+                                tint: GwdColors.inkTertiaryOf(context)),
+                            ChartSlice(
+                                label: 'In progress',
+                                value: inProgress,
+                                tint: GwdColors.primaryRed),
+                            ChartSlice(
+                                label: 'In review', value: review, tint: GwdColors.info),
+                            if (blocked > 0)
+                              ChartSlice(
+                                  label: 'Blocked', value: blocked, tint: GwdColors.warning),
+                            ChartSlice(
+                                label: 'Done', value: completed, tint: GwdColors.success),
+                          ],
+                        ),
+                      ),
+
+                    // ---------- is it speeding up or slowing down ----------
+                    if (week.isNotEmpty) ...[
+                      const SizedBox(height: GwdSpace.xxl),
+                      SectionHeader(
+                        title: 'Finished this week',
+                        subtitle: _pace(thisWeek, lastWeek, previous.isNotEmpty),
+                      ),
+                      SurfaceCard(
+                        child: ColumnChart(columns: [
+                          for (var i = 0; i < week.length; i++)
+                            ChartColumn(
+                              label: _initial(week[i]['day'] as String?),
+                              value: _count(week[i], 'count'),
+                              highlight: i == week.length - 1,
+                            ),
+                        ]),
+                      ),
+                    ],
+
+                    // ---------- who is carrying it ----------
+                    const SizedBox(height: GwdSpace.xxl),
                     const SectionHeader(
                       title: 'Completion by department',
                       subtitle: 'Tasks finished against tasks created',
@@ -107,16 +234,19 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                                 Divider(height: GwdSpace.xl, color: GwdColors.hairlineOf(context)),
                               _DepartmentBar(
                                 name: '${_departments[i]['name']}',
-                                total: (_departments[i]['total'] as num?)?.toInt() ?? 0,
-                                completed: (_departments[i]['completed'] as num?)?.toInt() ?? 0,
-                                rate: (_departments[i]['completionRate'] as num?)?.toInt() ?? 0,
+                                total: _count(_departments[i], 'total'),
+                                completed: _count(_departments[i], 'completed'),
+                                rate: _count(_departments[i], 'completionRate'),
                                 avgHours: (_departments[i]['avgCompletionHours'] as num?)?.toInt(),
-                                scale: maxTotal,
+                                scale: _departments.fold<int>(
+                                    1, (m, d) => _count(d, 'total') > m ? _count(d, 'total') : m),
                               ),
                             ],
                           ],
                         ),
                       ),
+
+                    // ---------- and why ----------
                     const SizedBox(height: GwdSpace.xxl),
                     const SectionHeader(
                       title: 'Activity log',
@@ -140,6 +270,73 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+
+  /// This week against last, in words.
+  ///
+  /// A bare count is unreadable on its own — eleven tasks is excellent for one
+  /// club and a collapse for another. The comparison is the only thing that
+  /// makes the number mean anything, and it is deliberately phrased as pace
+  /// rather than as a score.
+  static String _pace(int thisWeek, int lastWeek, bool haveLastWeek) {
+    if (thisWeek == 0 && !haveLastWeek) return 'Nothing finished yet';
+    final counted = thisWeek == 1 ? '1 task finished' : '$thisWeek tasks finished';
+    if (!haveLastWeek) return counted;
+    final delta = thisWeek - lastWeek;
+    if (delta == 0) return '$counted · the same as the week before';
+    if (delta > 0) return '$counted · $delta more than the week before';
+    return '$counted · ${-delta} fewer than the week before';
+  }
+
+  /// A single letter for the weekday of a `YYYY-MM-DD` day.
+  static String _initial(String? day) {
+    if (day == null) return '';
+    final parsed = DateTime.tryParse(day);
+    if (parsed == null) return '';
+    return const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][(parsed.weekday - 1) % 7];
+  }
+}
+
+/// One headline figure at the top of the dashboard.
+class _Tile extends StatelessWidget {
+  const _Tile({required this.value, required this.label, this.tint});
+  final int value;
+  final String label;
+  final Color? tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$value $label',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: GwdSpace.sm, vertical: GwdSpace.md),
+        decoration: BoxDecoration(
+          color: GwdColors.surfaceOf(context),
+          borderRadius: BorderRadius.circular(GwdRadius.lg),
+          border: Border.all(color: GwdColors.hairlineOf(context)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedCounter(
+              value: value,
+              style: GwdType.title2.merge(GwdType.numeric).copyWith(
+                    color: tint ?? GwdColors.inkOf(context),
+                    height: 1.0,
+                  ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
+            ),
+          ],
         ),
       ),
     );
@@ -206,7 +403,7 @@ class _DepartmentBar extends StatelessWidget {
                     builder: (context, w, _) => Container(
                       width: w,
                       decoration: BoxDecoration(
-                        color: GwdColors.primaryRed.withValues(alpha: 0.22),
+                        color: GwdColors.primaryRed.withValues(alpha: 0.24),
                         borderRadius: BorderRadius.circular(GwdRadius.pill),
                       ),
                     ),
@@ -228,82 +425,192 @@ class _DepartmentBar extends StatelessWidget {
             );
           },
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
-          [
-            '$rate% complete',
-            if (avgHours != null) 'avg ${avgHours}h to finish',
-          ].join(' · '),
+          avgHours == null
+              ? '$rate% finished'
+              : '$rate% finished · about ${_readableHours(avgHours!)} each',
           style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
         ),
       ],
     );
   }
+
+  /// Hours, until hours stop being a sensible unit.
+  ///
+  /// A club task that took 172 hours took a week; saying so is the difference
+  /// between a figure somebody reads and one they skip.
+  static String _readableHours(int hours) {
+    if (hours < 1) return 'under an hour';
+    if (hours < 48) return '$hours hours';
+    return '${(hours / 24).round()} days';
+  }
 }
 
+/// One line of the activity log.
+///
+/// The log stores machine actions (`task.create.department`) and a detail blob.
+/// Printing the action with its dots turned into spaces produced rows reading
+/// "Task create department", forty of them identical, which is a log that
+/// technically contains the answer and cannot be read. Each action is phrased
+/// as something that happened to something named.
 class _AuditRow extends StatelessWidget {
   const _AuditRow({required this.entry});
   final Map<String, dynamic> entry;
 
-  static const _labels = {
-    'signup': 'signed up',
-    'task.create': 'created a task',
-    'task.update': 'updated a task',
-    'task.delete': 'deleted a task',
-    'access.approve': 'approved a member',
-    'access.reject': 'declined a member',
-    'department.create': 'created a department',
-    'department.update': 'edited a department',
-    'department.setLead': 'changed a department Lead',
-    'department.deactivate': 'deactivated a department',
-    'calendar.create': 'added a calendar entry',
-    'calendar.delete': 'removed a calendar entry',
-    'taskRequest.create': 'sent a task request',
-    'taskRequest.accept': 'accepted a task request',
-    'user.roleChange': 'changed someone\'s role',
-  };
-
   @override
   Widget build(BuildContext context) {
-    final action = '${entry['action']}';
-    final when = DateTime.tryParse('${entry['createdAt']}')?.toLocal();
+    final action = '${entry['action'] ?? ''}';
+    final detail = (entry['detail'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final actor = '${entry['actorName'] ?? 'Someone'}';
+    final when = DateTime.tryParse('${entry['createdAt'] ?? ''}');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.sm + 2),
-      decoration: BoxDecoration(
-        color: GwdColors.surfaceOf(context),
-        borderRadius: BorderRadius.circular(GwdRadius.md),
-        border: Border.all(color: GwdColors.hairlineOf(context)),
-      ),
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg, vertical: GwdSpace.md),
       child: Row(
         children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: GwdColors.sunkenOf(context),
+              borderRadius: BorderRadius.circular(GwdRadius.sm),
+            ),
+            child: Icon(_iconFor(action), size: 15, color: GwdColors.inkSecondaryOf(context)),
+          ),
+          const SizedBox(width: GwdSpace.md),
           Expanded(
-            child: RichText(
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
-                children: [
-                  TextSpan(
-                    text: '${entry['actorName']} ',
-                    style: GwdType.footnote
-                        .copyWith(color: GwdColors.inkOf(context), fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(text: _labels[action] ?? action),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  describe(action, detail),
+                  style: GwdType.callout.copyWith(color: GwdColors.inkOf(context)),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  when == null ? actor : '$actor · ${_ago(when)}',
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                ),
+              ],
             ),
           ),
-          if (when != null) ...[
-            const SizedBox(width: GwdSpace.sm),
-            Text(
-              '${when.day}/${when.month}',
-              style: GwdType.caption
-                  .copyWith(color: GwdColors.inkTertiaryOf(context), letterSpacing: 0),
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  /// What happened, in a sentence.
+  ///
+  /// Visible for testing, and deliberately total: an action this does not know
+  /// still produces something readable rather than an empty row, because a new
+  /// audit action added on the server must never make the log look broken on a
+  /// client that has not been rebuilt.
+  static String describe(String action, Map<String, dynamic> detail) {
+    String named(String key, [String fallback = '']) {
+      final value = detail[key];
+      if (value == null) return fallback;
+      final text = '$value'.trim();
+      return text.isEmpty ? fallback : text;
+    }
+
+    final title = named('title', named('name', named('departmentName')));
+    final quoted = title.isEmpty ? '' : ' \u201c$title\u201d';
+    final department = named('departmentName');
+
+    return switch (action) {
+      'task.create.department' => department.isEmpty
+          ? 'Sent$quoted to a department'
+          : 'Sent$quoted to $department',
+      'task.create' => 'Created the task$quoted',
+      'task.distribute' => 'Handed out$quoted',
+      'task.update' => 'Updated$quoted',
+      'task.delete' => 'Deleted$quoted',
+      'taskRequest.create' => 'Asked somebody to take on$quoted',
+      'taskRequest.accept' => 'Accepted a task request',
+      'event.create' => 'Created the event$quoted',
+      'event.update' => 'Updated the event$quoted',
+      'event.status' => 'Moved an event to ${named('status', 'a new stage')}',
+      'event.cancel' => 'Cancelled the event$quoted',
+      'event.delete' => 'Deleted the event$quoted',
+      'event.department.add' => department.isEmpty
+          ? 'Brought a department into an event'
+          : 'Brought $department into an event',
+      'event.task.create' => 'Added$quoted to an event',
+      'event.task.claim' => 'Picked up$quoted',
+      'document.upload' => 'Filed the document$quoted',
+      'document.replace' => 'Replaced the document$quoted',
+      'document.decision' => 'Decided on the document$quoted',
+      'document.delete' => 'Removed the document$quoted',
+      'bill.create' => 'Filed the expense$quoted',
+      'bill.decision' => 'Decided on the expense$quoted',
+      'bill.settle' => 'Marked an expense as paid',
+      'bill.delete' => 'Removed an expense',
+      'department.create' => 'Created the department$quoted',
+      'department.update' => 'Renamed a department',
+      'department.setLead' => 'Changed who leads a department',
+      'department.deactivate' => 'Retired a department',
+      'category.create' => 'Added the schedule category$quoted',
+      'category.update' => 'Changed a schedule category',
+      'category.delete' => 'Retired a schedule category',
+      'schedule.create' => 'Added$quoted to the schedule',
+      'schedule.delete' => 'Removed something from the schedule',
+      'meeting.create' => 'Called the meeting$quoted',
+      'meeting.update' => 'Changed a meeting',
+      'meeting.attendance' => 'Took attendance at a meeting',
+      'help.create' => 'Asked for help with$quoted',
+      'help.offer' => 'Offered to help',
+      'help.status' => 'Closed a request for help',
+      'alert.broadcast' => 'Sent a club alert',
+      'points.award' => 'Awarded ${named('points', 'some')} points by hand',
+      'signup' => 'Signed up',
+      'user.rename' => 'Set somebody\u2019s name',
+      'user.roleChange' => 'Changed somebody\u2019s role',
+      'user.remove' => 'Removed somebody from the club',
+      'password.change' => 'Changed their password',
+      'password.forgot' => 'Asked for a password reset',
+      'password.reset' => 'Reset somebody\u2019s password',
+      _ => _tidy(action),
+    };
+  }
+
+  /// Last resort for an action this build has never heard of.
+  static String _tidy(String action) {
+    final words = action
+        .split(RegExp(r'[._]'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w.replaceAllMapped(RegExp('([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}'))
+        .join(' ');
+    if (words.isEmpty) return 'Something happened';
+    return words[0].toUpperCase() + words.substring(1).toLowerCase();
+  }
+
+  static IconData _iconFor(String action) {
+    if (action.startsWith('task')) return Icons.check_circle_outline_rounded;
+    if (action.startsWith('event')) return Icons.event_outlined;
+    if (action.startsWith('meeting')) return Icons.groups_outlined;
+    if (action.startsWith('help')) return Icons.volunteer_activism_outlined;
+    if (action.startsWith('alert')) return Icons.campaign_outlined;
+    if (action.startsWith('points')) return Icons.auto_awesome_outlined;
+    if (action.startsWith('bill')) return Icons.receipt_long_outlined;
+    if (action.startsWith('document')) return Icons.description_outlined;
+    if (action.startsWith('department')) return Icons.workspaces_outline;
+    if (action.startsWith('category') || action.startsWith('schedule')) {
+      return Icons.calendar_month_outlined;
+    }
+    if (action.startsWith('password')) return Icons.lock_outline_rounded;
+    if (action.startsWith('user') || action == 'signup') return Icons.person_outline;
+    return Icons.bolt_outlined;
+  }
+
+  static String _ago(DateTime when) {
+    final diff = DateTime.now().difference(when);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${when.day}/${when.month}';
   }
 }

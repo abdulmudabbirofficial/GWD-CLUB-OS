@@ -313,6 +313,67 @@ router.get('/analytics', async (request, response, next) => {
     const departments = await col(C.departments).find({}).toArray();
     const nameById = new Map(departments.map((d) => [String(d._id), d.name]));
 
+    // What state the club's work is in, as one set of counts. The per-department
+    // rows above cannot answer this: summing "completed" across them tells you
+    // nothing about how much of the rest is in progress versus untouched, which
+    // is the difference between a club that is behind and one that is moving.
+    const byStatus = await col(C.tasks).aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]).toArray();
+    const statusCount = (name) => {
+      const row = byStatus.find((s) => s._id === name);
+      return row ? row.count : 0;
+    };
+
+    // Completions per day for the last fortnight, oldest first.
+    //
+    // Grouped in the server's own local time rather than UTC, because the
+    // question being asked is "what did we get done on Tuesday" and a club in
+    // IST would otherwise see Tuesday evening's work land on Wednesday.
+    const DAYS = 14;
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (DAYS - 1));
+
+    const finished = await col(C.tasks)
+      .find(
+        { status: 'completed', completedAt: { $gte: since } },
+        { projection: { completedAt: 1 } },
+      )
+      .toArray();
+
+    const key = (date) => {
+      const d = new Date(date);
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+      ].join('-');
+    };
+    const perDay = new Map();
+    for (const task of finished) {
+      const k = key(task.completedAt);
+      perDay.set(k, (perDay.get(k) ?? 0) + 1);
+    }
+    const completions = [];
+    for (let i = 0; i < DAYS; i += 1) {
+      const day = new Date(since);
+      day.setDate(since.getDate() + i);
+      const k = key(day);
+      completions.push({ day: k, count: perDay.get(k) ?? 0 });
+    }
+
+    const now = new Date();
+    const [people, activeDepartments, openEvents, overdue] = await Promise.all([
+      col(C.users).countDocuments({ approvalStatus: 'approved' }),
+      col(C.departments).countDocuments({ active: { $ne: false } }),
+      col(C.events).countDocuments({ status: { $nin: ['completed', 'cancelled'] } }),
+      col(C.tasks).countDocuments({
+        status: { $in: ['pending', 'inProgress', 'review', 'blocked'] },
+        dueDate: { $lt: now },
+      }),
+    ]);
+
     response.json({
       departments: byDepartment.map((d) => ({
         departmentId: d._id ? String(d._id) : null,
@@ -322,6 +383,21 @@ router.get('/analytics', async (request, response, next) => {
         completionRate: d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0,
         avgCompletionHours: d.avgCompletionMs ? Math.round(d.avgCompletionMs / 3600000) : null,
       })),
+      status: {
+        pending: statusCount('pending'),
+        inProgress: statusCount('inProgress'),
+        review: statusCount('review'),
+        blocked: statusCount('blocked'),
+        completed: statusCount('completed'),
+        cancelled: statusCount('cancelled'),
+      },
+      completions,
+      totals: {
+        people,
+        departments: activeDepartments,
+        openEvents,
+        overdue,
+      },
     });
   } catch (error) {
     next(error);
