@@ -121,7 +121,7 @@ class _PendingApprovalPageState extends State<PendingApprovalPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(me.name,
+                                    Text(me.displayName,
                                         style: GwdType.headline
                                             .copyWith(color: GwdColors.inkOf(context))),
                                     const SizedBox(height: 2),

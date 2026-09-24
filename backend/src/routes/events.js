@@ -107,10 +107,10 @@ router.get('/', async (request, response, next) => {
     const progress = await progressByEvent(events.map((e) => e._id));
     const [departments, people] = await Promise.all([
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
-      col(C.users).find({}, { projection: { name: 1 } }).toArray(),
+      col(C.users).find({}, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
     ]);
     const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
-    const userName = new Map(people.map((p) => [String(p._id), p.name]));
+    const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
 
     const decorated = events.map((e) => {
       const p = progress.get(String(e._id)) ?? { total: 0, done: 0 };
@@ -344,7 +344,7 @@ router.get('/:id', async (request, response, next) => {
       col(C.eventResponsibilities).find({ eventId: id }).toArray(),
       col(C.eventDocuments).find({ eventId: id }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
-      col(C.users).find({}, { projection: { name: 1, avatarColor: 1, role: 1 } }).toArray(),
+      col(C.users).find({}, { projection: { name: 1, avatarColor: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
     ]);
 
     const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
@@ -409,7 +409,7 @@ router.get('/:id', async (request, response, next) => {
         const u = userById.get(uid);
         return {
           id: uid,
-          name: u?.name ?? 'Member',
+          name: u ? displayNameOf(u) : 'Member',
           role: u?.role ?? 'clubMember',
           avatarColor: u?.avatarColor ?? null,
           isLead: uid === String(event.leadUserId),
@@ -446,7 +446,7 @@ router.get('/:id/work', async (request, response, next) => {
     const tasks = await col(C.tasks).find(filter).sort({ dueDate: 1, createdAt: 1 }).toArray();
     const [departments, people, commentCounts] = await Promise.all([
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
-      col(C.users).find({}, { projection: { name: 1, avatarColor: 1 } }).toArray(),
+      col(C.users).find({}, { projection: { name: 1, avatarColor: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
       col(C.comments).aggregate([
         { $match: { taskId: { $in: tasks.map((t) => t._id) } } },
         { $group: { _id: '$taskId', n: { $sum: 1 } } },
@@ -784,10 +784,10 @@ router.get('/:id/timeline', async (request, response, next) => {
       ...documents.map((d) => d.createdBy),
     ].filter(Boolean);
     const [people, departments] = await Promise.all([
-      col(C.users).find({ _id: { $in: ids } }, { projection: { name: 1 } }).toArray(),
+      col(C.users).find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
     ]);
-    const userName = new Map(people.map((p) => [String(p._id), p.name]));
+    const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
     const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
 
     const timeline = [
@@ -914,7 +914,7 @@ router.get('/:id/day', async (request, response, next) => {
     const [people, openTasks, pendingApprovals] = await Promise.all([
       col(C.users).find(
         { _id: { $in: teamIds } },
-        { projection: { name: 1, role: 1, avatarColor: 1, phone: 1, mustSetName: 1, departmentId: 1 } },
+        { projection: { name: 1, role: 1, avatarColor: 1, phone: 1, mustSetName: 1, departmentId: 1, knownAs: 1 } },
       ).toArray(),
       col(C.tasks).find({ eventId: id, status: { $nin: ['completed', 'cancelled'] } })
         .sort({ dueDate: 1 }).limit(50).toArray(),
@@ -936,7 +936,7 @@ router.get('/:id/day', async (request, response, next) => {
         const u = userById.get(uid);
         return {
           id: uid,
-          name: u?.name ?? 'Member',
+          name: u ? displayNameOf(u) : 'Member',
           role: u?.role ?? 'clubMember',
           departmentId: u?.departmentId ? String(u.departmentId) : null,
           avatarColor: u?.avatarColor ?? null,
@@ -1146,7 +1146,7 @@ router.get('/:id/report', async (request, response, next) => {
     const stored = event.report ?? null;
     const submittedBy = stored?.submittedBy
       ? await col(C.users).findOne(
-        { _id: stored.submittedBy }, { projection: { name: 1, role: 1 } },
+        { _id: stored.submittedBy }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } },
       )
       : null;
 
@@ -1159,7 +1159,7 @@ router.get('/:id/report', async (request, response, next) => {
         challenges: stored.challenges ?? '',
         learnings: stored.learnings ?? '',
         submittedBy: stored.submittedBy ? String(stored.submittedBy) : null,
-        submittedByName: submittedBy?.name ?? null,
+        submittedByName: submittedBy ? displayNameOf(submittedBy) : null,
         submittedAt: stored.submittedAt ?? null,
         updatedAt: stored.updatedAt ?? null,
       } : null,

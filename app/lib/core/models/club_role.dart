@@ -30,11 +30,14 @@ enum ClubRole {
 
 extension ClubRoleDetails on ClubRole {
   String get title => switch (this) {
-        ClubRole.clubDirector => 'Club Director',
+        // "Director", not "Club Director": the longer title is the Super
+        // Admin's (see positionLineFor), and one word per office everywhere
+        // else keeps the club's vocabulary the same on every screen.
+        ClubRole.clubDirector => 'Director',
         ClubRole.facultyCoordinator => 'Faculty Coordinator',
         ClubRole.president => 'President',
         ClubRole.vicePresident => 'Vice President',
-        ClubRole.secretaryGeneral => 'Secretary General',
+        ClubRole.secretaryGeneral => 'General Secretary',
         ClubRole.clubLead => 'Club Lead',
         ClubRole.clubMember => 'Club Member',
       };
@@ -49,7 +52,7 @@ extension ClubRoleDetails on ClubRole {
         ClubRole.facultyCoordinator => 'Coordinator',
         ClubRole.president => 'President',
         ClubRole.vicePresident => 'Vice President',
-        ClubRole.secretaryGeneral => 'Secretary General',
+        ClubRole.secretaryGeneral => 'General Secretary',
         ClubRole.clubLead => 'Lead',
         ClubRole.clubMember => '',
       };
@@ -62,7 +65,7 @@ extension ClubRoleDetails on ClubRole {
         ClubRole.facultyCoordinator => 'FACULTY',
         ClubRole.president => 'PRESIDENT',
         ClubRole.vicePresident => 'VP',
-        ClubRole.secretaryGeneral => 'SEC GEN',
+        ClubRole.secretaryGeneral => 'GEN SEC',
         ClubRole.clubLead => 'LEAD',
         ClubRole.clubMember => 'MEMBER',
       };

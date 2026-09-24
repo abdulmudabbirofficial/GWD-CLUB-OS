@@ -7,6 +7,7 @@ const { authenticate, requireApproved, fail } = require('../auth');
 const {
   canCreateScheduleEntry, canEditSchedule, isSupervisor, taskVisibilityFilter,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { audit } = require('../services/notify');
 const { ensureSeeded } = require('./categories');
 
@@ -101,9 +102,9 @@ async function nameMap(ids) {
     .map((id) => new ObjectId(id));
   if (unique.length === 0) return new Map();
   const users = await col(C.users)
-    .find({ _id: { $in: unique } }, { projection: { name: 1 } })
+    .find({ _id: { $in: unique } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
     .toArray();
-  return new Map(users.map((u) => [String(u._id), u.name]));
+  return new Map(users.map((u) => [String(u._id), displayNameOf(u)]));
 }
 
 async function categoryMap() {

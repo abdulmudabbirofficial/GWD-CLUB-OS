@@ -856,7 +856,7 @@ void main() {
 
     test('the executive tier names itself and takes no department', () {
       expect(as_('president').positionLine(null), 'President');
-      expect(as_('secretaryGeneral').positionLine(null), 'Secretary General');
+      expect(as_('secretaryGeneral').positionLine(null), 'General Secretary');
     });
 
     test('a senior person sitting in a department keeps their office first', () {

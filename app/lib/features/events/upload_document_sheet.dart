@@ -251,7 +251,7 @@ class _ApprovalNotice extends StatelessWidget {
           Expanded(
             child: Text(
               'This goes on the record as awaiting sign-off. The President, '
-              'Vice President or Secretary General marks it approved.',
+              'Vice President or General Secretary marks it approved.',
               style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
             ),
           ),

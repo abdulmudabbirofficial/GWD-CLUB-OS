@@ -13,7 +13,7 @@ const {
   canAwardPoints, canViewMemberDetail, SUPERVISOR_ROLES,
   canAssignToDepartment, TASK_POINT_VALUES, canRenameMember, isRole,
   canRemoveMember, canChangeRole, ROLE_CAPS, canChangeRoleOf, canAppointSupervisors,
-  isSuperAdmin, canResetPasswordOf,
+  isSuperAdmin, canResetPasswordOf, earnsPoints,
 } = require('../permissions');
 const { displayNameOf, roleTitle } = require('../people');
 const { notify, audit } = require('../services/notify');
@@ -317,7 +317,7 @@ router.get('/my-overview', async (request, response, next) => {
       .map((id) => new ObjectId(id));
     const [people, departments] = await Promise.all([
       col(C.users).find({ _id: { $in: ids } },
-        { projection: { name: 1, role: 1, departmentId: 1, avatarColor: 1 } }).toArray(),
+        { projection: { name: 1, role: 1, departmentId: 1, avatarColor: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
     ]);
     const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
@@ -487,7 +487,7 @@ router.get('/:id/stats', async (request, response, next) => {
       ? await col(C.departments).findOne({ _id: user.departmentId })
       : null;
     const lead = department?.leadUserId
-      ? await col(C.users).findOne({ _id: department.leadUserId }, { projection: { name: 1 } })
+      ? await col(C.users).findOne({ _id: department.leadUserId }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
       : null;
 
     // Who assigns this person work, and what they have handed out themselves.
@@ -498,14 +498,29 @@ router.get('/:id/stats', async (request, response, next) => {
     // is edited, and then nobody can tell which number is right.
     const attendance = await attendanceFor(id);
 
+    const actor = request.user;
     response.json({
       user: publicUser(user),
       attendance,
+      // What the person looking may do to *this* person, answered by the same
+      // functions the routes enforce. The page used to gate its buttons on
+      // role alone, so it offered the President "Change their role" on a
+      // Director's record and the Vice President "Reset their password" on the
+      // President's — both refused the moment they were tapped. A mirror of
+      // the rules in Dart would drift the next time one changed; this cannot.
+      can: {
+        rename: canRenameMember(actor, user),
+        resetPassword: canResetPasswordOf(actor, user),
+        changeRole: canChangeRoleOf(actor, user),
+        appointSupervisors: canAppointSupervisors(actor),
+        remove: canRemoveMember(actor, user),
+        award: canAwardPoints(actor.role) && earnsPoints(user.role),
+      },
       department: department
         ? {
             id: String(department._id),
             name: department.name,
-            leadName: lead?.name ?? null,
+            leadName: lead ? displayNameOf(lead) : null,
             isLead: String(department.leadUserId ?? '') === String(id),
           }
         : null,

@@ -50,6 +50,14 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
   String? _error;
   bool _forbidden = false;
 
+  /// What the person looking may do to *this* person, as the server answers
+  /// it — computed by the same functions its routes enforce. Gating on role
+  /// alone offered the President "Change their role" on a Director and the
+  /// Vice President "Reset their password" on the President, both refused on
+  /// tap. Empty until loaded, so nothing is offered on a guess.
+  Map<String, dynamic> _can = const {};
+  bool _may(String action) => _can[action] == true;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +72,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       if (!mounted) return;
       setState(() {
         _stats = (json['stats'] as Map?)?.cast<String, dynamic>();
+        _can = (json['can'] as Map?)?.cast<String, dynamic>() ?? const {};
         _department = (json['department'] as Map?)?.cast<String, dynamic>();
         final attendance = (json['attendance'] as Map?)?.cast<String, dynamic>();
         _attendance = attendance == null ? null : AttendanceRecord.fromJson(attendance);
@@ -96,7 +105,6 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
   @override
   Widget build(BuildContext context) {
     final store = AppScope.storeOf(context);
-    final session = AppScope.sessionOf(context);
     final member = _full ?? widget.member ?? store.memberById(widget.userId);
 
     // Opened by id, and neither the server nor the store has the person yet.
@@ -124,12 +132,14 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
     final completed = (s?['completed'] as num?)?.toInt() ?? 0;
     final rate = (s?['completionRate'] as num?)?.toInt() ?? 0;
     final ranked = s?['ranked'] as bool? ?? false;
-    final canAward = store.capabilities.canAwardPoints && member.role.earnsPoints;
+    final canAward = _may('award');
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(member.role.title,
+        // The office, the way the club names it: the Super Admin's seat is the
+        // "Club Director", the other two are Directors.
+        title: Text(member.superAdmin ? 'Club Director' : member.role.title,
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       body: RefreshIndicator(
@@ -407,7 +417,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                       // set this person appears as "No name set" on every board
                       // in the club; quiet afterwards, since correcting a
                       // spelling is not something anybody comes here to do.
-                      if (store.capabilities.canManageDepartments) ...[
+                      if (_may('rename')) ...[
                         const SizedBox(height: GwdSpace.md),
                         if (member.mustSetName)
                           PrimaryButton(
@@ -427,7 +437,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                       // Resetting somebody's password is a real action but a
                       // rare one, so it stays a quiet secondary — surfaced
                       // loudly only when they have actually asked for it.
-                      if (store.capabilities.canManageDepartments) ...[
+                      if (_may('resetPassword')) ...[
                         const SizedBox(height: GwdSpace.md),
                         if (member.passwordResetRequested)
                           Padding(
@@ -470,8 +480,7 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                       // ever called it. There was no way to make anybody a
                       // Lead, a VP or a Secretary General from inside the app
                       // at all.
-                      if (store.capabilities.canChangeRole &&
-                          member.id != session.me?.id) ...[
+                      if (_may('changeRole')) ...[
                         const SizedBox(height: GwdSpace.md),
                         SecondaryButton(
                           label: 'Change their role',
@@ -481,13 +490,12 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
                         ),
                       ],
 
-                      // Removing somebody is a Director's call alone — it is
-                      // the one action that can take the President out. Kept at
-                      // the very bottom, quiet, and two confirmations deep.
-                      if (session.me?.role == ClubRole.clubDirector &&
-                          member.id != session.me?.id &&
-                          member.role != ClubRole.clubDirector &&
-                          member.role != ClubRole.facultyCoordinator) ...[
+                      // Removing somebody is a Director's call — it is the one
+                      // action that can take the President out — and removing
+                      // a Director or the Faculty Coordinator is the Super
+                      // Admin's alone. Kept at the very bottom, quiet, and two
+                      // confirmations deep.
+                      if (_may('remove')) ...[
                         const SizedBox(height: GwdSpace.md),
                         SecondaryButton(
                           label: 'Remove from the club',

@@ -4,6 +4,7 @@ const express = require('express');
 const config = require('../config');
 const { col, C } = require('../db');
 const { authenticate, requireApproved } = require('../auth');
+const { displayNameOf } = require('../people');
 const {
   taskVisibilityFilter, canAssign, canViewAudit, canManageDepartments,
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
@@ -424,9 +425,9 @@ router.get('/audit', async (request, response, next) => {
     }
     const entries = await col(C.auditLog).find({}).sort({ createdAt: -1 }).limit(200).toArray();
     const actors = await col(C.users)
-      .find({ _id: { $in: entries.map((e) => e.actorId).filter(Boolean) } }, { projection: { name: 1 } })
+      .find({ _id: { $in: entries.map((e) => e.actorId).filter(Boolean) } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
       .toArray();
-    const nameById = new Map(actors.map((a) => [String(a._id), a.name]));
+    const nameById = new Map(actors.map((a) => [String(a._id), displayNameOf(a)]));
     response.json({
       entries: entries.map((e) => ({
         id: String(e._id),

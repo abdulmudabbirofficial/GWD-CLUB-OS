@@ -174,6 +174,7 @@ class Capabilities {
     this.canAwardPoints = false,
     this.canChangeRole = false,
     this.canAppointSupervisors = false,
+    this.isSuperAdmin = false,
     this.earnsPoints = true,
     this.onLeaderboard = true,
     this.pendingApprovals = 0,
@@ -194,6 +195,10 @@ class Capabilities {
   /// offers the shorter list rather than a choice the server would refuse.
   final bool canAppointSupervisors;
 
+  /// The one Director above the others. Presentation and hiding only; the
+  /// server decides what it grants.
+  final bool isSuperAdmin;
+
   final bool earnsPoints;
   final bool onLeaderboard;
   final int pendingApprovals;
@@ -208,6 +213,7 @@ class Capabilities {
         canAwardPoints: json['canAwardPoints'] as bool? ?? false,
         canChangeRole: json['canChangeRole'] as bool? ?? false,
         canAppointSupervisors: json['canAppointSupervisors'] as bool? ?? false,
+        isSuperAdmin: json['isSuperAdmin'] as bool? ?? false,
         earnsPoints: json['earnsPoints'] as bool? ?? true,
         onLeaderboard: json['onLeaderboard'] as bool? ?? true,
         pendingApprovals: (json['pendingApprovals'] as num?)?.toInt() ?? 0,

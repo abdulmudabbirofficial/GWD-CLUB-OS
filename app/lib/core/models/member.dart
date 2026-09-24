@@ -15,7 +15,13 @@ import 'club_role.dart';
 /// A free function as well as a method on [Member], because the approvals queue
 /// has a role and a department name in hand without a [Member] to hang them on,
 /// and the phrasing must not drift between the two places.
-String positionLineFor(ClubRole role, String? departmentName) {
+String positionLineFor(ClubRole role, String? departmentName, {bool superAdmin = false}) {
+  // One Director carries the Super Admin tier, and says so. The others are
+  // "Director", never "Club Director": that longer title belongs to the seat
+  // above them, and giving it to all three blurred exactly the line V8 draws.
+  if (role == ClubRole.clubDirector) {
+    return superAdmin ? 'Club Director \u00b7 Super Admin' : role.title;
+  }
   final where = departmentName?.trim();
   if (where == null || where.isEmpty) return role.title;
   return switch (role) {
@@ -46,6 +52,8 @@ class Member {
     this.mustChangePassword = false,
     this.mustSetName = false,
     this.passwordResetRequested = false,
+    this.knownAs,
+    this.superAdmin = false,
   });
 
   final String id;
@@ -85,13 +93,32 @@ class Member {
   /// They have said they cannot sign in. Shown to whoever can reset it.
   final bool passwordResetRequested;
 
+  /// The name the club addresses a Director by — "Mudabbir", "Rehman",
+  /// "Moin". Stored because it cannot be derived: it is the last word of
+  /// "Abdul Mudabbir" but the first of "Rehman Pasha".
+  final String? knownAs;
+
+  /// Presentation only. The server decides what the Super Admin may do; this
+  /// just lets the app say which Director is which, and hide what would be
+  /// refused.
+  final bool superAdmin;
+
   /// What to actually print.
   ///
   /// An account nobody has named yet says so, rather than passing its
   /// placeholder off as a person — six people called "<Department> Lead" is
   /// exactly the state this replaces. Every surface that shows a person should
   /// use this and pair it with the role underneath.
-  String get displayName => mustSetName ? 'No name set' : name;
+  ///
+  /// A Director is addressed by title and the name the club knows them by —
+  /// "Director Mudabbir" — with the full name still available on their record.
+  /// Never "Director 1": a number names a seat, not the person in it.
+  String get displayName {
+    if (mustSetName) return 'No name set';
+    final short = knownAs?.trim() ?? '';
+    if (role == ClubRole.clubDirector && short.isNotEmpty) return 'Director $short';
+    return name;
+  }
 
   /// True when [displayName] is standing in for a name rather than being one.
   /// Callers grey it out; it is not a real person's name to render in full ink.
@@ -108,7 +135,8 @@ class Member {
   /// The executive tier has no department by design, and their office already
   /// names itself — "President" needs no qualifier and "President of the club"
   /// only adds noise.
-  String positionLine(String? departmentName) => positionLineFor(role, departmentName);
+  String positionLine(String? departmentName) =>
+      positionLineFor(role, departmentName, superAdmin: superAdmin);
 
   factory Member.fromJson(Map<String, dynamic> json) => Member(
         id: json['id'] as String,
@@ -127,6 +155,8 @@ class Member {
         mustChangePassword: json['mustChangePassword'] == true,
         mustSetName: json['mustSetName'] == true,
         passwordResetRequested: json['passwordResetRequested'] == true,
+        knownAs: json['knownAs'] as String?,
+        superAdmin: json['superAdmin'] == true,
       );
 
   Color get tint {
@@ -147,8 +177,14 @@ class Member {
     return '${words.first[0]}${words.last[0]}'.toUpperCase();
   }
 
-  /// "Aisha" — used wherever the full name would crowd the line.
-  String get firstName => name.trim().split(RegExp(r'\s+')).first;
+  /// "Aisha" — used wherever the full name would crowd the line. The name the
+  /// club actually uses, where there is one: greeting Director Mudabbir as
+  /// "Abdul" would be using a name nobody calls him.
+  String get firstName {
+    final short = knownAs?.trim() ?? '';
+    if (short.isNotEmpty) return short;
+    return name.trim().split(RegExp(r'\s+')).first;
+  }
 
   Member copyWith({
     String? name,
@@ -175,5 +211,7 @@ class Member {
         mustChangePassword: mustChangePassword,
         mustSetName: mustSetName ?? this.mustSetName,
         passwordResetRequested: passwordResetRequested,
+        knownAs: knownAs,
+        superAdmin: superAdmin,
       );
 }
