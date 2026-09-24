@@ -154,6 +154,8 @@ class _CategoryRow extends StatelessWidget {
 Future<void> _showEditor(BuildContext context, {ScheduleCategory? existing}) {
   return showModalBottomSheet(
     context: context,
+    // Over the tab bar, not under it: see showGwdSheet.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _CategoryEditor(existing: existing),

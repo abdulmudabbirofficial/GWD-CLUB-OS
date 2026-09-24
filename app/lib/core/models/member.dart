@@ -15,15 +15,25 @@ import 'club_role.dart';
 /// A free function as well as a method on [Member], because the approvals queue
 /// has a role and a department name in hand without a [Member] to hang them on,
 /// and the phrasing must not drift between the two places.
-String positionLineFor(ClubRole role, String? departmentName, {bool superAdmin = false}) {
-  // One Director carries the Super Admin tier, and says so. The others are
-  // "Director", never "Club Director": that longer title belongs to the seat
-  // above them, and giving it to all three blurred exactly the line V8 draws.
-  if (role == ClubRole.clubDirector) {
-    return superAdmin ? 'Club Director \u00b7 Super Admin' : role.title;
-  }
+String positionLineFor(
+  ClubRole role,
+  String? departmentName, {
+  bool superAdmin = false,
+  String? customTitle,
+}) {
+  // One Director carries the Super Admin tier. Their name already reads
+  // "Club Director Mudabbir", so the line underneath says what the name does
+  // not — the office twice in two lines is noise.
+  if (role == ClubRole.clubDirector && superAdmin) return 'Super Admin';
   final where = departmentName?.trim();
-  if (where == null || where.isEmpty) return role.title;
+  final hasWhere = where != null && where.isNotEmpty;
+
+  // A post the club named itself ("Treasurer") shows in place of the role's
+  // own title. It is words only: what they may do still follows the role.
+  final custom = customTitle?.trim() ?? '';
+  if (custom.isNotEmpty) return hasWhere ? '$custom \u00b7 $where' : custom;
+
+  if (role == ClubRole.clubDirector || !hasWhere) return role.title;
   return switch (role) {
     ClubRole.clubLead => '$where Lead',
     ClubRole.clubMember => '$where member',
@@ -54,6 +64,7 @@ class Member {
     this.passwordResetRequested = false,
     this.knownAs,
     this.superAdmin = false,
+    this.customTitle,
   });
 
   final String id;
@@ -103,6 +114,10 @@ class Member {
   /// refused.
   final bool superAdmin;
 
+  /// A post the Club Director named ("Treasurer"), shown instead of the role's
+  /// own title. Words only — everything they may do follows [role].
+  final String? customTitle;
+
   /// What to actually print.
   ///
   /// An account nobody has named yet says so, rather than passing its
@@ -111,12 +126,15 @@ class Member {
   /// use this and pair it with the role underneath.
   ///
   /// A Director is addressed by title and the name the club knows them by —
-  /// "Director Mudabbir" — with the full name still available on their record.
-  /// Never "Director 1": a number names a seat, not the person in it.
+  /// "Club Director Mudabbir" for the one who holds the club's keys, "Director
+  /// Rehman" for the others — with the full name still on their record. Never
+  /// "Director 1": a number names a seat, not the person in it.
   String get displayName {
     if (mustSetName) return 'No name set';
     final short = knownAs?.trim() ?? '';
-    if (role == ClubRole.clubDirector && short.isNotEmpty) return 'Director $short';
+    if (role == ClubRole.clubDirector && short.isNotEmpty) {
+      return superAdmin ? 'Club Director $short' : 'Director $short';
+    }
     return name;
   }
 
@@ -136,7 +154,7 @@ class Member {
   /// names itself — "President" needs no qualifier and "President of the club"
   /// only adds noise.
   String positionLine(String? departmentName) =>
-      positionLineFor(role, departmentName, superAdmin: superAdmin);
+      positionLineFor(role, departmentName, superAdmin: superAdmin, customTitle: customTitle);
 
   factory Member.fromJson(Map<String, dynamic> json) => Member(
         id: json['id'] as String,
@@ -157,6 +175,7 @@ class Member {
         passwordResetRequested: json['passwordResetRequested'] == true,
         knownAs: json['knownAs'] as String?,
         superAdmin: json['superAdmin'] == true,
+        customTitle: json['customTitle'] as String?,
       );
 
   Color get tint {
@@ -191,7 +210,7 @@ class Member {
   }
 
   /// The name for a row too narrow for the whole thing: "Nishta", but
-  /// "Director Mudabbir" — cutting a Director to the first word would leave
+  /// "Director Rehman" — cutting a Director to the first word would leave
   /// only the title.
   String get shortName {
     if (mustSetName) return 'No name set';
@@ -208,6 +227,7 @@ class Member {
     ClubRole? role,
     ApprovalStatus? approvalStatus,
     bool? mustSetName,
+    String? customTitle,
   }) =>
       Member(
         id: id,
@@ -228,5 +248,6 @@ class Member {
         passwordResetRequested: passwordResetRequested,
         knownAs: knownAs,
         superAdmin: superAdmin,
+        customTitle: customTitle ?? this.customTitle,
       );
 }

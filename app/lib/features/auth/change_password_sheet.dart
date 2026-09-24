@@ -264,7 +264,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
             children: [
               SheetHeader(
                 title: _sent ? 'Asked' : 'Forgotten your password?',
-                subtitle: _sent ? null : 'A Director or the President will set you a new one.',
+                subtitle: _sent ? null : 'The Club Director will set you a new one.',
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(GwdSpace.xl, 0, GwdSpace.xl, GwdSpace.xl),
@@ -286,7 +286,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
                                 const SizedBox(width: GwdSpace.md),
                                 Expanded(
                                   child: Text(
-                                    'They have been told. They will pass you a '
+                                    'The Club Director has been told, and will pass you a '
                                     'temporary password — you will be asked to '
                                     'pick your own when you sign in with it.',
                                     style: GwdType.callout

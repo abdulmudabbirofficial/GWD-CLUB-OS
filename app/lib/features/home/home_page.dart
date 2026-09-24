@@ -128,6 +128,23 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ---------- start something ----------
+                    //
+                    // First, not last. It sat at the very bottom of Home, under
+                    // everything else, and partly behind the tab bar — so the
+                    // things people open the app to *do* (plan an event, call a
+                    // meeting, send an alert) needed a scroll to the end to find.
+                    band('Start something'),
+                    AppleStaggerItem(
+                      index: next(),
+                      child: _QuickActions(
+                        caps: caps,
+                        canCreateEvents: store.canCreateEvents,
+                        canScheduleMeetings: store.canScheduleMeetings,
+                        onOpenSchedule: () => _openSchedule(context),
+                      ),
+                    ),
+
                     // ---------- happening right now ----------
                     if (live.isNotEmpty) ...[
                       band('Happening now'),
@@ -266,7 +283,7 @@ class HomePage extends StatelessWidget {
                     // ---------- the club, for the people running it ----------
                     if (overview != null) ...[
                       band('The club today',
-                          trailing: caps.canViewAudit
+                          trailing: caps.canViewDashboard
                               ? _More(
                                   label: 'Dashboard',
                                   onTap: () => Navigator.of(context).push(
@@ -372,17 +389,6 @@ class HomePage extends StatelessWidget {
                       ),
                     ],
 
-                    // ---------- start something ----------
-                    band('Start something'),
-                    AppleStaggerItem(
-                      index: next(),
-                      child: _QuickActions(
-                        caps: caps,
-                        canCreateEvents: store.canCreateEvents,
-                        canScheduleMeetings: store.canScheduleMeetings,
-                        onOpenSchedule: () => _openSchedule(context),
-                      ),
-                    ),
 
                   ],
                 ),
@@ -543,18 +549,24 @@ class _HomeHero extends StatelessWidget {
                       // "Marketing Lead". A role badge beside a department name
                       // makes the reader assemble the sentence, and reads as
                       // "Lead" plus an unrelated word.
-                      Text(
-                        me?.displayName ?? 'There',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        // A name, not a headline. At the large title size it
-                        // was the biggest thing on the screen, which is the
-                        // wrong thing to be biggest on a screen whose job is
-                        // "what should I do now".
-                        style: GwdType.title1.copyWith(
-                          color: me?.isUnnamed == true
-                              ? GwdColors.inkTertiaryOf(context)
-                              : GwdColors.inkOf(context),
+                      // Shrinks to fit rather than cutting off: a name ending
+                      // "Club Director Mud..." on a phone is somebody's name
+                      // with the name itself missing.
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          me?.displayName ?? 'There',
+                          maxLines: 1,
+                          // A name, not a headline. At the large title size it
+                          // was the biggest thing on the screen, which is the
+                          // wrong thing to be biggest on a screen whose job is
+                          // "what should I do now".
+                          style: GwdType.title1.copyWith(
+                            color: me?.isUnnamed == true
+                                ? GwdColors.inkTertiaryOf(context)
+                                : GwdColors.inkOf(context),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1358,7 +1370,9 @@ class _QuickActions extends StatelessWidget {
     // second row rather than shrinking every tile until the labels clip.
     return LayoutBuilder(
       builder: (context, constraints) {
-        final perRow = constraints.maxWidth >= 520 ? 5 : 3;
+        // Three to a row on a phone, all of them in one row where there is
+        // room — the fewer rows, the sooner the rest of Home starts.
+        final perRow = constraints.maxWidth >= 520 ? actions.length.clamp(3, 6) : 3;
         final rows = <List<Widget>>[];
         for (var i = 0; i < actions.length; i += perRow) {
           rows.add(actions.sublist(i, (i + perRow).clamp(0, actions.length)));
@@ -1366,11 +1380,11 @@ class _QuickActions extends StatelessWidget {
         return Column(
           children: [
             for (var r = 0; r < rows.length; r++) ...[
-              if (r > 0) const SizedBox(height: GwdSpace.md),
+              if (r > 0) const SizedBox(height: GwdSpace.sm),
               Row(
                 children: [
                   for (var i = 0; i < perRow; i++) ...[
-                    if (i > 0) const SizedBox(width: GwdSpace.md),
+                    if (i > 0) const SizedBox(width: GwdSpace.sm),
                     Expanded(
                       child: i < rows[r].length ? rows[r][i] : const SizedBox.shrink(),
                     ),
@@ -1399,7 +1413,8 @@ class _Action extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: GwdSpace.lg, horizontal: GwdSpace.sm),
+      padding: const EdgeInsets.symmetric(vertical: GwdSpace.md, horizontal: GwdSpace.xs),
+      borderRadius: GwdRadius.lg,
       onTap: onTap,
       child: Column(
         children: [

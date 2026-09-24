@@ -12,6 +12,8 @@ import '../auth/set_name_sheet.dart';
 Future<void> showProfileSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
+    // Over the tab bar, not under it: see showGwdSheet.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => const _ProfileSheet(),

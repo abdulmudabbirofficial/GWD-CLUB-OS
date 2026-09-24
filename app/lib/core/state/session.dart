@@ -219,7 +219,7 @@ class Session extends ChangeNotifier {
     }
   }
 
-  /// Ask a Director or the President to reset your password.
+  /// Ask the Club Director to reset your password.
   ///
   /// No account is required and the server answers identically whether or not
   /// the address exists, so this cannot be used to discover who has one.

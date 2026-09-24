@@ -487,17 +487,22 @@ class GwdIcons {
 class GwdShadow {
   const GwdShadow._();
 
+  // Cheaper than they were. Every card carried a 16px (resting) or 30px
+  // (raised) ambient blur, which on the near-black dark theme is invisible and
+  // still costs a blur per card per frame while a list scrolls. Dark keeps the
+  // tight contact shadow that actually reads; light keeps a small soft one.
   static List<BoxShadow> resting(bool isDark) => [
         BoxShadow(
           color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.035),
           blurRadius: 2,
           offset: const Offset(0, 1),
         ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.045),
-          blurRadius: 16,
-          offset: const Offset(0, 6),
-        ),
+        if (!isDark)
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.045),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
       ];
 
   static List<BoxShadow> lifted(bool isDark) => [
@@ -507,9 +512,9 @@ class GwdShadow {
           offset: const Offset(0, 2),
         ),
         BoxShadow(
-          color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.08),
-          blurRadius: 30,
-          offset: const Offset(0, 14),
+          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.07),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
       ];
 

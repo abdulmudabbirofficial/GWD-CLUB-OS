@@ -16,6 +16,8 @@ Future<void> showScheduleEditor(
 }) {
   return showModalBottomSheet(
     context: context,
+    // Over the tab bar, not under it: see showGwdSheet.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => _ScheduleEditor(

@@ -1,8 +1,9 @@
 /// The short form of a name the **server** has already rendered.
 ///
 /// Rows too narrow for a full name show the first word — "Nishta" rather than
-/// "Nishta Rao". But the server renders a Director as "Director Mudabbir"
-/// (see `displayNameOf` in backend/src/people.js), and cutting that to its
+/// "Nishta Rao". But the server renders a Director as "Director Rehman", or
+/// "Club Director Mudabbir" for the Super Admin (see `displayNameOf` in
+/// backend/src/people.js), and cutting either to its
 /// first word leaves only the title: every upload, helper and assignee chip a
 /// Director appeared on read "Director", as if it were a person.
 ///
@@ -13,6 +14,6 @@ String shortNameOf(String rendered) {
   final name = rendered.trim();
   if (name.isEmpty) return name;
   if (name == 'No name set') return name;
-  if (name.startsWith('Director ')) return name;
+  if (name.startsWith('Director ') || name.startsWith('Club Director ')) return name;
   return name.split(RegExp(r'\s+')).first;
 }

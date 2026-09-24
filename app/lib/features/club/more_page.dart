@@ -137,7 +137,7 @@ class MorePage extends StatelessWidget {
                   onTap: () => _push(context, const StructurePage()),
                 ),
               ),
-              if (caps.onLeaderboard || caps.canViewAudit)
+              if (caps.onLeaderboard || caps.hasOversight)
                 AppleStaggerItem(
                   index: next(),
                   child: _Tile(
@@ -190,13 +190,13 @@ class MorePage extends StatelessWidget {
                   ),
                 ),
 
-              if (caps.canManageDepartments || caps.canViewAudit) ...[
+              if (caps.canManageDepartments || caps.canViewDashboard) ...[
                 const SizedBox(height: GwdSpace.xl),
                 AppleStaggerItem(
                   index: next(),
                   child: const SectionHeader(
                     title: 'Running the club',
-                    subtitle: 'Visible to supervisors and the President',
+                    subtitle: 'For the people who run the club',
                   ),
                 ),
                 if (caps.canManageDepartments)
@@ -209,7 +209,7 @@ class MorePage extends StatelessWidget {
                       onTap: () => _push(context, const DepartmentsPage()),
                     ),
                   ),
-                if (caps.canViewAudit)
+                if (caps.canViewDashboard)
                   AppleStaggerItem(
                     index: next(),
                     child: _Tile(
@@ -281,14 +281,18 @@ class _ProfileHeader extends StatelessWidget {
               children: [
                 // displayName, never `me.name`: an account created for somebody
                 // who has not signed in yet has a placeholder there.
-                Text(me.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GwdType.title2.copyWith(
-                      color: me.isUnnamed
-                          ? GwdColors.inkTertiaryOf(context)
-                          : GwdColors.inkOf(context),
-                    )),
+                // Shrinks rather than cutting the name itself off the end.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(me.displayName,
+                      maxLines: 1,
+                      style: GwdType.title2.copyWith(
+                        color: me.isUnnamed
+                            ? GwdColors.inkTertiaryOf(context)
+                            : GwdColors.inkOf(context),
+                      )),
+                ),
                 const SizedBox(height: 3),
                 // "Creative Lead", as one line. A LEAD badge sitting next to the
                 // word "Creative" makes the reader assemble the sentence, and

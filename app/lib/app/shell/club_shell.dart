@@ -1,4 +1,3 @@
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
@@ -271,16 +270,13 @@ class _ClubShellState extends State<ClubShell> {
     // Inside the body, `MediaQuery.of` is the Scaffold's already-adjusted copy:
     // the inset is gone because the space has been taken, and adding the bar
     // height back is the only correction left to make.
+    //
+    // Since V8.1 the bar is solid and the body stops above it, so there is no
+    // bar height to fold in any more: the Scaffold has already taken it.
     Widget shellBody(BuildContext context) {
       final media = MediaQuery.of(context);
-      final barHeight = layout.usesRail ? 0.0 : _ClubNavBar.height;
       return MediaQuery(
-        data: media.copyWith(
-          padding: media.padding.copyWith(bottom: media.padding.bottom + barHeight),
-          viewPadding: media.viewPadding.copyWith(
-            bottom: media.viewPadding.bottom + barHeight,
-          ),
-        ),
+        data: media,
         child: Navigator(
           key: _navigatorKey,
           onGenerateRoute: (_) => MaterialPageRoute(
@@ -297,11 +293,13 @@ class _ClubShellState extends State<ClubShell> {
       onOpen: _open,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        // The content runs under the frosted bar rather than stopping above
-        // it, which is the only way the blur has anything to blur. Pages
-        // already end their scrolls with a GwdSpace.xxxl tail, so nothing
-        // important comes to rest underneath.
-        extendBody: true,
+        // The content stops *above* the bar. It used to run underneath a
+        // frosted one, and pages ended their lists with a fixed gap shorter
+        // than the bar — so the last actions on Home and the last rows of the
+        // directory sat behind it, and you had to scroll to the very end to
+        // reach "Call a meeting". The blur behind it was also recomputed on
+        // every scroll frame, which is the stutter at the bottom of long lists.
+        extendBody: false,
         body: layout.usesRail
             ? Row(
                 children: [
@@ -607,14 +605,16 @@ class _ClubNavBar extends StatelessWidget {
     // The blur is clipped to the bar's own rect: an unbounded BackdropFilter
     // samples the whole layer tree and is one of the few genuinely expensive
     // things you can put on a screen that repaints on every scroll frame.
+    // Solid. It was frosted glass over the content: a 24-sigma blur of
+    // whatever scrolled beneath it, recomputed on every frame of every scroll,
+    // on every screen — the single most expensive thing in the app, spent on
+    // a bar. And it only worked by letting content run underneath the bar,
+    // which is how the last rows of every list ended up hidden behind it.
     return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+      child: RepaintBoundary(
         child: DecoratedBox(
           decoration: BoxDecoration(
-            // Translucent enough to frost, opaque enough that a dense list
-            // scrolling under it never makes the labels hard to read.
-            color: GwdColors.surfaceOf(context).withValues(alpha: isDark ? 0.72 : 0.80),
+            color: isDark ? const Color(0xFF0E0B0C) : GwdColors.surfaceOf(context),
             border: Border(
               top: BorderSide(color: GwdColors.hairlineOf(context).withValues(alpha: 0.9)),
             ),

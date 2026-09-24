@@ -138,8 +138,14 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         // The office, the way the club names it: the Super Admin's seat is the
-        // "Club Director", the other two are Directors.
-        title: Text(member.superAdmin ? 'Club Director' : member.role.title,
+        // "Club Director", the other two are Directors, and a post the Club
+        // Director named shows by that name.
+        title: Text(
+            member.superAdmin
+                ? 'Club Director'
+                : (member.customTitle?.trim().isNotEmpty ?? false)
+                    ? member.customTitle!.trim()
+                    : member.role.title,
             style: GwdType.title3.copyWith(color: GwdColors.inkOf(context))),
       ),
       body: RefreshIndicator(
@@ -695,13 +701,14 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
   /// because handing it over in person is a stronger identity check than an
   /// inbox. It is not recoverable afterwards, so the dialog says so and offers
   /// a copy button.
-  /// Appoint somebody to a different office.
+  /// Appoint somebody to a different office, or give their post a name.
   ///
-  /// The list offered is the one this actor may actually grant: only a Director
-  /// can appoint into the supervisor tier, so a President is not shown a choice
-  /// the server would refuse. Everything else - the singleton caps, not
-  /// promoting yourself - is the server's to enforce, and its refusal is
-  /// written to be shown as-is.
+  /// The Club Director's alone since V8.1, and the server decides that; this
+  /// sheet only offers what it would accept. A custom title ("Treasurer") is
+  /// words over the role picked above it: what they may do follows the role,
+  /// so a new post never needs its own set of rules. Everything else - the
+  /// singleton caps, not changing yourself - is the server's to enforce, and
+  /// its refusal is written to be shown as-is.
   Future<void> _changeRole(Member member) async {
     final store = AppScope.readStore(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -717,56 +724,128 @@ class _MemberStatsPageState extends State<MemberStatsPage> {
       ClubRole.secretaryGeneral,
       ClubRole.clubLead,
       ClubRole.clubMember,
-    ].where((r) => r != member.role).toList();
+    ];
+    if (!choices.contains(member.role)) choices.insert(0, member.role);
 
-    final chosen = await showGwdSheet<ClubRole>(
+    final currentTitle = member.customTitle?.trim() ?? '';
+    final titleController = TextEditingController(text: currentTitle);
+    var picked = member.role;
+
+    final result = await showGwdSheet<(ClubRole, String)>(
       context: context,
-      builder: (sheetContext) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: GwdColors.surfaceOf(sheetContext),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SheetHeader(
-                  title: 'Change ${member.firstName}\u2019s role',
-                  subtitle: 'They are ${member.role.title} now',
-                ),
-                for (final role in choices)
-                  ListTile(
-                    leading: Icon(Icons.badge_outlined,
-                        size: 20, color: GwdColors.inkSecondaryOf(sheetContext)),
-                    title: Text(role.title,
-                        style: GwdType.body.copyWith(color: GwdColors.inkOf(sheetContext))),
-                    onTap: () => Navigator.of(sheetContext).pop(role),
-                  ),
-                const SizedBox(height: GwdSpace.md),
-              ],
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          final title = titleController.text.trim();
+          final changed = picked != member.role || title != currentTitle;
+          final valid = changed && title.length <= 40;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: GwdColors.surfaceOf(sheetContext),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(GwdRadius.xxl)),
             ),
-          ),
-        ),
+            child: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SheetHeader(
+                      title: 'Change ${member.firstName}’s role',
+                      subtitle:
+                          'They are ${currentTitle.isNotEmpty ? currentTitle : member.role.title} now',
+                    ),
+                    for (final role in choices)
+                      ListTile(
+                        leading: Icon(
+                          role == picked
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_off_rounded,
+                          size: 20,
+                          color: role == picked
+                              ? GwdColors.primaryRed
+                              : GwdColors.inkTertiaryOf(sheetContext),
+                        ),
+                        title: Text(
+                          role.title,
+                          style: GwdType.body.copyWith(
+                            color: GwdColors.inkOf(sheetContext),
+                            fontWeight: role == picked ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                        trailing: role == member.role
+                            ? Text('Now',
+                                style: GwdType.footnote
+                                    .copyWith(color: GwdColors.inkTertiaryOf(sheetContext)))
+                            : null,
+                        onTap: () => setSheetState(() => picked = role),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                          GwdSpace.lg, GwdSpace.md, GwdSpace.lg, GwdSpace.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          GwdField(
+                            label: 'Custom title (optional)',
+                            hint: 'Treasurer, Events Head…',
+                            controller: titleController,
+                            textCapitalization: TextCapitalization.words,
+                            onChanged: (_) => setSheetState(() {}),
+                          ),
+                          const SizedBox(height: GwdSpace.sm),
+                          Text(
+                            title.isEmpty
+                                ? 'Leave it empty to show “${picked.title}”.'
+                                : 'Shown instead of “${picked.title}”. What they can do '
+                                    'still follows ${picked.title}.',
+                            style: GwdType.footnote
+                                .copyWith(color: GwdColors.inkSecondaryOf(sheetContext)),
+                          ),
+                          if (title.length > 40) ...[
+                            const SizedBox(height: GwdSpace.xs),
+                            Text('Keep it under forty characters.',
+                                style: GwdType.footnote.copyWith(color: GwdColors.warning)),
+                          ],
+                          const SizedBox(height: GwdSpace.lg),
+                          PrimaryButton(
+                            label: 'Save',
+                            onPressed: valid
+                                ? () => Navigator.of(sheetContext).pop((picked, title))
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
 
-    if (chosen == null || !mounted) return;
+    titleController.dispose();
+    if (result == null || !mounted) return;
+    final (role, title) = result;
 
     try {
-      await store.changeRole(member.id, chosen);
+      await store.changeRole(
+        member.id,
+        role == member.role ? null : role,
+        customTitle: title == currentTitle ? null : title,
+      );
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
-        content: Text('${member.firstName} is now ${chosen.title}.'),
+        content: Text('${member.firstName} is now ${title.isNotEmpty ? title : role.title}.'),
       ));
       setState(() {});
       await _load();
     } on ApiException catch (e) {
       // The server's messages here name the actual rule that was broken -
-      // which office is full, why a Director is required - so they are shown
-      // rather than replaced with something generic.
+      // which office is full, why the Club Director is required - so they are
+      // shown rather than replaced with something generic.
       if (mounted) messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
   }

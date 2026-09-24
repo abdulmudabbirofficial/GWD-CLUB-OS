@@ -98,8 +98,6 @@ extension ClubRoleDetails on ClubRole {
 
   bool get canManageDepartments => isSupervisor || this == ClubRole.president;
 
-  bool get canViewAudit => isSupervisor || this == ClubRole.president;
-
   /// Roles a person may pick at signup. Supervisors are appointed, never
   /// self-selected.
   static List<ClubRole> get selectableAtSignup => const [

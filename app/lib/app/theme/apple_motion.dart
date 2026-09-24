@@ -229,18 +229,32 @@ class AppleBouncy extends StatelessWidget {
 /// ENTRANCES
 /// ---------------------------------------------------------------------------
 
-/// Fade + rise + a hair of scale, delayed by [index] so a list of cards lands
-/// as a cascade rather than all at once. The delay is capped so long lists do
-/// not leave the reader waiting on the last row.
+/// A row settling into place as its page arrives.
+///
+/// **Content is visible from the first frame.** This used to fade every row in
+/// from nothing, one after another — up to 200ms of cascade and then 420ms each
+/// — so opening any screen showed an empty backdrop that filled in row by row,
+/// which reads as the app loading, not the app arriving. It was reported
+/// exactly that way. Each of those fades was also an `Opacity` between 0 and 1,
+/// which makes the engine draw the row off-screen and composite it back, every
+/// frame, for every row at once.
+///
+/// And because lists build rows as they scroll into view, **every row that
+/// appeared while scrolling ran the same fade** — the stutter at the bottom of
+/// the directory.
+///
+/// So now: no opacity at all, a short rise measured in pixels, and only while
+/// the page it belongs to is arriving. A row that mounts later — scrolled into
+/// view, or filled in when data lands — is simply there.
 class FluidReveal extends StatefulWidget {
   const FluidReveal({
     super.key,
     required this.child,
     this.index = 0,
-    this.stepMs = 28,
-    this.maxDelayMs = 200,
-    this.offsetY = 14,
-    this.scaleFrom = 0.988,
+    this.stepMs = 22,
+    this.maxDelayMs = 90,
+    this.offsetY = 10,
+    this.scaleFrom = 1.0,
   });
 
   final Widget child;
@@ -248,6 +262,9 @@ class FluidReveal extends StatefulWidget {
   final int stepMs;
   final int maxDelayMs;
   final double offsetY;
+
+  /// Kept for call sites that pass it; the reveal no longer scales, because a
+  /// scaled row resamples its text every frame and looks soft while it moves.
   final double scaleFrom;
 
   @override
@@ -255,34 +272,37 @@ class FluidReveal extends StatefulWidget {
 }
 
 class _FluidRevealState extends State<FluidReveal> with SingleTickerProviderStateMixin {
-  // Was 620ms on a 46ms step capped at 420, so the last row of a long screen
-  // settled a little over a second after the screen appeared. That is long
-  // enough to be read as the app being slow rather than as the app arriving —
-  // which is exactly how it was reported. Entrances are now about half that,
-  // and the difference between a 620ms reveal and a 340ms one is not elegance,
-  // it is whether the first tap lands on something that has stopped moving.
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: AppleDuration.slow,
+    duration: const Duration(milliseconds: 240),
+    value: 1.0,
   );
   late final Animation<double> _eased =
       CurvedAnimation(parent: _controller, curve: AppleCurves.enter);
-  bool _scheduled = false;
+  bool _decided = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_scheduled) return;
-    _scheduled = true;
+    if (_decided) return;
+    _decided = true;
+    if (prefersReducedMotion(context)) return;
 
-    if (prefersReducedMotion(context)) {
-      _controller.value = 1.0;
-      return;
-    }
+    // Only while the page is arriving. Anything that mounts once it has
+    // arrived is content the person is already looking at, and making it move
+    // is making them wait.
+    final arriving = ModalRoute.of(context)?.animation?.status == AnimationStatus.forward;
+    if (!arriving) return;
+
+    _controller.value = 0.0;
     final delayMs = (widget.index * widget.stepMs).clamp(0, widget.maxDelayMs).toInt();
-    Future<void>.delayed(Duration(milliseconds: delayMs), () {
-      if (mounted) _controller.forward();
-    });
+    if (delayMs == 0) {
+      _controller.forward();
+    } else {
+      Future<void>.delayed(Duration(milliseconds: delayMs), () {
+        if (mounted) _controller.forward();
+      });
+    }
   }
 
   @override
@@ -297,16 +317,10 @@ class _FluidRevealState extends State<FluidReveal> with SingleTickerProviderStat
       animation: _eased,
       builder: (context, child) {
         final t = _eased.value;
-        return Opacity(
-          // Fade in faster than the translate so text is readable early.
-          opacity: Curves.easeOut.transform(math.min(1.0, t * 1.35)),
-          child: Transform.translate(
-            offset: Offset(0, widget.offsetY * (1 - t)),
-            child: Transform.scale(
-              scale: lerpDouble(widget.scaleFrom, 1.0, t),
-              child: child,
-            ),
-          ),
+        if (t >= 1.0) return child!;
+        return Transform.translate(
+          offset: Offset(0, widget.offsetY * (1 - t)),
+          child: child,
         );
       },
       child: widget.child,
@@ -320,8 +334,8 @@ class AppleStaggerItem extends StatelessWidget {
     super.key,
     required this.child,
     required this.index,
-    this.baseDelayMs = 46,
-    this.offsetY = 16.0,
+    this.baseDelayMs = 22,
+    this.offsetY = 10.0,
   });
 
   final Widget child;
@@ -342,8 +356,21 @@ class AppleStaggerItem extends StatelessWidget {
 /// TRANSITIONS
 /// ---------------------------------------------------------------------------
 
-/// Route transition used app-wide: the outgoing page fades and recedes a touch
-/// while the incoming page rises. Reads as depth without a hard slide.
+/// Route transition used app-wide: the new page slides over the old one.
+///
+/// It used to fade the whole incoming page in with an `Opacity` — and every
+/// page is transparent, drawn over the app's backdrop — so for the length of
+/// the transition you saw the red backdrop through the page, and then its rows
+/// faded in on top: "the background shows, then it loads". A full-screen
+/// opacity is also the most expensive thing to animate, because the engine
+/// redraws the whole page off-screen and blends it back on every frame.
+///
+/// Now each route paints its own backdrop, so a page arriving covers the one
+/// underneath completely, and the only thing animated is position — which the
+/// GPU does for free. The page underneath drifts back a third of the way, the
+/// way a stack of cards does, and a faint edge on the incoming page keeps the
+/// two apart. A full-screen flow (creating an event) rises from the bottom
+/// instead, because it is a task you enter, not a page you drill into.
 class FluidPageTransitionsBuilder extends PageTransitionsBuilder {
   const FluidPageTransitionsBuilder();
 
@@ -355,28 +382,58 @@ class FluidPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    if (prefersReducedMotion(context)) {
-      return FadeTransition(opacity: animation, child: child);
-    }
+    final page = _OpaquePage(child: child);
+    if (prefersReducedMotion(context)) return page;
 
-    final enter = CurvedAnimation(parent: animation, curve: AppleCurves.enter);
+    final enter = CurvedAnimation(
+      parent: animation,
+      curve: AppleCurves.enter,
+      reverseCurve: AppleCurves.exit,
+    );
     final leave = CurvedAnimation(parent: secondaryAnimation, curve: AppleCurves.standard);
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([enter, leave]),
-      builder: (context, inner) {
-        return Opacity(
-          opacity: enter.value * (1 - (leave.value * 0.4)),
-          child: Transform.translate(
-            offset: Offset(0, 24 * (1 - enter.value)),
-            child: Transform.scale(
-              scale: lerpDouble(0.98, 1.0, enter.value)! - (leave.value * 0.02),
-              child: inner,
-            ),
+    final incoming = SlideTransition(
+      position: Tween<Offset>(
+        begin: route.fullscreenDialog ? const Offset(0, 1) : const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(enter),
+      child: page,
+    );
+    return SlideTransition(
+      position: Tween<Offset>(begin: Offset.zero, end: const Offset(-0.3, 0)).animate(leave),
+      child: incoming,
+    );
+  }
+}
+
+/// A route's page with the app's backdrop under it, so it is opaque.
+///
+/// The backdrop is two gradients, painted once per page — far cheaper than the
+/// alternative of blending a see-through page over the one beneath it.
+class _OpaquePage extends StatelessWidget {
+  const _OpaquePage({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: GwdColors.backdropBase(isDark),
+        // The edge a sliding page catches the light on. One cheap shadow on
+        // the page itself, not one per card inside it.
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.12),
+            blurRadius: 12,
           ),
-        );
-      },
-      child: child,
+        ],
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(gradient: GwdColors.backdropBloom(isDark)),
+        child: child,
+      ),
     );
   }
 }
@@ -445,6 +502,7 @@ Future<T?> showMorphSheet<T>({
 }) {
   return showModalBottomSheet<T>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: isScrollControlled,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(
@@ -478,6 +536,12 @@ Future<T?> showGwdSheet<T>({
 }) {
   return showModalBottomSheet<T>(
     context: context,
+    // Over the whole app, tab bar included. Left to the default, a sheet opens
+    // on the tab's own navigator, *under* the bar, and the bar sits across the
+    // bottom of it - which is exactly where every sheet keeps its button.
+    // Everything a sheet reads (session, store) is scoped above the root, so
+    // nothing is lost by opening here.
+    useRootNavigator: true,
     isScrollControlled: true,
     isDismissible: isDismissible,
     enableDrag: enableDrag,

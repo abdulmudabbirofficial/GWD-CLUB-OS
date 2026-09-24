@@ -20,7 +20,9 @@ void main() {
     final moin = director('Mohammed Moin', 'Moin');
 
     test('are addressed by title and the name the club knows them by', () {
-      expect(mudabbir.displayName, 'Director Mudabbir');
+      // The one who holds the club's keys is the Club Director; the other two
+      // are Directors (V8.1).
+      expect(mudabbir.displayName, 'Club Director Mudabbir');
       expect(rehman.displayName, 'Director Rehman');
       expect(moin.displayName, 'Director Moin');
     });
@@ -33,13 +35,16 @@ void main() {
     });
 
     test('only the Super Admin carries the longer title', () {
-      expect(mudabbir.positionLine(null), 'Club Director · Super Admin');
+      // Their name already says "Club Director", so the line under it says
+      // what the name does not.
+      expect(mudabbir.positionLine(null), 'Super Admin');
       expect(rehman.positionLine(null), 'Director');
       expect(moin.positionLine(null), 'Director');
     });
 
     test('never "Club Director" for the other two, and never a number', () {
       for (final m in [rehman, moin]) {
+        expect(m.displayName, isNot(contains('Club Director')));
         expect(m.positionLine(null), isNot(contains('Club Director')));
         expect(m.displayName, isNot(matches(RegExp(r'\d'))));
       }
@@ -68,7 +73,23 @@ void main() {
       final renamed = mudabbir.copyWith(points: 3);
       expect(renamed.superAdmin, isTrue);
       expect(renamed.knownAs, 'Mudabbir');
-      expect(renamed.displayName, 'Director Mudabbir');
+      expect(renamed.displayName, 'Club Director Mudabbir');
+    });
+
+    test('a custom title shows in place of the role, and survives copyWith', () {
+      final treasurer = Member.fromJson(const {
+        'id': 't', 'name': 'Sana Khan', 'role': 'clubMember', 'customTitle': 'Treasurer',
+      });
+      expect(treasurer.positionLine('Marketing'), 'Treasurer \u00b7 Marketing');
+      expect(treasurer.positionLine(null), 'Treasurer');
+      // Words only: the role underneath is untouched.
+      expect(treasurer.role, ClubRole.clubMember);
+      expect(treasurer.copyWith(points: 1).customTitle, 'Treasurer');
+      // An empty one is no title at all.
+      final plain = Member.fromJson(const {
+        'id': 'u', 'name': 'Ravi', 'role': 'clubMember', 'customTitle': '  ',
+      });
+      expect(plain.positionLine('Marketing'), 'Marketing member');
     });
 
     test('knownAs means nothing on anybody who is not a Director', () {

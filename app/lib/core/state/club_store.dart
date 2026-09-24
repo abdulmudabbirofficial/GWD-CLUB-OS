@@ -248,7 +248,8 @@ class Capabilities {
     this.canCreateScheduleEntry = false,
     this.canBroadcast = false,
     this.canManageDepartments = false,
-    this.canViewAudit = false,
+    this.hasOversight = false,
+    this.canViewDashboard = false,
     this.canAwardPoints = false,
     this.canChangeRole = false,
     this.canAppointSupervisors = false,
@@ -263,7 +264,13 @@ class Capabilities {
   final bool canCreateScheduleEntry;
   final bool canBroadcast;
   final bool canManageDepartments;
-  final bool canViewAudit;
+
+  /// Directors, the Faculty Coordinator and the President: the approvals
+  /// queue and the whole club's recognition page.
+  final bool hasOversight;
+
+  /// The Dashboard and its audit log — the Club Director's alone since V8.1.
+  final bool canViewDashboard;
   final bool canAwardPoints;
 
   /// Appoint somebody to an office. President and supervisors only.
@@ -287,7 +294,8 @@ class Capabilities {
         canCreateScheduleEntry: json['canCreateScheduleEntry'] as bool? ?? false,
         canBroadcast: json['canBroadcast'] as bool? ?? false,
         canManageDepartments: json['canManageDepartments'] as bool? ?? false,
-        canViewAudit: json['canViewAudit'] as bool? ?? false,
+        hasOversight: json['hasOversight'] as bool? ?? false,
+        canViewDashboard: json['canViewDashboard'] as bool? ?? false,
         canAwardPoints: json['canAwardPoints'] as bool? ?? false,
         canChangeRole: json['canChangeRole'] as bool? ?? false,
         canAppointSupervisors: json['canAppointSupervisors'] as bool? ?? false,
@@ -559,7 +567,7 @@ class ClubStore extends ChangeNotifier {
         loadMeetings(),
         loadEventTemplates(),
       ]);
-      if (capabilities.canViewAudit || session.role == ClubRole.clubLead) {
+      if (capabilities.hasOversight || session.role == ClubRole.clubLead) {
         await loadPendingApprovals();
       }
       hasLoadedOnce = true;
@@ -1722,8 +1730,13 @@ class ClubStore extends ChangeNotifier {
   /// caps, not promoting yourself, only a Director appointing a Director - and
   /// it refuses with a message written to be shown as-is. The client's job is
   /// to offer the choice and repeat the answer.
-  Future<void> changeRole(String userId, ClubRole role) async {
-    await _api.patch('/api/users/$userId/role', {'role': role.wire});
+  /// A null [role] keeps the one they have; a null [customTitle] leaves their
+  /// title alone, and an empty one clears it.
+  Future<void> changeRole(String userId, ClubRole? role, {String? customTitle}) async {
+    await _api.patch('/api/users/$userId/role', {
+      if (role != null) 'role': role.wire,
+      if (customTitle != null) 'customTitle': customTitle,
+    });
     await loadMembers();
     await loadDepartments();
     notifyListeners();

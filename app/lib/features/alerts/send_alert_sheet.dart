@@ -11,6 +11,8 @@ import '../../core/models/club_role.dart';
 Future<void> showSendAlertSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
+    // Over the tab bar, not under it: see showGwdSheet.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => const _SendAlertSheet(),
@@ -213,7 +215,10 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
                     label: 'Send alert',
                     icon: Icons.campaign_rounded,
                     busy: _busy,
-                    tone: _urgency.tint == GwdColors.inkSecondary
+                    // By urgency, not by comparing colours: the check used to
+                    // be against a grey that was later re-tuned, so a normal
+                    // alert's button quietly turned grey.
+                    tone: _urgency == AlertUrgency.normal
                         ? GwdColors.primaryRed
                         : _urgency.tint,
                     onPressed: _canSend ? _send : null,
@@ -254,7 +259,13 @@ class _Choice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tint ?? GwdColors.inkOf(context);
+    // Selected is a tinted fill with the label in the tint — the style every
+    // other choice in the app uses. It used to fill with the tint and write
+    // the label in white; with no tint the fill was the *ink* colour, which in
+    // the dark theme is near-white, so "Leadership" and "Everyone" became
+    // white text on a white chip the moment they were picked.
+    final color = tint ?? GwdColors.primaryRed;
+    final onSelected = GwdColors.readableOn(context, color);
     return PressableScale(
       haptic: HapticStrength.selection,
       onTap: onTap,
@@ -264,16 +275,18 @@ class _Choice extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: GwdSpace.md),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? color : GwdColors.surfaceOf(context),
+          color: selected ? color.withValues(alpha: 0.16) : GwdColors.surfaceOf(context),
           borderRadius: BorderRadius.circular(GwdRadius.md),
-          border: Border.all(color: selected ? color : GwdColors.hairlineOf(context)),
+          border: Border.all(
+            color: selected ? color.withValues(alpha: 0.7) : GwdColors.hairlineOf(context),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
               Icon(icon,
-                  size: 13, color: selected ? Colors.white : GwdColors.inkSecondaryOf(context)),
+                  size: 13, color: selected ? onSelected : GwdColors.inkSecondaryOf(context)),
               const SizedBox(width: 4),
             ],
             Flexible(
@@ -282,7 +295,7 @@ class _Choice extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GwdType.footnote.copyWith(
-                  color: selected ? Colors.white : GwdColors.inkOf(context),
+                  color: selected ? onSelected : GwdColors.inkOf(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),

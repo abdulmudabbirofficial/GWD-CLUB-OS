@@ -19,6 +19,8 @@ import '../../core/models/member.dart';
 Future<void> showNewMeetingSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    // Over the tab bar, not under it: see showGwdSheet.
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => const _NewMeetingSheet(),
@@ -139,11 +141,29 @@ class _NewMeetingSheetState extends State<_NewMeetingSheet> {
     final store = AppScope.storeOf(context);
     final me = AppScope.sessionOf(context).me;
 
-    // Everybody except the organiser, who is added server-side.
+    // The club's leadership, by office: the Directors, the Faculty
+    // Coordinator, the officers and the department Leads. Not members.
+    //
+    // It used to be everybody but the Directors — the reverse of what is
+    // needed — which in a real club is a list of a hundred names to scroll
+    // past. A department's members are invited through their department
+    // above; picking people one by one is for the few who hold a post.
+    // The organiser is added server-side, so they are not offered here.
+    const leadership = {
+      ClubRole.clubDirector,
+      ClubRole.facultyCoordinator,
+      ClubRole.president,
+      ClubRole.vicePresident,
+      ClubRole.secretaryGeneral,
+      ClubRole.clubLead,
+    };
     final people = store.members
-        .where((m) => m.id != me?.id && m.role != ClubRole.clubDirector)
+        .where((m) => m.id != me?.id && leadership.contains(m.role))
         .toList()
-      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+      ..sort((a, b) {
+        final byRank = b.role.rank.compareTo(a.role.rank);
+        return byRank != 0 ? byRank : a.displayName.compareTo(b.displayName);
+      });
 
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
@@ -254,14 +274,14 @@ class _NewMeetingSheetState extends State<_NewMeetingSheet> {
 
                   // ---------- who: named people ----------
                   const SizedBox(height: GwdSpace.lg),
-                  Text('OR ADD PEOPLE INDIVIDUALLY',
+                  Text('OR ADD SOMEBODY FROM THE LEADERSHIP',
                       style: GwdType.eyebrow.copyWith(color: GwdColors.inkTertiaryOf(context))),
                   const SizedBox(height: GwdSpace.sm),
                   if (people.isEmpty)
                     Text('Nobody else to invite yet.',
                         style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)))
                   else
-                    for (final person in people.take(40))
+                    for (final person in people)
                       _PersonRow(
                         member: person,
                         departmentName: store.departmentById(person.departmentId)?.name,
