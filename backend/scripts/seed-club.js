@@ -63,12 +63,10 @@ function temporaryPassword() {
   return 'gwd-' + Array.from(crypto.randomBytes(8), (b) => alphabet[b % alphabet.length]).join('');
 }
 
-const AVATAR = ['#DC2626', '#0B0B0F', '#9F1239', '#334155', '#B45309', '#15803D', '#1D4ED8', '#6D28D9'];
-function avatarColorFor(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR[hash % AVATAR.length];
-}
+// The one palette (src/palette.js). This script used to carry its own list —
+// with a violet, a blue, a green and a near-black in it — so everybody seeded
+// from the roster wore a colour from outside the app's own family.
+const { accentFor: avatarColorFor } = require('../src/palette');
 
 /**
  * The roster, as given by the club.

@@ -6,7 +6,7 @@
  *   node scripts/v8-hierarchy.js            # dry run: says what it would do
  *   node scripts/v8-hierarchy.js --apply    # does it, after writing a backup
  *
- * Three things, each idempotent — running it twice changes nothing the second
+ * Four things, each idempotent — running it twice changes nothing the second
  * time:
  *
  *   1. **The Directors, by name.** The club's three Director seats are held by
@@ -18,6 +18,13 @@
  *   3. **The spare bootstrap accounts go**, under the rule in
  *      `src/placeholders.js`: never used, and the seat is held by somebody real.
  *      Anything that fails either test is kept and the reason printed.
+ *
+ *   4. **Every avatar in the app's own colours.** The roster seed carried its
+ *      own palette — violet, blue, green, slate — so every account it created
+ *      wore a colour from outside the family the rest of the app uses. Each
+ *      off-palette colour is replaced by the palette colour keyed to that
+ *      person's email, so it is stable and the same one a new account would
+ *      get.
  *
  * Nothing is written without `--apply`, and nothing is written before every
  * document it touches has been saved to `backups/` (gitignored — it holds
@@ -35,6 +42,7 @@ const config = require('../src/config');
 const { connect, close, col, C } = require('../src/db');
 const { ROLES } = require('../src/permissions');
 const { planPlaceholderRetirement, retireAccounts } = require('../src/placeholders');
+const { ACCENTS, accentFor } = require('../src/palette');
 
 const APPLY = process.argv.includes('--apply');
 
@@ -93,6 +101,16 @@ function where() {
     console.log(`  ~  ${user.email.padEnd(24)} superAdmin: true → false (only one Super Admin)`);
   }
 
+  // --- 4: avatars into the palette -----------------------------------------------
+  const everyone = await col(C.users)
+    .find({}, { projection: { email: 1, avatarColor: 1, name: 1 } }).toArray();
+  const recolour = everyone
+    .filter((u) => !ACCENTS.includes(String(u.avatarColor || '').toUpperCase()))
+    .map((u) => ({ user: u, to: accentFor(u.email) }));
+  if (recolour.length > 0) {
+    console.log(`  ~  ${recolour.length} avatar colour(s) outside the palette → palette colours`);
+  }
+
   // --- 3: spare bootstrap accounts ------------------------------------------
   const { retire, keep } = await planPlaceholderRetirement();
   console.log('');
@@ -103,14 +121,15 @@ function where() {
     console.log(`     ${user.email.padEnd(28)} ${user.role.padEnd(18)} keep — ${reason}`);
   }
 
-  if (plan.length === 0 && retire.length === 0) {
+  if (plan.length === 0 && retire.length === 0 && recolour.length === 0) {
     console.log('\n  Nothing to do. The hierarchy is already V8.\n');
     await close();
     return;
   }
 
   if (!APPLY) {
-    console.log(`\n  ${plan.length} account(s) to correct, ${retire.length} to retire.`);
+    console.log(`\n  ${plan.length} account(s) to correct, ${retire.length} to retire, `
+      + `${recolour.length} avatar(s) to recolour.`);
     console.log('  Run again with --apply to do it.\n');
     await close();
     return;
@@ -118,6 +137,11 @@ function where() {
 
   // --- backup, then write -----------------------------------------------------
   const touched = [...plan.map((p) => p.user), ...retire];
+  // Only the colour is changed for these, so only the colour is kept — a full
+  // copy of every account's password hash in a backup file buys nothing.
+  const avatarsBefore = recolour.map(({ user }) => ({
+    _id: user._id, email: user.email, avatarColor: user.avatarColor ?? null,
+  }));
   const ids = touched.map((u) => u._id);
   const backup = {
     at: new Date().toISOString(),
@@ -128,6 +152,7 @@ function where() {
     departmentsLedByRetired: await col(C.departments)
       .find({ leadUserId: { $in: retire.map((u) => u._id) } }).toArray(),
     accessRequests: await col(C.accessRequests).find({ userId: { $in: ids } }).toArray(),
+    avatarsBefore,
   };
   const dir = path.join(__dirname, '..', 'backups');
   fs.mkdirSync(dir, { recursive: true });
@@ -152,6 +177,9 @@ function where() {
       createdAt: now,
     });
   }
+  for (const { user, to } of recolour) {
+    await col(C.users).updateOne({ _id: user._id }, { $set: { avatarColor: to } });
+  }
   const { removed, reassigned } = await retireAccounts(retire);
   for (const user of retire) {
     await col(C.auditLog).insertOne({
@@ -166,7 +194,8 @@ function where() {
   }
 
   console.log(`  Corrected ${plan.length} account(s). Retired ${removed}; `
-    + `${reassigned} department seat(s) passed to the real Lead.\n`);
+    + `${reassigned} department seat(s) passed to the real Lead. `
+    + `Recoloured ${recolour.length} avatar(s).\n`);
   await close();
 })().catch(async (error) => {
   console.error(`\n  Failed: ${error.message}\n`);
