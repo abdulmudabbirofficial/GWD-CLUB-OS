@@ -336,6 +336,22 @@ class ClubStore extends ChangeNotifier {
   /// detail page directly, so this is a nudge addressed to one screen.
   final ValueNotifier<String?> commentsChangedFor = ValueNotifier(null);
 
+  /// The id of a meeting that just changed, for a meeting page that is open.
+  ///
+  /// The meetings list refreshed on every change, but an *open* meeting page
+  /// holds its own copy and never heard: if the organiser cancelled it, wrote
+  /// up what was decided or recorded attendance while you were looking, your
+  /// screen stayed as it was. Same shape as [commentsChangedFor] — a nudge
+  /// with an id, so only the page it is about reloads.
+  final ValueNotifier<String?> meetingChangedFor = ValueNotifier(null);
+
+  void _nudgeMeeting(String? id) {
+    if (id == null || id.isEmpty) return;
+    meetingChangedFor.value = id;
+    // Cleared at once, or a second change to the same meeting would be silent.
+    meetingChangedFor.value = null;
+  }
+
   LiveStatus get liveStatus => socket.status.value;
 
   // ------------------------------------------------------------- lifecycle
@@ -401,6 +417,7 @@ class ClubStore extends ChangeNotifier {
     socket.status.removeListener(_onStatusChanged);
     socket.dispose();
     commentsChangedFor.dispose();
+    meetingChangedFor.dispose();
     super.dispose();
   }
 
@@ -1803,6 +1820,7 @@ class ClubStore extends ChangeNotifier {
       case 'task:updated':
         final task = ClubTask.fromJson(event.data);
         _upsertTask(task);
+        _nudgeMeeting(task.meetingId);
         // Event work moving on somebody else's screen should move on this one
         // too — but only refetch the board actually open, not all of them.
         final eventId = task.eventId;
@@ -1944,6 +1962,7 @@ class ClubStore extends ChangeNotifier {
       case 'meeting:updated':
       case 'meeting:deleted':
         unawaited(loadMeetings());
+        _nudgeMeeting(event.data['id'] as String?);
         // A meeting carries a date, so the schedule and Home's "what's next"
         // move with it.
         unawaited(loadSchedule());

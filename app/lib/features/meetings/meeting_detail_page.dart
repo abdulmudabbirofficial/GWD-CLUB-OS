@@ -10,6 +10,7 @@ import '../../core/models/meeting.dart';
 import '../../core/models/club_task.dart';
 import '../tasks/task_detail_page.dart';
 import 'meeting_action_sheet.dart';
+import '../../core/state/club_store.dart';
 
 /// One meeting, and the attendance sheet.
 ///
@@ -44,10 +45,36 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   /// nothing keeping the two in step.
   List<ClubTask> _actions = const [];
 
+  ClubStore? _store;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final store = AppScope.readStore(context);
+    if (identical(store, _store)) return;
+    _store?.meetingChangedFor.removeListener(_onMeetingChanged);
+    _store = store..meetingChangedFor.addListener(_onMeetingChanged);
+  }
+
+  /// Somebody else changed this meeting, or one of the tasks that came out of
+  /// it. Reloaded quietly — unless attendance is half-marked on this screen,
+  /// which a reload must never throw away; that wins, and the save refreshes.
+  void _onMeetingChanged() {
+    if (_store?.meetingChangedFor.value != widget.meetingId) return;
+    if (_draft.isNotEmpty || _busy) return;
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _store?.meetingChangedFor.removeListener(_onMeetingChanged);
+    super.dispose();
   }
 
   Future<void> _load() async {
