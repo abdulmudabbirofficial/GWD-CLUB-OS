@@ -46,14 +46,16 @@ v1 residue and must be removed.
 |---|---|---|---|---|
 | Director (one is Super Admin) | 3 | officers and Leads by name, departments; the Super Admin anyone | everything app-wide, full audit | none (pre-seeded) |
 | **Faculty Coordinator** | 1 | President, VP, General Secretary, all Leads (by name) | everything, full audit | none (pre-seeded) |
-| President | 1 | VP, Sec Gen, all Leads | everything below | Directors (once) |
-| Vice President | 1 | all Leads | same tier as Sec Gen | President |
+| President | 1 | VP, General Secretary; departments | everything below | Directors (once) |
+| Vice President | 1 | General Secretary; departments | same tier as General Secretary | President |
 | General Secretary (`secretaryGeneral`) | 1 | all Leads | same tier as VP | President |
-| Club Lead | dynamic | own dept's members; may request across Leads and to Pres/VP/SecGen | own dept | President (Directors notified) |
+| Club Lead | dynamic | own dept's members; may request across Leads and to the officers | own dept | President (Directors notified) |
 | Club Member | many | — | own tasks only | own dept's Lead |
 
-The five roles above Lead assign to a **department**, not a person — see
-"Assigning work" below. `ASSIGN_TARGETS` is deliberately empty for all of them.
+The five roles above Lead address a **department**, not one of its members — see
+"Assigning work" below. By name they reach only the officers (and, for the
+Directors and the Faculty Coordinator, the Leads); `ASSIGN_TARGETS` in
+`permissions.js` is the authority, and the Super Admin is the one exception.
 
 **Supervisors** = Club Director + Faculty Coordinator. They oversee rather than
 compete: **no points, absent from the leaderboard**, but they *can* award points
