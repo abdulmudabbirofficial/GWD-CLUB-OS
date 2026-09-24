@@ -108,7 +108,7 @@ class _ProfileSheet extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(role.title,
+                              Text(me.positionLine(session.department?.name),
                                   style:
                                       GwdType.headline.copyWith(color: GwdColors.inkOf(context))),
                               Text(role.remit,

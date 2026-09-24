@@ -1308,20 +1308,17 @@ class _QuickActions extends StatelessWidget {
         _Action(
           icon: Icons.event_rounded,
           label: 'Plan event',
-          tint: GwdColors.primaryRed,
           onTap: () => CreateEventFlow.open(context),
         ),
       if (caps.canAssign)
         _Action(
           icon: Icons.add_task_rounded,
           label: 'Assign task',
-          tint: GwdColors.rubyDark,
           onTap: () => showNewTaskSheet(context),
         ),
       _Action(
         icon: Icons.pan_tool_alt_outlined,
         label: 'Need help',
-        tint: GwdColors.success,
         onTap: () => showAskForHelpSheet(context),
       ),
       // Shown to everybody. Reading the schedule is the commonest thing anyone
@@ -1331,7 +1328,6 @@ class _QuickActions extends StatelessWidget {
       _Action(
         icon: Icons.event_available_outlined,
         label: 'Schedule',
-        tint: GwdColors.info,
         onTap: () {
           if (!caps.canEditSchedule) {
             onOpenSchedule();
@@ -1348,14 +1344,12 @@ class _QuickActions extends StatelessWidget {
         _Action(
           icon: Icons.groups_2_outlined,
           label: 'Call meeting',
-          tint: GwdColors.info,
           onTap: () => showNewMeetingSheet(context),
         ),
       if (caps.canBroadcast)
         _Action(
           icon: Icons.campaign_outlined,
           label: 'Send alert',
-          tint: GwdColors.warning,
           onTap: () => showSendAlertSheet(context),
         ),
     ];
@@ -1395,13 +1389,11 @@ class _Action extends StatelessWidget {
   const _Action({
     required this.icon,
     required this.label,
-    required this.tint,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
-  final Color tint;
   final VoidCallback onTap;
 
   @override
@@ -1411,15 +1403,19 @@ class _Action extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
+          // One quiet treatment for every action. Six buttons in six colours
+          // is decoration; on this screen crimson belongs to the one thing
+          // that needs you, and none of these do until they are tapped.
           Container(
             width: 38,
             height: 38,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.12),
+              color: GwdColors.sunkenOf(context),
               shape: BoxShape.circle,
+              border: Border.all(color: GwdColors.hairlineOf(context)),
             ),
-            child: Icon(icon, size: 18, color: tint),
+            child: Icon(icon, size: 18, color: GwdColors.inkOf(context)),
           ),
           const SizedBox(height: GwdSpace.sm),
           Text(

@@ -1,5 +1,6 @@
 'use strict';
 
+const { displayNameOf } = require('../people');
 const express = require('express');
 const { ObjectId } = require('mongodb');
 const { col, C } = require('../db');
@@ -122,7 +123,7 @@ router.post('/', async (request, response, next) => {
       audience,
       departmentId: filter.departmentId ?? null,
       senderId: actor._id,
-      senderName: actor.name,
+      senderName: displayNameOf(actor),
       senderRole: actor.role,
       recipientCount: recipients.length,
       createdAt: new Date(),
@@ -133,7 +134,7 @@ router.post('/', async (request, response, next) => {
       alertTitle: broadcast.title,
       alertMessage: broadcast.message,
       urgency,
-      senderName: actor.name,
+      senderName: displayNameOf(actor),
       broadcastId: String(inserted.insertedId),
     });
 

@@ -74,7 +74,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.calendar_month_rounded,
-                  tint: GwdColors.primaryRed,
                   title: 'Schedule',
                   subtitle: 'Meetings, shoots, deadlines — the whole calendar',
                   onTap: () => _push(context, const SchedulePage()),
@@ -84,7 +83,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.groups_2_outlined,
-                  tint: GwdColors.info,
                   title: 'Meetings',
                   // Separate from the Schedule on purpose: a schedule entry is a
                   // date, a meeting has an invitee list and an attendance record,
@@ -98,7 +96,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.campaign_outlined,
-                  tint: GwdColors.warning,
                   title: 'Announcements',
                   subtitle: 'Alerts sent to the club',
                   badge: store.unreadNotifications,
@@ -109,7 +106,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.volunteer_activism_outlined,
-                  tint: GwdColors.success,
                   title: 'Help & collaboration',
                   subtitle: 'Who needs a hand, and who is offering',
                   badge: store.openHelp.length,
@@ -127,7 +123,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.people_outline_rounded,
-                  tint: GwdColors.info,
                   title: 'Member directory',
                   subtitle: 'Everyone in the club, by department',
                   onTap: () => _push(context, const DirectoryPage()),
@@ -137,7 +132,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.account_tree_outlined,
-                  tint: GwdColors.inkSecondaryOf(context),
                   title: 'Club structure',
                   subtitle: 'Executive, departments, Leads and members',
                   onTap: () => _push(context, const StructurePage()),
@@ -148,7 +142,6 @@ class MorePage extends StatelessWidget {
                   index: next(),
                   child: _Tile(
                     icon: Icons.favorite_outline_rounded,
-                    tint: GwdColors.rubyDark,
                     // Not "leaderboard". It is still everyone's progress in one
                     // place — it just is not a contest.
                     title: 'Recognition',
@@ -164,7 +157,6 @@ class MorePage extends StatelessWidget {
                   index: next(),
                   child: _Tile(
                     icon: Icons.outbox_outlined,
-                    tint: GwdColors.info,
                     title: 'What I handed out',
                     subtitle: 'How your assigned work is going, without opening each person',
                     onTap: () => _push(context, const MyOverviewPage()),
@@ -175,7 +167,6 @@ class MorePage extends StatelessWidget {
                   index: next(),
                   child: _Tile(
                     icon: Icons.how_to_reg_outlined,
-                    tint: GwdColors.success,
                     title: 'Approvals',
                     subtitle: 'People waiting to join',
                     badge: store.pendingApprovals.length,
@@ -193,7 +184,6 @@ class MorePage extends StatelessWidget {
                   index: next(),
                   child: _Tile(
                     icon: Icons.bookmarks_outlined,
-                    tint: GwdColors.accents[3],
                     title: 'Event templates',
                     subtitle: 'The shapes the club runs again',
                     onTap: () => _push(context, const EventTemplatesPage()),
@@ -214,7 +204,6 @@ class MorePage extends StatelessWidget {
                     index: next(),
                     child: _Tile(
                       icon: Icons.workspaces_outline,
-                      tint: GwdColors.info,
                       title: 'Manage departments',
                       subtitle: 'Create, rename and assign Leads',
                       onTap: () => _push(context, const DepartmentsPage()),
@@ -225,7 +214,6 @@ class MorePage extends StatelessWidget {
                     index: next(),
                     child: _Tile(
                       icon: Icons.insights_outlined,
-                      tint: GwdColors.rubyDark,
                       title: 'Dashboard',
                       subtitle: 'The club in numbers, and the full audit log',
                       onTap: () => _push(context, const AnalyticsPage()),
@@ -243,7 +231,6 @@ class MorePage extends StatelessWidget {
                 index: next(),
                 child: _Tile(
                   icon: Icons.settings_outlined,
-                  tint: GwdColors.inkTertiaryOf(context),
                   title: 'Account & settings',
                   subtitle: me?.email ?? 'Server address, sign out',
                   onTap: () => showProfileSheet(context),
@@ -324,7 +311,6 @@ class _ProfileHeader extends StatelessWidget {
 class _Tile extends StatelessWidget {
   const _Tile({
     required this.icon,
-    required this.tint,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -332,7 +318,6 @@ class _Tile extends StatelessWidget {
   });
 
   final IconData icon;
-  final Color tint;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -347,15 +332,20 @@ class _Tile extends StatelessWidget {
         padding: const EdgeInsets.all(GwdSpace.md),
         child: Row(
           children: [
+            // Quiet, every one of them. Each row used to carry its own colour
+            // — red, blue, amber, green, violet down one screen — which is the
+            // look of a generated app and spends colour on things that need
+            // nothing. The crimson badge is what asks for attention here.
             Container(
               width: 38,
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: tint.withValues(alpha: 0.12),
+                color: GwdColors.sunkenOf(context),
                 borderRadius: BorderRadius.circular(GwdRadius.md),
+                border: Border.all(color: GwdColors.hairlineOf(context)),
               ),
-              child: Icon(icon, size: 18, color: tint),
+              child: Icon(icon, size: 18, color: GwdColors.inkSecondaryOf(context)),
             ),
             const SizedBox(width: GwdSpace.md),
             Expanded(

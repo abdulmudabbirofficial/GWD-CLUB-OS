@@ -221,7 +221,9 @@ class _SendAlertSheetState extends State<_SendAlertSheet> {
                   const SizedBox(height: GwdSpace.md),
                   Center(
                     child: Text(
-                      'Sent as ${me?.name ?? 'you'} · ${me?.role.title ?? ''}',
+                      me == null
+                          ? 'Sent as you'
+                          : 'Sent as ${me.displayName} · ${me.positionLine(AppScope.sessionOf(context).department?.name)}',
                       style: GwdType.caption.copyWith(color: GwdColors.inkTertiaryOf(context)),
                     ),
                   ),

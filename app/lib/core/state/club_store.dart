@@ -783,13 +783,21 @@ class ClubStore extends ChangeNotifier {
       final json = await _api.patch('/api/tasks/${task.id}', {'status': next.wire});
       final updated = json['task'];
       if (updated is Map) _upsertTask(ClubTask.fromJson(updated.cast<String, dynamic>()));
-      await _loadHome();
-      await session.refresh();
+      // The change is already on screen and confirmed. What follows only
+      // tidies figures elsewhere, so it runs alongside rather than in front:
+      // awaited one after another, it kept the button busy for two more round
+      // trips after the thing it stood for had happened.
+      unawaited(Future.wait([_loadHome(), session.refresh()])
+          .then((_) => notifyListeners())
+          .catchError((_) {}));
       unawaited(loadSchedule());
       // Completing work changes a completion rate, which is what the board
       // ranks on.
       unawaited(loadLeaderboard());
-    } on ApiException {
+    } catch (_) {
+      // Put it back on *any* failure, not only one the server answered. A
+      // dropped connection that is not an ApiException would otherwise leave
+      // the task showing done on this phone and open everywhere else.
       _upsertTask(previous);
       rethrow;
     } finally {

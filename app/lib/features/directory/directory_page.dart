@@ -203,7 +203,7 @@ class _Grouped extends StatelessWidget {
           sliver: SliverList.builder(
             itemCount: executives.length,
             itemBuilder: (context, i) => row(
-              MemberRow(member: executives[i], subtitle: executives[i].role.title),
+              MemberRow(member: executives[i]),
               i + 1,
             ),
           ),
@@ -465,8 +465,9 @@ class MemberRow extends StatelessWidget {
                     )),
             const SizedBox(width: GwdSpace.sm),
           ],
-          RoleBadge(role: member.role, dense: true),
-          const SizedBox(width: GwdSpace.xs),
+          // No role badge. The line under the name already says what they are
+          // and where; a badge beside it said it a third time, after the name
+          // itself ("Director Mudabbir"), and taught the eye to skip both.
           Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
         ],
       ),
