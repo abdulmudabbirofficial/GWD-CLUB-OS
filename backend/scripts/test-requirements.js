@@ -943,6 +943,97 @@ const login = async (email, password) => {
     Boolean(fromSuper) && JSON.stringify(fromSuper).includes('Director Mudabbir'),
     fromSuper ? JSON.stringify(fromSuper.payload || fromSuper).slice(0, 120) : 'no notice');
 
+  // ------------------------------------------ V8 records: edit, file, withdraw
+  //
+  // Three things the server supported and no screen offered, and one hole in
+  // who may approve money.
+  console.log('\nV8 records: editing events, removing documents, withdrawing bills');
+
+  const plannedEvent = await api('/api/events', {
+    method: 'POST',
+    token: who.president.token,
+    body: {
+      name: 'Robotics Open Day',
+      date: new Date(Date.now() + 12 * 864e5).toISOString(),
+      venue: 'Main hall',
+      organizingDepartmentId: tech.id,
+      leadUserId: who.tech.user.id,
+      responsibilities: [{ departmentId: production.id, tasks: [{ title: 'Stage for the demos' }] }],
+    },
+  });
+  const plannedId = plannedEvent.body.event && plannedEvent.body.event.id;
+  ok('V8-E', 'An event to edit', plannedEvent.status === 201, plannedEvent.txt.slice(0, 120));
+
+  const movedEvent = await api(`/api/events/${plannedId}`, {
+    method: 'PATCH', token: who.president.token, body: { venue: 'Seminar hall 2', startTime: '11:00' },
+  });
+  ok('V8-E', 'Its details can be changed after it exists', movedEvent.status === 200,
+    movedEvent.txt.slice(0, 120));
+  const prodNotes = (await api('/api/notifications', { token: who.production.token })).body.notifications || [];
+  const movedNote = prodNotes.find((n) => n.type === 'eventUpdated'
+    && (n.payload || {}).eventId === plannedId);
+  ok('V8-E', 'and the Lead of a department working on it is told, with a notice that opens it',
+    Boolean(movedNote), `${prodNotes.filter((n) => n.type === 'eventUpdated').length} event notices`);
+  ok('V8-E', 'saying what moved',
+    Boolean(movedNote) && /venue/.test(JSON.stringify(movedNote)) && /time/.test(JSON.stringify(movedNote)),
+    movedNote ? JSON.stringify(movedNote.payload).slice(0, 140) : '');
+
+  // --- documents --------------------------------------------------------------
+  const linkedDoc = await api(`/api/events/${plannedId}/documents`, {
+    method: 'POST', token: who.tech.token,
+    body: { kind: 'file', title: 'Demo schedule', link: 'https://drive.google.com/demo-schedule' },
+  });
+  ok('V8-D', 'A document can be filed as a link', linkedDoc.status === 201, linkedDoc.txt.slice(0, 120));
+  const docsForTech = (await api(`/api/events/${plannedId}/documents`, { token: who.tech.token })).body;
+  const docsForMate = (await api(`/api/events/${plannedId}/documents`, { token: mate.token })).body;
+  const techCopy = (docsForTech.files || []).find((d) => d.title === 'Demo schedule') || {};
+  const mateCopy = (docsForMate.files || []).find((d) => d.title === 'Demo schedule') || {};
+  ok('V8-D', 'Each document says whether the person looking may remove it',
+    techCopy.canRemove === true && mateCopy.canRemove === false,
+    `lead ${techCopy.canRemove} / member ${mateCopy.canRemove}`);
+  const mateRemoves = await api(`/api/documents/${techCopy.id}`, { method: 'DELETE', token: mate.token });
+  ok('V8-D', 'and the server agrees with the flag', mateRemoves.status === 403,
+    `got ${mateRemoves.status}`);
+  const techRemoves = await api(`/api/documents/${techCopy.id}`, { method: 'DELETE', token: who.tech.token });
+  ok('V8-D', 'while the person who filed it can remove it', techRemoves.status === 200,
+    `got ${techRemoves.status}`);
+
+  // --- bills --------------------------------------------------------------------
+  const rehmanBill = await api(`/api/events/${plannedId}/bills`, {
+    method: 'POST', token: who.ceo.token,
+    body: { title: 'Guest travel', amount: '1200', category: 'Travel' },
+  });
+  ok('V8-B', 'A Director can file an expense', rehmanBill.status === 201, rehmanBill.txt.slice(0, 120));
+  const rehmanBillId = rehmanBill.body.id;
+
+  const asRehman = (await api(`/api/events/${plannedId}/bills`, { token: who.ceo.token })).body;
+  const ownCopy = (asRehman.bills || []).find((b) => b.id === rehmanBillId) || {};
+  ok('V8-B', 'The filer is not offered Approve on their own expense',
+    ownCopy.canDecide === false && ownCopy.canRemove === true,
+    `canDecide ${ownCopy.canDecide} / canRemove ${ownCopy.canRemove}`);
+  // The hole: supervisors cleared this check before anybody looked at the filer.
+  const selfApprove = await api(`/api/bills/${rehmanBillId}/decision`, {
+    method: 'POST', token: who.ceo.token, body: { status: 'approved' },
+  });
+  ok('V8-B', 'and a Director cannot approve their own expense',
+    selfApprove.status === 403, `got ${selfApprove.status}`);
+
+  const rejectedBill = await api(`/api/bills/${rehmanBillId}/decision`, {
+    method: 'POST', token: who.cmo.token, body: { status: 'rejected', note: 'Covered by the college' },
+  });
+  ok('V8-B', 'Another Director can decide it', rejectedBill.status === 200, `got ${rejectedBill.status} ${rejectedBill.txt.slice(0, 160)}`);
+  const afterReject = (await api(`/api/events/${plannedId}/bills`, { token: who.president.token })).body;
+  const reportNow = (await api(`/api/events/${plannedId}/report`, { token: who.president.token })).body;
+  ok('V8-B', 'A rejected claim is not counted as money the event spent',
+    afterReject.totals && afterReject.totals.spent === 0,
+    JSON.stringify(afterReject.totals || {}));
+  ok('V8-B', 'so the Finance tab and the report agree',
+    reportNow.derived && reportNow.derived.spentPaise === 0,
+    `reportNow ${reportNow.derived && reportNow.derived.spentPaise}`);
+
+  await api(`/api/events/${plannedId}`, { method: 'DELETE', token: who.president.token });
+  await api(`/api/events/${plannedId}?purge=true`, { method: 'DELETE', token: who.president.token });
+
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {
     method: 'PATCH',
     token: who.cmo.token,

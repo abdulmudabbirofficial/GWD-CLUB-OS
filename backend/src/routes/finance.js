@@ -121,7 +121,14 @@ router.get('/events/:eventId/bills', async (request, response, next) => {
     const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
     const departmentName = new Map(departments.map((d) => [String(d._id), d.name]));
 
-    const items = bills.map((b) => serialise(b, { userName, departmentName }));
+    const items = bills.map((b) => ({
+      ...serialise(b, { userName, departmentName }),
+      canRemove: canWithdrawBill(request.user, b),
+      // Per bill, because the answer depends on who filed it: the list-level
+      // flag below is computed for no bill at all, which is why the filer was
+      // offered Approve on their own expense.
+      canDecide: canDecideEventBill(request.user, b),
+    }));
     const sum = (predicate) => items
       .filter(predicate)
       .reduce((n, b) => n + b.amountPaise, 0) / 100;
@@ -129,9 +136,11 @@ router.get('/events/:eventId/bills', async (request, response, next) => {
     response.json({
       bills: items,
       totals: {
-        // Everything filed, whatever happened to it — the honest "what did this
-        // event cost" number.
-        spent: sum(() => true),
+        // What the event cost: everything filed except what was turned down.
+        // A rejected claim is one the club decided was *not* a cost of this
+        // event, and counting it here made the Finance tab and the event
+        // report give two different totals for the same event.
+        spent: sum((b) => b.status !== 'rejected'),
         pending: sum((b) => b.status === 'pending'),
         approved: sum((b) => b.status === 'approved'),
         paid: sum((b) => b.status === 'paid'),
@@ -259,8 +268,8 @@ router.post('/bills/:id/decision', async (request, response, next) => {
 
     if (!canDecideEventBill(request.user, bill)) {
       fail(String(bill.createdBy) === String(request.user._id)
-        ? 'You cannot approve an expense you filed yourself. A Director will.'
-        : 'Only the President and Directors approve expenses.', 403);
+        ? 'You cannot decide an expense you filed yourself — somebody else in the leadership will.'
+        : 'Only the President, the Faculty Coordinator and the Directors approve expenses.', 403);
     }
     if (bill.status === 'paid') fail('That one has already been settled.');
 
@@ -376,18 +385,31 @@ router.get('/bills/:id/receipt', async (request, response, next) => {
   }
 });
 
+
+/**
+ * May `user` withdraw this expense?
+ *
+ * Whoever filed it, or whoever could settle it, while it is not yet paid. A
+ * settled bill is the record of money that actually changed hands, and stays.
+ * One function for the route and for the flag each bill carries, so the app
+ * never offers a delete the server would refuse.
+ */
+function canWithdrawBill(user, bill) {
+  if (bill.status === 'paid') return false;
+  if (String(bill.createdBy) === String(user._id)) return true;
+  return canSettleEventBill(user);
+}
 router.delete('/bills/:id', async (request, response, next) => {
   try {
     const id = oid(request.params.id, 'Bill id');
     const bill = await col(C.eventBills).findOne({ _id: id });
     if (!bill) fail('That bill no longer exists.', 404);
 
-    const mine = String(bill.createdBy) === String(request.user._id);
     // Withdraw your own while it is still pending; leadership can remove a
     // mistake at any point. A settled bill stays — it is the record of a
     // payment that actually happened.
     if (bill.status === 'paid') fail('A settled expense stays on the record.');
-    if (!mine && !canSettleEventBill(request.user)) {
+    if (!canWithdrawBill(request.user, bill)) {
       fail('You can only withdraw an expense you filed.', 403);
     }
 

@@ -10,6 +10,7 @@ import '../../core/models/club_role.dart';
 import '../../core/models/club_event.dart';
 import '../../core/state/club_store.dart';
 import 'event_board_tab.dart';
+import 'edit_event_sheet.dart';
 import 'event_day_page.dart';
 import 'event_departments_tab.dart';
 import 'event_documents_tab.dart';
@@ -17,6 +18,7 @@ import 'event_finance_tab.dart';
 import 'event_report_page.dart';
 import 'event_updates_tab.dart';
 import '../../core/plural.dart';
+import '../../core/names.dart';
 
 /// The event workspace.
 ///
@@ -182,6 +184,16 @@ class _EventHeader extends StatelessWidget {
           icon: const Icon(Icons.more_vert_rounded),
           onSelected: (value) => _onMenu(context, value, eventId, event),
           itemBuilder: (context) => [
+            if (workspace.canManage)
+              const PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.edit_outlined, size: 20),
+                  title: Text('Edit details'),
+                ),
+              ),
             const PopupMenuItem(
               value: 'day',
               child: ListTile(
@@ -414,6 +426,8 @@ Future<void> _onMenu(
     BuildContext context, String value, String eventId, ClubEvent event) async {
   final navigator = Navigator.of(context);
   switch (value) {
+    case 'edit':
+      await showEditEventSheet(context, event);
     case 'day':
       await navigator.push(
         MaterialPageRoute(builder: (_) => EventDayPage(eventId: eventId)),
@@ -1155,7 +1169,7 @@ class _TeamStrip extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  person.name.split(' ').first,
+                  shortNameOf(person.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GwdType.micro.copyWith(

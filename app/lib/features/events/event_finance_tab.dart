@@ -276,7 +276,8 @@ class _BillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = bill.status;
-    final canDecide = finance.canDecide && status == BillStatus.pending;
+    // Per bill: the filer is never offered Approve on their own expense.
+    final canDecide = bill.canDecide && status == BillStatus.pending;
     final canSettle = finance.canSettle && status == BillStatus.approved;
 
     return SurfaceCard(
@@ -415,6 +416,21 @@ class _BillCard extends StatelessWidget {
               onTap: () => _settle(context, eventId, bill),
             ),
           ],
+          // Quiet, and last: withdrawing a claim filed by mistake is real but
+          // rare. There was no way to at all — the route and the store method
+          // both existed and nothing on screen called them.
+          if (bill.canRemove) ...[
+            const SizedBox(height: GwdSpace.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _withdraw(context, eventId, bill),
+                icon: Icon(Icons.undo_rounded, size: 16, color: GwdColors.inkTertiaryOf(context)),
+                label: Text('Withdraw this expense',
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context))),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -532,6 +548,35 @@ Future<void> _decide(
     }
   }
   controller.dispose();
+}
+
+Future<void> _withdraw(BuildContext context, String eventId, EventBill bill) async {
+  final store = AppScope.readStore(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Withdraw this expense?'),
+      content: Text('"${bill.title}" (${bill.amountLabel}) comes off this event\u2019s '
+          'finances. A receipt attached to it goes too.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Keep it'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Withdraw', style: TextStyle(color: GwdColors.primaryRed)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    await store.deleteBill(eventId, bill.id);
+  } on ApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  }
 }
 
 Future<void> _settle(BuildContext context, String eventId, EventBill bill) async {

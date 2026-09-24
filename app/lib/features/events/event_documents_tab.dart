@@ -10,6 +10,7 @@ import '../../app/widgets/common.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/event_document.dart';
 import 'upload_document_sheet.dart';
+import '../../core/names.dart';
 
 /// The event's paperwork.
 ///
@@ -273,6 +274,7 @@ class _ApprovalCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (document.canRemove) _RemoveMenu(eventId: eventId, document: document),
             ],
           ),
           const SizedBox(height: GwdSpace.md),
@@ -530,7 +532,7 @@ class _VersionHistoryState extends State<_VersionHistory> {
                                         .copyWith(color: GwdColors.inkSecondaryOf(context)),
                                   ),
                                 ),
-                                Text(version.uploadedByName.split(' ').first,
+                                Text(shortNameOf(version.uploadedByName),
                                     style: GwdType.micro
                                         .copyWith(color: GwdColors.inkTertiaryOf(context))),
                               ],
@@ -583,7 +585,7 @@ class _FileRow extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   [
-                    document.createdByName.split(' ').first,
+                    shortNameOf(document.createdByName),
                     if (document.sizeLabel.isNotEmpty) document.sizeLabel,
                   ].join('  ·  '),
                   style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
@@ -593,9 +595,67 @@ class _FileRow extends StatelessWidget {
           ),
           Icon(document.isLink ? Icons.open_in_new_rounded : Icons.download_rounded,
               size: 16, color: GwdColors.inkTertiaryOf(context)),
+          if (document.canRemove) _RemoveMenu(eventId: eventId, document: document),
         ],
       ),
     );
+  }
+}
+
+/// Removing a document.
+///
+/// There was no way to: the route and `ClubStore.deleteDocument` both existed
+/// and nothing on screen called either, so a wrong upload stayed on the event
+/// for good. Behind a menu rather than a visible bin, because on official
+/// paperwork a stray tap should cost two steps, not one.
+class _RemoveMenu extends StatelessWidget {
+  const _RemoveMenu({required this.eventId, required this.document});
+
+  final String eventId;
+  final EventDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'More for ${document.title}',
+      icon: Icon(Icons.more_vert_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
+      onSelected: (_) => _remove(context),
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'remove', child: Text('Remove')),
+      ],
+    );
+  }
+
+  Future<void> _remove(BuildContext context) async {
+    final store = AppScope.readStore(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final official = document.kind == DocumentKind.approval;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(official ? 'Remove this official document?' : 'Remove this file?'),
+        content: Text(
+          '"${document.title}" and every earlier version of it are removed from '
+          'the event.${official ? ' Its decision goes with it, and the audit log keeps the record.' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove', style: TextStyle(color: GwdColors.primaryRed)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await store.deleteDocument(eventId, document.id);
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 }
 

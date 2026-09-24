@@ -186,6 +186,17 @@ class Member {
     return name.trim().split(RegExp(r'\s+')).first;
   }
 
+  /// The name for a row too narrow for the whole thing: "Nishta", but
+  /// "Director Mudabbir" — cutting a Director to the first word would leave
+  /// only the title.
+  String get shortName {
+    if (mustSetName) return 'No name set';
+    if (role == ClubRole.clubDirector && (knownAs?.trim().isNotEmpty ?? false)) {
+      return displayName;
+    }
+    return firstName;
+  }
+
   Member copyWith({
     String? name,
     String? phone,

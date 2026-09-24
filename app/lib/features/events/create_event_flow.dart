@@ -1164,7 +1164,7 @@ class _PeopleGrid extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    member.name.split(' ').first,
+                    member.shortName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,

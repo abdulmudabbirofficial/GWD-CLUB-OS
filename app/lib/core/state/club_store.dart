@@ -678,11 +678,6 @@ class ClubStore extends ChangeNotifier {
     unawaited(loadSchedule()); // it may have been carrying a deadline
   }
 
-  Future<List<TaskComment>> taskComments(String taskId) async {
-    final json = await _api.get('/api/tasks/$taskId');
-    return listFrom(json, 'comments', TaskComment.fromJson);
-  }
-
   /// One task and its thread, fetched directly.
   ///
   /// The general task list deliberately excludes event work, so a card opened
@@ -947,13 +942,6 @@ class ClubStore extends ChangeNotifier {
       _api.get('/api/departments/$departmentId/workspace');
 
   // ---------------------------------------------------------------- alerts
-  Future<List<Map<String, String>>> alertAudiences() async {
-    final json = await _api.get('/api/alerts/audiences');
-    return ((json['audiences'] as List?) ?? [])
-        .whereType<Map>()
-        .map((e) => {'id': '${e['id']}', 'label': '${e['label']}'})
-        .toList();
-  }
 
   Future<int> sendAlert({
     required String title,
@@ -1015,22 +1003,6 @@ class ClubStore extends ChangeNotifier {
     departmentProgress = listFrom(json, 'departments', DepartmentProgress.fromJson);
   }
 
-  /// Everyone in recognition, flattened — for looking one person up without
-  /// caring which list they are in.
-  Member? recognitionRowFor(String? userId) {
-    if (userId == null) return null;
-    for (final group in recognition) {
-      if (group.lead?.id == userId) return group.lead;
-      for (final m in group.members) {
-        if (m.id == userId) return m;
-      }
-    }
-    for (final m in unaffiliated) {
-      if (m.id == userId) return m;
-    }
-    return null;
-  }
-
   Future<Map<String, dynamic>> analytics() => _api.get('/api/analytics');
   Future<Map<String, dynamic>> auditLog() => _api.get('/api/audit');
 
@@ -1045,16 +1017,6 @@ class ClubStore extends ChangeNotifier {
 
   /// Everything currently in flight — what Home and the Events tab lead with.
   List<ClubEvent> get eventsActive => [...eventsOngoing, ...eventsUpcoming];
-
-  ClubEvent? eventById(String? id) {
-    if (id == null) return null;
-    for (final list in [eventsOngoing, eventsUpcoming, eventsCompleted]) {
-      for (final event in list) {
-        if (event.id == id) return event;
-      }
-    }
-    return null;
-  }
 
   EventWorkspace? workspaceFor(String id) => _workspaces[id];
   List<EventTaskCard>? boardFor(String id) => _boards[id];
@@ -1085,8 +1047,6 @@ class ClubStore extends ChangeNotifier {
     _timelines[id] = listFrom(json, 'timeline', EventActivity.fromJson);
     notifyListeners();
   }
-
-  Future<Map<String, dynamic>> eventChecklist(String id) => _api.get('/api/events/$id/checklist');
 
   // --- the day itself -------------------------------------------------------
 
@@ -1177,15 +1137,6 @@ class ClubStore extends ChangeNotifier {
     final json = await _api.get('/api/event-templates');
     eventTemplates = listFrom(json, 'templates', EventTemplate.fromJson);
     notifyListeners();
-  }
-
-  Future<EventTemplate?> createEventTemplate(Map<String, dynamic> body) async {
-    final json = await _api.post('/api/event-templates', body);
-    await loadEventTemplates();
-    final created = json['template'];
-    return created is Map
-        ? EventTemplate.fromJson(created.cast<String, dynamic>())
-        : null;
   }
 
   /// Save an event that already exists as a template.
@@ -1775,15 +1726,6 @@ class ClubStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// One person's attendance record. Derived server-side from the meetings,
-  /// never a counter stored on the user.
-  Future<AttendanceRecord> attendanceFor(String userId) async {
-    final json = await _api.get('/api/meetings/attendance/$userId');
-    return AttendanceRecord.fromJson(
-      (json['attendance'] as Map?)?.cast<String, dynamic>() ?? const {},
-    );
-  }
-
   List<HelpRequest> get openHelp => helpRequests.where((h) => h.isOpen).toList();
 
   Future<void> askForHelp({
@@ -2082,9 +2024,6 @@ class ClubStore extends ChangeNotifier {
     toasts.removeWhere((t) => t.id == id);
     notifyListeners();
   }
-
-  @visibleForTesting
-  void debugAddToast(LiveToast toast) => _addToast(toast);
 
   // ---------------------------------------------------- home-screen widget
   Future<void> _pushToWidget() async {

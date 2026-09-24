@@ -150,6 +150,22 @@ function serialise(document, { userName }) {
   };
 }
 
+/**
+ * May `user` remove this document?
+ *
+ * An official approval is only ever removed by somebody who could have decided
+ * it — otherwise withdrawing the paper would be a way round the decision. An
+ * ordinary file goes with its uploader or the event's managers.
+ *
+ * One function for the route and for the flag the list carries, so the app
+ * never offers a delete the server would refuse.
+ */
+function canRemoveDocument(user, document, event) {
+  if (document.kind === 'approval') return canDecideDocument(user);
+  if (String(document.createdBy) === String(user._id)) return true;
+  return Boolean(event && canManageEvent(user, event));
+}
+
 /* ---------------------------------------------------------------- listing */
 
 router.get('/events/:eventId/documents', async (request, response, next) => {
@@ -168,7 +184,10 @@ router.get('/events/:eventId/documents', async (request, response, next) => {
       .find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray();
     const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
 
-    const items = documents.map((d) => serialise(d, { userName }));
+    const items = documents.map((d) => ({
+      ...serialise(d, { userName }),
+      canRemove: canRemoveDocument(request.user, d, event),
+    }));
     response.json({
       approvals: items.filter((d) => d.kind === 'approval'),
       files: items.filter((d) => d.kind === 'file'),
@@ -458,11 +477,9 @@ router.delete('/documents/:id', async (request, response, next) => {
     if (!document) fail('That document no longer exists.', 404);
     const event = await col(C.events).findOne({ _id: document.eventId });
 
-    const mine = String(document.createdBy) === String(request.user._id);
-    const allowed = document.kind === 'approval'
-      ? canDecideDocument(request.user)
-      : (mine || (event && canManageEvent(request.user, event)));
-    if (!allowed) fail('You cannot remove this document.', 403);
+    if (!canRemoveDocument(request.user, document, event)) {
+      fail('You cannot remove this document.', 403);
+    }
 
     await col(C.eventDocuments).deleteOne({ _id: id });
     for (const version of document.versions ?? []) {

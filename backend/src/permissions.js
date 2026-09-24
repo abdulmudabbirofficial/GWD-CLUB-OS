@@ -832,9 +832,15 @@ function canAddEventBill(actor) {
  */
 function canDecideEventBill(actor, bill) {
   if (!actor) return false;
-  if (isSupervisor(actor.role)) return true;
-  if (actor.role !== ROLES.president) return false;
-  return !bill || String(bill.createdBy) !== String(actor._id);
+  // Nobody approves their own expense — not the President, and not a
+  // supervisor either. This used to return true for any supervisor *before*
+  // looking at who filed the bill, so a Director could approve their own claim:
+  // the exact hole this rule exists to close, left open for the most senior
+  // people in the club. It holds for the Super Admin too. Separation of duties
+  // is a control, not a restriction on administration; a Director's own bill
+  // goes to another Director, the Faculty Coordinator or the President.
+  if (bill && String(bill.createdBy) === String(actor._id)) return false;
+  return isSupervisor(actor.role) || actor.role === ROLES.president;
 }
 
 /** Who may mark an approved bill as actually reimbursed. */

@@ -79,6 +79,8 @@ class EventBill {
     this.settledAt,
     this.settlementRef = '',
     this.receiptName,
+    this.canRemove = false,
+    this.canDecide = false,
   });
 
   final String id;
@@ -112,6 +114,12 @@ class EventBill {
   final bool hasReceipt;
   final String? receiptName;
 
+  /// Whether the person looking may withdraw this one, and whether they may
+  /// approve or reject it. Both per bill, because both depend on who filed it:
+  /// nobody approves their own expense.
+  final bool canRemove;
+  final bool canDecide;
+
   factory EventBill.fromJson(Map<String, dynamic> json) => EventBill(
         id: json['id'] as String,
         eventId: json['eventId'] as String? ?? '',
@@ -133,6 +141,8 @@ class EventBill {
         settlementRef: json['settlementRef'] as String? ?? '',
         hasReceipt: json['hasReceipt'] == true,
         receiptName: json['receiptName'] as String?,
+        canRemove: json['canRemove'] == true,
+        canDecide: json['canDecide'] == true,
       );
 
   /// Indian grouping (1,45,000) rather than 145,000 — this is a college club in

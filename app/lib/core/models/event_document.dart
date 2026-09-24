@@ -111,7 +111,12 @@ class EventDocument {
     this.sizeBytes = 0,
     this.mimeType = '',
     this.link,
+    this.canRemove = false,
   });
+
+  /// Whether the person looking may remove this one — answered by the same
+  /// rule the delete route enforces, so the app never offers a refusal.
+  final bool canRemove;
 
   final String id;
   final String eventId;
@@ -160,6 +165,7 @@ class EventDocument {
       sizeBytes: (current?['size'] as num?)?.toInt() ?? 0,
       mimeType: current?['mimeType'] as String? ?? '',
       link: current?['link'] as String?,
+      canRemove: json['canRemove'] == true,
     );
   }
 

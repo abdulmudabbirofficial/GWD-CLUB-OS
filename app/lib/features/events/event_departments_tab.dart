@@ -9,6 +9,7 @@ import '../../core/api/api_client.dart';
 import '../../core/models/club_event.dart';
 import '../../core/models/club_task.dart';
 import 'add_event_task_sheet.dart';
+import '../../core/names.dart';
 
 /// Who is carrying which part of this event.
 ///
@@ -285,7 +286,7 @@ class _DepartmentCardState extends State<_DepartmentCard> {
                                     ),
                                   ),
                                   if (task.assigneeName != null)
-                                    Text(task.assigneeName!.split(' ').first,
+                                    Text(shortNameOf(task.assigneeName!),
                                         style: GwdType.micro
                                             .copyWith(color: GwdColors.inkTertiaryOf(context)))
                                   else

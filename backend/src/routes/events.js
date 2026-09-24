@@ -655,24 +655,54 @@ router.patch('/:id', async (request, response, next) => {
         .map(maybeOid).filter(Boolean);
     }
 
-    // Section 17: when something people plan around moves, say so.
-    if (update.venue && update.venue !== event.venue) changes.push(`venue is now ${update.venue}`);
+    // Section 17: when something people plan around moves, say so. A name or a
+    // description tidied up is not news; where and when are.
+    if (update.venue !== undefined && update.venue !== (event.venue ?? '')) {
+      changes.push(update.venue ? `venue is now ${update.venue}` : 'the venue has been cleared');
+    }
     if (update.date && new Date(update.date).getTime() !== new Date(event.date).getTime()) {
       changes.push('the date has changed');
     }
+    const timeMoved = (update.startTime !== undefined && update.startTime !== (event.startTime ?? ''))
+      || (update.endTime !== undefined && update.endTime !== (event.endTime ?? ''));
+    if (timeMoved) changes.push('the time has changed');
 
     const updated = await col(C.events).findOneAndUpdate(
       { _id: id }, { $set: update }, { returnDocument: 'after' },
     );
 
     if (changes.length > 0) {
+      // Everybody who plans around this event: its lead and team, the Lead of
+      // every department with a responsibility on it, and anybody holding open
+      // work on it. Telling only the named team meant the Marketing Lead whose
+      // posters carry the date found out it had moved from the posters.
+      const [responsibilities, openWork] = await Promise.all([
+        col(C.eventResponsibilities).find({ eventId: id }, { projection: { departmentId: 1 } }).toArray(),
+        col(C.tasks).find(
+          { eventId: id, status: { $nin: ['completed', 'cancelled'] }, assignedTo: { $ne: null } },
+          { projection: { assignedTo: 1 } },
+        ).toArray(),
+      ]);
+      const departmentIds = [...new Set([
+        ...responsibilities.map((r) => String(r.departmentId)),
+        String(updated.organizingDepartmentId ?? ''),
+      ])].filter((d) => d && ObjectId.isValid(d)).map((d) => new ObjectId(d));
+      const departmentLeads = departmentIds.length === 0 ? [] : await col(C.departments)
+        .find({ _id: { $in: departmentIds } }, { projection: { leadUserId: 1 } }).toArray();
+
       const audience = [...new Set([
-        String(updated.leadUserId),
+        String(updated.leadUserId ?? ''),
         ...(updated.teamUserIds ?? []).map(String),
-      ])].filter((uid) => uid && uid !== String(request.user._id));
+        ...departmentLeads.map((d) => String(d.leadUserId ?? '')),
+        ...openWork.map((t) => String(t.assignedTo)),
+      ])].filter((uid) => uid && ObjectId.isValid(uid) && uid !== String(request.user._id));
       if (audience.length > 0) {
         await notify(audience.map((uid) => new ObjectId(uid)), 'eventUpdated', {
-          eventTitle: updated.name, change: changes.join(', '),
+          eventTitle: updated.name,
+          change: changes.join(', '),
+          // So tapping the notice opens the event it is about.
+          eventId: String(id),
+          byName: displayNameOf(request.user),
         });
       }
     }
