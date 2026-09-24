@@ -6,7 +6,7 @@ const { col, C } = require('../db');
 const { authenticate, requireApproved } = require('../auth');
 const { displayNameOf } = require('../people');
 const {
-  taskVisibilityFilter, canAssign, canViewAudit, canManageDepartments,
+  taskVisibilityFilter, canAssign, hasOversight, canViewDashboard, canManageDepartments,
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
   earnsPoints, appearsOnLeaderboard,
   canChangeRole,
@@ -306,12 +306,16 @@ router.get('/home', async (request, response, next) => {
         canCreateScheduleEntry: canCreateScheduleEntry(user.role),
         canBroadcast: canBroadcast(user.role),
         canManageDepartments: canManageDepartments(user.role),
-        canViewAudit: canViewAudit(user.role),
+        // The Dashboard and its audit log: the Super Admin's alone.
+        canViewAudit: canViewDashboard(user),
+        canViewDashboard: canViewDashboard(user),
+        // Who sees the club's approvals queue and oversees recognition.
+        hasOversight: hasOversight(user.role),
         canAwardPoints: canAwardPoints(user.role),
         // Appointing people. Narrower than canManageDepartments on purpose --
         // a VP may reorganise the club's structure and may not decide who
         // holds which office, including their own.
-        canChangeRole: canChangeRole(user.role),
+        canChangeRole: canChangeRole(user),
         // Only a Director may appoint into the supervisor tier, so the client
         // needs to know which of the two it is to offer the right list rather
         // than a choice the server will refuse.
@@ -323,7 +327,7 @@ router.get('/home', async (request, response, next) => {
         // A Lead approves their own department's joiners, so that is the
         // number they are shown — it used to be the whole club's queue, most
         // of which they could not action.
-        pendingApprovals: canViewAudit(user.role)
+        pendingApprovals: hasOversight(user.role)
           ? pendingApprovals
           : (isLead ? myDepartment.joins : 0),
       },
@@ -342,7 +346,7 @@ router.get('/home', async (request, response, next) => {
 /** One clean chart screen — not a BI dashboard. */
 router.get('/analytics', async (request, response, next) => {
   try {
-    if (!canViewAudit(request.user.role)) {
+    if (!canViewDashboard(request.user)) {
       return response.status(403).json({ error: 'You do not have permission to view analytics.' });
     }
     const byDepartment = await col(C.tasks).aggregate([
@@ -461,12 +465,12 @@ router.get('/analytics', async (request, response, next) => {
 /** Activity / audit log. */
 router.get('/audit', async (request, response, next) => {
   try {
-    if (!canViewAudit(request.user.role)) {
+    if (!canViewDashboard(request.user)) {
       return response.status(403).json({ error: 'You do not have permission to view the audit log.' });
     }
     const entries = await col(C.auditLog).find({}).sort({ createdAt: -1 }).limit(200).toArray();
     const actors = await col(C.users)
-      .find({ _id: { $in: entries.map((e) => e.actorId).filter(Boolean) } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
+      .find({ _id: { $in: entries.map((e) => e.actorId).filter(Boolean) } }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } })
       .toArray();
     const nameById = new Map(actors.map((a) => [String(a._id), displayNameOf(a)]));
     response.json({

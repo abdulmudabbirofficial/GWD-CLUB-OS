@@ -253,10 +253,16 @@ router.post('/password/forgot', forgotLimiter, async (request, response, next) =
         { _id: user._id },
         { $set: { passwordResetRequestedAt: new Date() } },
       );
-      const approvers = [
-        ...await usersWithRole(ROLES.clubDirector),
-        ...await usersWithRole(ROLES.president),
-      ];
+      // The Club Director is the only person who can reset it now, so they
+      // are the one told. A database with no Super Admin yet (a brand-new one)
+      // falls back to the Directors, so the request never lands nowhere.
+      const superAdmins = await col(C.users).find(
+        { superAdmin: true, role: ROLES.clubDirector, approvalStatus: 'approved' },
+        { projection: { _id: 1 } },
+      ).toArray();
+      const approvers = superAdmins.length > 0
+        ? superAdmins.map((u) => u._id)
+        : await usersWithRole(ROLES.clubDirector);
       await notify(approvers, 'passwordResetRequested', {
         applicantName: user.name,
         applicantEmail: user.email,
@@ -266,8 +272,8 @@ router.post('/password/forgot', forgotLimiter, async (request, response, next) =
 
     response.json({
       ok: true,
-      message: 'A Director or the President has been asked to reset it for you. '
-        + 'They will pass you a temporary password.',
+      message: 'The Club Director has been asked to reset it for you, and will '
+        + 'pass you a temporary password.',
     });
   } catch (error) {
     next(error);

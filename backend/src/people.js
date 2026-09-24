@@ -16,7 +16,8 @@
  *
  * - An account still carrying a placeholder reads "No name set", never the
  *   placeholder — "Creative Lead assigned you a task" names a job, not a person.
- * - A Director with a `knownAs` reads "Director Mudabbir". The club addresses
+ * - A Director with a `knownAs` reads "Director Rehman", and the Super Admin
+ *   reads "Club Director Mudabbir". The club addresses
  *   its Directors by title and the name it knows them by, and that short name
  *   cannot be derived from the full one: it is the last word of "Abdul
  *   Mudabbir" but the first of "Rehman Pasha". So it is stored, not guessed.
@@ -25,7 +26,10 @@ function displayNameOf(user) {
   if (!user) return 'Somebody';
   if (user.mustSetName) return 'No name set';
   const knownAs = typeof user.knownAs === 'string' ? user.knownAs.trim() : '';
-  if (user.role === 'clubDirector' && knownAs) return `Director ${knownAs}`;
+  // The Super Admin is *the* Club Director; the other two are Directors.
+  if (user.role === 'clubDirector' && knownAs) {
+    return user.superAdmin === true ? `Club Director ${knownAs}` : `Director ${knownAs}`;
+  }
   return user.name || 'Somebody';
 }
 

@@ -215,8 +215,14 @@ async function main() {
   const memberReadsAudit = await api('/api/audit', { token: memberToken });
   ok('A Member cannot read the audit log', memberReadsAudit.status === 403);
 
+  // The Dashboard and its audit log are the Club Director's alone (V8.1). In a
+  // fresh database the first seeded Director is the Super Admin, which is who
+  // `directorToken` is.
   const directorReadsAudit = await api('/api/audit', { token: directorToken });
-  ok('A Director can read the audit log', directorReadsAudit.status === 200);
+  ok('The Club Director can read the audit log', directorReadsAudit.status === 200);
+  const presidentReadsAudit = await api('/api/audit', { token: presidentToken });
+  ok('The President cannot, since V8.1', presidentReadsAudit.status === 403,
+    `got ${presidentReadsAudit.status}`);
 
   // --------------------------------------------------------- live sync proof
   console.log('\nlive sync (Mongo → Change Stream → Socket.IO)');
@@ -235,11 +241,13 @@ async function main() {
   });
 
   // Leadership addresses a DEPARTMENT, never a person. The Lead hands it out.
+  // Checked with the President: the Director signed in here is the Club
+  // Director (Super Admin), who is the one exception and may name anybody.
   const directToPerson = await api('/api/tasks', {
-    method: 'POST', token: directorToken,
-    body: { title: 'Director tries to pick a name', assignedTo: memberId },
+    method: 'POST', token: presidentToken,
+    body: { title: 'President tries to pick a name', assignedTo: memberId },
   });
-  ok('A Director cannot hand work straight to a member',
+  ok('The President cannot hand work straight to a member',
     directToPerson.status === 403, `got ${directToPerson.status}`);
   ok('And the refusal says what to do instead',
     /department/i.test(directToPerson.body?.error ?? ''),
@@ -463,8 +471,10 @@ async function main() {
     facultyHome.body?.capabilities?.onLeaderboard === false);
   ok('Faculty Coordinator can award points',
     facultyHome.body?.capabilities?.canAwardPoints === true);
-  ok('Faculty Coordinator has full oversight',
-    facultyHome.body?.capabilities?.canViewAudit === true);
+  ok('Faculty Coordinator has oversight of the club',
+    facultyHome.body?.capabilities?.hasOversight === true);
+  ok('But the Dashboard is the Club Director\u2019s alone',
+    facultyHome.body?.capabilities?.canViewDashboard === false);
 
   // She directs the leadership, not individual members. The officers hold
   // posts rather than run teams, and since V8 she also names the Club Leads —
@@ -1502,10 +1512,16 @@ async function main() {
   ok('A Member cannot reset somebody else\'s password',
     memberResets.status === 403, `got ${memberResets.status}`);
 
-  const reset = await api(`/api/users/${memberId}/reset-password`, {
+  // Only the Club Director resets anybody else's password (V8.1).
+  const presidentResets = await api(`/api/users/${memberId}/reset-password`, {
     method: 'POST', token: presidentToken,
   });
-  ok('The President can', reset.status === 200, JSON.stringify(reset.body));
+  ok('The President cannot, since V8.1', presidentResets.status === 403,
+    `got ${presidentResets.status}`);
+  const reset = await api(`/api/users/${memberId}/reset-password`, {
+    method: 'POST', token: directorToken,
+  });
+  ok('The Club Director can', reset.status === 200, JSON.stringify(reset.body));
   ok('And is handed a temporary password to pass on',
     typeof reset.body.temporaryPassword === 'string'
     && reset.body.temporaryPassword.startsWith('gwd-'),
@@ -1540,14 +1556,14 @@ async function main() {
     leadRenames.status === 403, `got ${leadRenames.status}`);
 
   const tooShort = await api(`/api/users/${namingTarget}/name`, {
-    method: 'PATCH', token: presidentToken, body: { name: 'A' },
+    method: 'PATCH', token: directorToken, body: { name: 'A' },
   });
   ok('A one-character name is refused', tooShort.status === 400, `got ${tooShort.status}`);
 
   const renamed = await api(`/api/users/${namingTarget}/name`, {
-    method: 'PATCH', token: presidentToken, body: { name: 'Ananya Rao' },
+    method: 'PATCH', token: directorToken, body: { name: 'Ananya Rao' },
   });
-  ok('The President can name a member', renamed.status === 200,
+  ok('The Club Director can name a member', renamed.status === 200,
     JSON.stringify(renamed.body));
   ok('The name is what was given', renamed.body?.user?.name === 'Ananya Rao');
   ok('And it is no longer flagged as a placeholder',
@@ -1569,11 +1585,12 @@ async function main() {
   ok('Which also clears the placeholder flag',
     selfNamed.body?.user?.mustSetName === false);
 
-  const supervisorRenames = await api(`/api/users/${namingTarget}/name`, {
-    method: 'PATCH', token: directorToken, body: { name: 'Ananya Rao' },
+  // Somebody else's name is the Club Director's call alone (V8.1).
+  const presidentRenames = await api(`/api/users/${namingTarget}/name`, {
+    method: 'PATCH', token: presidentToken, body: { name: 'Ananya Rao' },
   });
-  ok('A supervisor can rename too', supervisorRenames.status === 200,
-    `got ${supervisorRenames.status}`);
+  ok('The President cannot rename anybody, since V8.1', presidentRenames.status === 403,
+    `got ${presidentRenames.status}`);
 
   // ================================================== HIERARCHY (v4.1)
   console.log('\nhierarchy');
@@ -1593,9 +1610,11 @@ async function main() {
     method: 'POST', token: directorToken,
     body: { title: `Sign the sponsor letter ${RUN}`, assignedTo: logins[0].body.user.id },
   });
-  // Not a member — that still goes through the department.
-  ok('But a Director still cannot hand work to a member by name',
-    directorToPresident.status === 403, `got ${directorToPresident.status}`);
+  // The Club Director is never stopped by the shape of the hierarchy below
+  // them; every other Director still goes through the member's department,
+  // which the requirement suite checks with Director Rehman.
+  ok('The Club Director can hand work to a member by name',
+    directorToPresident.status === 201, `got ${directorToPresident.status}`);
 
   const leadTargets = await api('/api/users/assignable', { token: leadToken });
   // A Lead *asks* the officers, never instructs them.
@@ -1918,9 +1937,9 @@ async function main() {
     const vpAudit = await api('/api/audit', { token: vpToken });
     ok('Nor read the audit log', vpAudit.status === 403, `got ${vpAudit.status}`);
 
-    const presidentAudit = await api('/api/audit', { token: presidentToken });
-    ok('While the President can — the gate is the role, not a 404',
-      presidentAudit.status === 200, `got ${presidentAudit.status}`);
+    const superAudit = await api('/api/audit', { token: directorToken });
+    ok('While the Club Director can — the gate is the person, not a 404',
+      superAudit.status === 200, `got ${superAudit.status}`);
 
     // The Secretary General sits at the same tier. Nothing had exercised it at
     // all, so a mistake there would have shipped silently.
@@ -1979,17 +1998,18 @@ async function main() {
   const presidentPromotesSelf = await api(`/api/users/${logins[0].body.user.id}/role`, {
     method: 'PATCH', token: presidentToken, body: { role: 'clubDirector' },
   });
-  ok('Nobody can appoint a Director except a Director',
+  ok('Nobody but the Club Director changes a role',
     presidentPromotesSelf.status === 403, `got ${presidentPromotesSelf.status}`);
 
+  // "superAdmin" is a flag no route writes, never a role anybody can be given.
   const bogusRole = await api(`/api/users/${memberId}/role`, {
-    method: 'PATCH', token: presidentToken, body: { role: 'superAdmin' },
+    method: 'PATCH', token: directorToken, body: { role: 'superAdmin' },
   });
   ok('An invented role is refused rather than written',
     bogusRole.status === 400, `got ${bogusRole.status}`);
 
   const secondPresident = await api(`/api/users/${memberId}/role`, {
-    method: 'PATCH', token: presidentToken, body: { role: 'president' },
+    method: 'PATCH', token: directorToken, body: { role: 'president' },
   });
   ok('And the club cannot end up with two Presidents',
     secondPresident.status === 409, `got ${secondPresident.status}`);

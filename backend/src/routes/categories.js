@@ -46,16 +46,26 @@ const STARTER = [
 async function ensureSeeded() {
   const count = await col(C.scheduleCategories).countDocuments({});
   if (count > 0) return;
-  await col(C.scheduleCategories).insertMany(
-    STARTER.map((c, i) => ({
-      ...c,
-      active: true,
-      order: i,
-      builtIn: true,
-      createdBy: null,
-      createdAt: new Date(),
-    })),
-  );
+  // The app's first load asks for the categories and the schedule at the same
+  // moment, and both land here on an empty database. The second insert used to
+  // hit the unique name index and answer 500, so a brand-new club opened on
+  // "Cannot reach the server". Unordered, so each starter lands once whoever
+  // gets there first, and the duplicate the loser raises is the expected case.
+  try {
+    await col(C.scheduleCategories).insertMany(
+      STARTER.map((c, i) => ({
+        ...c,
+        active: true,
+        order: i,
+        builtIn: true,
+        createdBy: null,
+        createdAt: new Date(),
+      })),
+      { ordered: false },
+    );
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+  }
 }
 
 function serialise(c) {

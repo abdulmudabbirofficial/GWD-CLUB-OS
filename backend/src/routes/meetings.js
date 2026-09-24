@@ -101,7 +101,7 @@ async function labels(meetings) {
   ]).filter(Boolean);
 
   const [people, departments] = await Promise.all([
-    col(C.users).find({ _id: { $in: userIds } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
+    col(C.users).find({ _id: { $in: userIds } }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } }).toArray(),
     col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
   ]);
   return {
@@ -470,7 +470,7 @@ router.get('/:id/actions', async (request, response, next) => {
     const ids = tasks.map((t) => t.assignedTo).filter(Boolean);
     const [people, departments] = await Promise.all([
       ids.length === 0 ? [] : col(C.users)
-        .find({ _id: { $in: ids } }, { projection: { name: 1, mustSetName: 1, role: 1, knownAs: 1 } }).toArray(),
+        .find({ _id: { $in: ids } }, { projection: { name: 1, mustSetName: 1, role: 1, knownAs: 1, superAdmin: 1 } }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
     ]);
     const userName = new Map(people.map((p) => [

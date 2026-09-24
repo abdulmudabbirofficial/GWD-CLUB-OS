@@ -92,6 +92,9 @@ function publicUser(user) {
     // Presentation for the client. The server never reads this from a request;
     // `isSuperAdmin` in permissions.js is the only thing that grants anything.
     superAdmin: user.superAdmin === true && user.role === 'clubDirector',
+    // What the club calls this person's post, when it is not the role's own
+    // name. Words only: permissions follow `role`.
+    customTitle: typeof user.customTitle === 'string' && user.customTitle ? user.customTitle : null,
   };
 }
 

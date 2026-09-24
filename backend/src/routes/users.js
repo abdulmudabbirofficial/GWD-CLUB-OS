@@ -317,7 +317,7 @@ router.get('/my-overview', async (request, response, next) => {
       .map((id) => new ObjectId(id));
     const [people, departments] = await Promise.all([
       col(C.users).find({ _id: { $in: ids } },
-        { projection: { name: 1, role: 1, departmentId: 1, avatarColor: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
+        { projection: { name: 1, role: 1, departmentId: 1, avatarColor: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
     ]);
     const deptName = new Map(departments.map((d) => [String(d._id), d.name]));
@@ -487,7 +487,7 @@ router.get('/:id/stats', async (request, response, next) => {
       ? await col(C.departments).findOne({ _id: user.departmentId })
       : null;
     const lead = department?.leadUserId
-      ? await col(C.users).findOne({ _id: department.leadUserId }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
+      ? await col(C.users).findOne({ _id: department.leadUserId }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } })
       : null;
 
     // Who assigns this person work, and what they have handed out themselves.
@@ -602,7 +602,7 @@ router.patch('/:id/name', async (request, response, next) => {
     const target = await col(C.users).findOne({ _id: id });
     if (!target) fail('Member not found.', 404);
     if (!canRenameMember(actor, target)) {
-      fail('Your role cannot rename other members.', 403);
+      fail('Only the Club Director can change somebody else\u2019s name.', 403);
     }
 
     const name = typeof request.body.name === 'string' ? request.body.name.trim() : '';
@@ -701,18 +701,13 @@ router.post('/:id/award', async (request, response, next) => {
 router.post('/:id/reset-password', async (request, response, next) => {
   try {
     const actor = request.user;
-    if (!canManageDepartments(actor.role)) {
-      fail('Only the Directors, the Faculty Coordinator, the President and the Vice President can reset a password.', 403);
-    }
     const id = oid(request.params.id, 'User id');
     const target = await col(C.users).findOne({ _id: id });
     if (!target) fail('Member not found.', 404);
     if (!canResetPasswordOf(actor, target)) {
       fail(String(actor._id) === String(id)
         ? 'Change your own password from your profile instead.'
-        : isSupervisor(target.role)
-          ? 'Only the Super Admin can reset a Director\u2019s or the Faculty Coordinator\u2019s password.'
-          : 'You can only reset the password of somebody below you.', 403);
+        : 'Only the Club Director can reset somebody else\u2019s password.', 403);
     }
 
     // Readable on purpose — this gets said out loud or typed into a chat, so
@@ -769,10 +764,10 @@ router.delete('/:id', async (request, response, next) => {
     if (!canRemoveMember(actor, target)) {
       fail(
         isSuperAdmin(target)
-          ? 'The Super Admin cannot be removed from inside the app.'
+          ? 'The Club Director cannot be removed from inside the app.'
           : isDirector(actor.role)
-            ? 'Only the Super Admin can remove a Director or the Faculty Coordinator.'
-            : 'Only a Director can remove somebody from the club.',
+            ? 'A Director can remove Leads and members. Anybody above that is the Club Director\u2019s call.'
+            : 'Only the Club Director and the Directors can remove somebody from the club.',
         403,
       );
     }
@@ -829,13 +824,14 @@ router.delete('/:id', async (request, response, next) => {
 });
 
 /**
- * Change someone's role or department.
- * Restricted to President and supervisors — the tier that owns department admin.
+ * Change someone's role, department or title.
+ * The Club Director's alone since V8.1 — a post is the one thing about somebody
+ * that decides everything else they can do.
  */
 router.patch('/:id/role', async (request, response, next) => {
   try {
-    if (!canChangeRole(request.user.role)) {
-      fail('Only the President, the Faculty Coordinator and the Directors can change roles.', 403);
+    if (!canChangeRole(request.user)) {
+      fail('Only the Club Director can change somebody\u2019s role.', 403);
     }
     const id = oid(request.params.id, 'User id');
     const target = await col(C.users).findOne({ _id: id });
@@ -844,7 +840,7 @@ router.patch('/:id/role', async (request, response, next) => {
     // Nobody promotes themselves. Even a Director changing their own role is
     // a step nobody should be able to take alone.
     if (String(id) === String(request.user._id)) {
-      fail('You cannot change your own role. Ask another Director.', 403);
+      fail('You cannot change your own role.', 403);
     }
 
     // The target decides as much as the actor does. Checking only the role
@@ -853,7 +849,7 @@ router.patch('/:id/role', async (request, response, next) => {
     if (!canChangeRoleOf(request.user, target)) {
       fail(isSuperAdmin(target)
         ? 'The Super Admin\u2019s role is not changed from inside the app.'
-        : 'Only the Super Admin can change a Director\u2019s or the Faculty Coordinator\u2019s role.', 403);
+        : 'Only the Club Director can change somebody\u2019s role.', 403);
     }
 
     const update = {};
@@ -890,6 +886,16 @@ router.patch('/:id/role', async (request, response, next) => {
     }
     if (request.body.departmentId !== undefined) {
       update.departmentId = request.body.departmentId ? oid(request.body.departmentId, 'Department id') : null;
+    }
+    // A custom title: what the club calls this post, over the permissions of
+    // the role chosen above — "Treasurer" with the standing of a Club Lead,
+    // say. The title is words only; everything the app lets them do follows
+    // the role, so a new post never needs a new set of rules written for it.
+    // Sent as an empty string, it is cleared and the role's own title shows.
+    if (typeof request.body.customTitle === 'string') {
+      const title = request.body.customTitle.trim();
+      if (title.length > 40) fail('Keep the title under forty characters.');
+      update.customTitle = title || null;
     }
     if (Object.keys(update).length === 0) fail('Nothing to change.');
 

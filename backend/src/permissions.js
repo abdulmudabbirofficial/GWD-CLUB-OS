@@ -123,13 +123,14 @@ const canAwardPoints = (role) =>
  */
 function canRenameMember(actor, target) {
   if (!actor || !target) return false;
+  // Your own name is yours: the first-run "what should we call you?" and a
+  // later correction both come through here.
   if (String(actor._id) === String(target._id)) return true;
-  // The Super Admin's name is theirs alone.
+  // Anybody else's is the Super Admin's call alone — the club's decision, at
+  // V8.1. It was supervisors and the President, and before V8 it let the
+  // President rename a Director.
   if (isSuperAdmin(target)) return false;
-  // Nobody renames the people who oversee them. This used to let the
-  // President rename a Director, which is an identity change made upward.
-  if (isSupervisor(target.role)) return isSupervisor(actor.role);
-  return isSupervisor(actor.role) || actor.role === ROLES.president;
+  return isSuperAdmin(actor);
 }
 
 /**
@@ -514,10 +515,12 @@ function canMarkAttendance(actor, meeting) {
  * a VP could also edit roles — including their own, to President. Appointing
  * people is a narrower power than reorganising the club's structure.
  */
-function canChangeRole(role) {
-  return role === ROLES.clubDirector
-    || role === ROLES.facultyCoordinator
-    || role === ROLES.president;
+function canChangeRole(actor) {
+  // Appointing people — and giving them a custom title — is the Super Admin's
+  // alone at V8.1. It was the Directors, the Faculty Coordinator and the
+  // President. Takes the actor now, not a role: the Super Admin is a flag on a
+  // person, and a role cannot answer this.
+  return isSuperAdmin(actor);
 }
 
 /**
@@ -540,12 +543,11 @@ function canChangeRole(role) {
  */
 function canResetPasswordOf(actor, target) {
   if (!actor || !target) return false;
-  if (!canManageDepartments(actor.role)) return false;
   if (String(actor._id) === String(target._id)) return false;
   if (isSuperAdmin(target)) return false;
-  if (isSupervisor(target.role)) return isSuperAdmin(actor);
-  if (isSupervisor(actor.role)) return true;
-  return rankOf(actor.role) > rankOf(target.role);
+  // The Super Admin, and nobody else, at V8.1. V8 already made a reset reach
+  // only strictly down; the club then decided it should reach from one place.
+  return isSuperAdmin(actor);
 }
 
 /** May `actor` appoint somebody *into* the supervisor tier? */
@@ -565,11 +567,12 @@ const canAppointSupervisors = (actor) => isSuperAdmin(actor);
  */
 function canChangeRoleOf(actor, target) {
   if (!actor || !target) return false;
-  if (!canChangeRole(actor.role)) return false;
+  if (!canChangeRole(actor)) return false;
   if (String(actor._id) === String(target._id)) return false;
-  if (isSuperAdmin(target)) return false;
-  if (isSupervisor(target.role)) return isSuperAdmin(actor);
-  return true;
+  // Any other role, the other two Directors' included. Only the Super Admin's
+  // own is out of reach from the API, so a slip of the thumb cannot leave the
+  // club without its root.
+  return !isSuperAdmin(target);
 }
 
 /**
@@ -584,20 +587,31 @@ function canRemoveMember(actor, target) {
   if (!actor || !target) return false;
   if (String(actor._id) === String(target._id)) return false; // never yourself
   if (isSuperAdmin(target)) return false; // nobody, through the API
-  // A Director cannot remove another Director — that is a conversation, not a
-  // button — but somebody has to be able to act on the outcome of that
-  // conversation, or a Director who has left the club holds the seat forever.
+  // The Super Admin may remove anybody, the other Directors included.
   if (isSuperAdmin(actor)) return true;
+  // The other two Directors remove Leads and members, and nobody above them:
+  // not the President, the Vice President, the General Secretary, the
+  // Faculty Coordinator or another Director. Everybody else removes nobody.
   if (!isDirector(actor.role)) return false;
-  return !isDirector(target.role) && target.role !== ROLES.facultyCoordinator;
+  return target.role === ROLES.clubLead || target.role === ROLES.clubMember;
 }
 
 /** Audit log and club-wide analytics. */
-function canViewAudit(role) {
+function hasOversight(role) {
   return role === ROLES.clubDirector
     || role === ROLES.facultyCoordinator
     || role === ROLES.president;
 }
+
+/**
+ * The Dashboard — the club in numbers, and the full audit log.
+ *
+ * The Super Admin's alone at V8.1. It used to share one check with
+ * "oversight", which is also what decides who sees the approvals queue — so
+ * the two are separate now, and narrowing the Dashboard does not quietly stop
+ * the President seeing who is waiting to join.
+ */
+const canViewDashboard = (actor) => isSuperAdmin(actor);
 
 /**
  * Who approves a signup for `role`?
@@ -913,7 +927,8 @@ module.exports = {
   canRemoveMember,
   canScheduleMeeting,
   canMarkAttendance,
-  canViewAudit,
+  hasOversight,
+  canViewDashboard,
   approvalRouteFor,
   canApproveAccess,
   canChangeTaskStatus,

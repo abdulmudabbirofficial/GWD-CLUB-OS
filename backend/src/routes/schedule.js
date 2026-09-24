@@ -102,7 +102,7 @@ async function nameMap(ids) {
     .map((id) => new ObjectId(id));
   if (unique.length === 0) return new Map();
   const users = await col(C.users)
-    .find({ _id: { $in: unique } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } })
+    .find({ _id: { $in: unique } }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } })
     .toArray();
   return new Map(users.map((u) => [String(u._id), displayNameOf(u)]));
 }

@@ -228,6 +228,22 @@ async function run() {
     report.directors.push(await upsertPerson(person, ROLES.clubDirector));
   }
 
+  // A club needs a root. Since V8.1 only the Super Admin resets passwords,
+  // renames people and changes roles, so a brand-new database with no Super
+  // Admin would have nobody able to do any of it — including hand the first
+  // real President their password. The first seeded Director takes the seat,
+  // but only when nobody holds it: a database that already has a Super Admin
+  // (production does) is never touched.
+  const hasRoot = await col(C.users).countDocuments({
+    superAdmin: true, role: ROLES.clubDirector, approvalStatus: 'approved',
+  });
+  if (!hasRoot && directors.length > 0) {
+    await col(C.users).updateOne(
+      { email: directors[0].email, role: ROLES.clubDirector, approvalStatus: 'approved' },
+      { $set: { superAdmin: true } },
+    );
+  }
+
   // The Faculty Coordinator is the college's representative over the club.
   // Like the Directors she is verified out of band and never queued — there is
   // nobody inside the club with the standing to approve her.

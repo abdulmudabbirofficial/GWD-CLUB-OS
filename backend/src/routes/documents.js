@@ -181,7 +181,7 @@ router.get('/events/:eventId/documents', async (request, response, next) => {
       d.createdBy, d.decidedBy, ...(d.versions ?? []).map((v) => v.uploadedBy),
     ]).filter(Boolean);
     const people = await col(C.users)
-      .find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray();
+      .find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } }).toArray();
     const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
 
     const items = documents.map((d) => ({

@@ -315,7 +315,7 @@ router.get('/:id/workspace', async (request, response, next) => {
 
     const people = await col(C.users).find(
       { _id: { $in: tasks.map((t) => t.assignedTo).filter(Boolean) } },
-      { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } },
+      { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } },
     ).toArray();
     const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));
 

@@ -115,7 +115,7 @@ router.get('/events/:eventId/bills', async (request, response, next) => {
 
     const ids = bills.flatMap((b) => [b.createdBy, b.decidedBy, b.settledBy]).filter(Boolean);
     const [people, departments] = await Promise.all([
-      col(C.users).find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, mustSetName: 1 } }).toArray(),
+      col(C.users).find({ _id: { $in: ids } }, { projection: { name: 1, role: 1, knownAs: 1, superAdmin: 1, mustSetName: 1 } }).toArray(),
       col(C.departments).find({}, { projection: { name: 1 } }).toArray(),
     ]);
     const userName = new Map(people.map((p) => [String(p._id), displayNameOf(p)]));

@@ -939,8 +939,8 @@ const login = async (email, password) => {
     rehmanToMember.status === 403, `got ${rehmanToMember.status}`);
   const mateNotes = (await api('/api/notifications', { token: mate.token })).body.notifications || [];
   const fromSuper = mateNotes.find((n) => n.type === 'taskAssigned');
-  ok('V8-H', 'and the notice names them the way the club does: "Director Mudabbir"',
-    Boolean(fromSuper) && JSON.stringify(fromSuper).includes('Director Mudabbir'),
+  ok('V8-H', 'and the notice names them the way the club does: "Club Director Mudabbir"',
+    Boolean(fromSuper) && JSON.stringify(fromSuper).includes('Club Director Mudabbir'),
     fromSuper ? JSON.stringify(fromSuper.payload || fromSuper).slice(0, 120) : 'no notice');
 
   // ------------------------------------------ V8 records: edit, file, withdraw
@@ -1070,6 +1070,144 @@ const login = async (email, password) => {
   ok('V8-HOME', 'A Lead\u2019s join count is their own department\u2019s',
     leadCaps.pendingApprovals === (deptAfter.joins ?? -1),
     `lead sees ${leadCaps.pendingApprovals}, own dept ${deptAfter.joins}, club ${clubJoins}`);
+
+  // ------------------------------------------------------------ V8.1 control
+  //
+  // The club's decision after V8: other people's names, passwords and roles
+  // are the Club Director's alone; the other Directors remove Leads and
+  // members and nobody above them; the Dashboard is the Club Director's.
+  console.log('\nV8.1: the Club Director holds the keys');
+
+  const stamp = Date.now();
+  const spareSignup = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: `Spare Member ${stamp}`, email: `spare.${stamp}@gwd.club`, phone: '9000000222',
+      password: 'SparePass1', role: 'clubMember', departmentId: tech.id,
+    },
+  });
+  const spareId = spareSignup.body.user && spareSignup.body.user.id;
+  const sparePending = ((await api('/api/access/pending', { token: who.tech.token })).body.requests || [])
+    .find((r) => r.userId === spareId);
+  if (sparePending) {
+    await api(`/api/access/${sparePending.id}/approve`, { method: 'POST', token: who.tech.token });
+  }
+  ok('V8.1', 'A throwaway member to act on', Boolean(spareId && sparePending));
+
+  const rosterNow = (await api('/api/users', { token: who.cmo.token })).body.users || [];
+  const mudabbir = rosterNow.find((u) => u.email === 'cmo@gwd.global') || {};
+  ok('V8.1', 'He is "Club Director Mudabbir"; the others are Directors',
+    mudabbir.superAdmin === true && mudabbir.knownAs === 'Mudabbir');
+
+  // --- names --------------------------------------------------------------------
+  const presRenames = await api(`/api/users/${spareId}/name`, {
+    method: 'PATCH', token: who.president.token, body: { name: 'Renamed By The President' },
+  });
+  const rehmanRenames = await api(`/api/users/${spareId}/name`, {
+    method: 'PATCH', token: who.ceo.token, body: { name: 'Renamed By Rehman' },
+  });
+  ok('V8.1', 'Neither the President nor another Director can change somebody\u2019s name',
+    presRenames.status === 403 && rehmanRenames.status === 403,
+    `${presRenames.status} / ${rehmanRenames.status}`);
+  const superRenames = await api(`/api/users/${spareId}/name`, {
+    method: 'PATCH', token: who.cmo.token, body: { name: 'Spare Member Renamed' },
+  });
+  ok('V8.1', 'The Club Director can', superRenames.status === 200, `got ${superRenames.status}`);
+
+  // --- passwords --------------------------------------------------------------------
+  const presResets = await api(`/api/users/${spareId}/reset-password`, {
+    method: 'POST', token: who.president.token,
+  });
+  const rehmanResets = await api(`/api/users/${spareId}/reset-password`, {
+    method: 'POST', token: who.ceo.token,
+  });
+  ok('V8.1', 'Neither the President nor another Director can reset somebody\u2019s password',
+    presResets.status === 403 && rehmanResets.status === 403
+    && !presResets.body.temporaryPassword && !rehmanResets.body.temporaryPassword,
+    `${presResets.status} / ${rehmanResets.status}`);
+  const superResets = await api(`/api/users/${spareId}/reset-password`, {
+    method: 'POST', token: who.cmo.token,
+  });
+  ok('V8.1', 'The Club Director can, and is handed a temporary one',
+    superResets.status === 200 && Boolean(superResets.body.temporaryPassword),
+    `got ${superResets.status}`);
+
+  // A forgotten password now reaches the one person who can act on it.
+  await api('/api/auth/password/forgot', { method: 'POST', body: { email: `spare.${stamp}@gwd.club` } });
+  const superHears = ((await api('/api/notifications', { token: who.cmo.token })).body.notifications || [])
+    .some((n) => n.type === 'passwordResetRequested'
+      && JSON.stringify(n.payload || {}).includes(`spare.${stamp}`));
+  const presHears = ((await api('/api/notifications', { token: who.president.token })).body.notifications || [])
+    .some((n) => n.type === 'passwordResetRequested'
+      && JSON.stringify(n.payload || {}).includes(`spare.${stamp}`));
+  ok('V8.1', '"Forgot password" asks the Club Director, not everybody who used to be able to',
+    superHears && !presHears, `club director told: ${superHears}, president told: ${presHears}`);
+
+  // --- roles, and a custom title ----------------------------------------------------
+  const presRole = await api(`/api/users/${spareId}/role`, {
+    method: 'PATCH', token: who.president.token, body: { role: 'clubLead' },
+  });
+  const rehmanRole = await api(`/api/users/${spareId}/role`, {
+    method: 'PATCH', token: who.ceo.token, body: { role: 'clubLead' },
+  });
+  ok('V8.1', 'Neither the President nor another Director can change somebody\u2019s role',
+    presRole.status === 403 && rehmanRole.status === 403, `${presRole.status} / ${rehmanRole.status}`);
+
+  const titled = await api(`/api/users/${spareId}/role`, {
+    method: 'PATCH', token: who.cmo.token, body: { role: 'clubMember', customTitle: 'Treasurer' },
+  });
+  ok('V8.1', 'The Club Director can give somebody a custom title',
+    titled.status === 200 && titled.body.user && titled.body.user.customTitle === 'Treasurer',
+    titled.txt.slice(0, 140));
+  const spareLogin = await login(`spare.${stamp}@gwd.club`, superResets.body.temporaryPassword);
+  const spareHome = spareLogin ? (await api('/api/home', { token: spareLogin.token })).body : {};
+  ok('V8.1', 'and what they may do follows the role underneath it, not the title',
+    // A member cannot broadcast to the club or manage departments; a title
+    // that sounds senior changes neither.
+    Boolean(spareLogin) && spareHome.capabilities && spareHome.capabilities.canBroadcast === false
+    && spareHome.capabilities.canManageDepartments === false,
+    JSON.stringify((spareHome.capabilities || {})).slice(0, 80));
+
+  const moinTitled = await api(`/api/users/${who.director3.user.id}/role`, {
+    method: 'PATCH', token: who.cmo.token, body: { customTitle: 'Director of Events' },
+  });
+  ok('V8.1', 'The Club Director can change a Director too', moinTitled.status === 200,
+    `got ${moinTitled.status}`);
+  await api(`/api/users/${who.director3.user.id}/role`, {
+    method: 'PATCH', token: who.cmo.token, body: { customTitle: '' },
+  });
+
+  // --- removal --------------------------------------------------------------------------
+  const rehmanCanRemovePres = ((await api(`/api/users/${who.president.user.id}/stats`,
+    { token: who.ceo.token })).body.can || {}).remove;
+  const superCanRemoveMoin = ((await api(`/api/users/${who.director3.user.id}/stats`,
+    { token: who.cmo.token })).body.can || {}).remove;
+  ok('V8.1', 'The Club Director may remove anybody, a Director included',
+    superCanRemoveMoin === true, `${superCanRemoveMoin}`);
+  const rehmanRemovesPres = await api(`/api/users/${who.president.user.id}`, {
+    method: 'DELETE', token: who.ceo.token,
+  });
+  ok('V8.1', 'Another Director cannot remove the President',
+    rehmanRemovesPres.status === 403 && rehmanCanRemovePres === false,
+    `${rehmanRemovesPres.status} / flag ${rehmanCanRemovePres}`);
+  const presRemoves = await api(`/api/users/${spareId}`, { method: 'DELETE', token: who.president.token });
+  ok('V8.1', 'and the President cannot remove anybody', presRemoves.status === 403,
+    `got ${presRemoves.status}`);
+  const rehmanRemovesMember = await api(`/api/users/${spareId}`, { method: 'DELETE', token: who.ceo.token });
+  ok('V8.1', 'but another Director can remove a member',
+    rehmanRemovesMember.status === 200, `got ${rehmanRemovesMember.status}`);
+
+  // --- the dashboard ---------------------------------------------------------------------
+  const presDash = await api('/api/analytics', { token: who.president.token });
+  const rehmanDash = await api('/api/analytics', { token: who.ceo.token });
+  const superDash = await api('/api/analytics', { token: who.cmo.token });
+  ok('V8.1', 'The Dashboard is the Club Director\u2019s alone',
+    presDash.status === 403 && rehmanDash.status === 403 && superDash.status === 200,
+    `president ${presDash.status}, rehman ${rehmanDash.status}, club director ${superDash.status}`);
+  const presCaps = (await api('/api/home', { token: who.president.token })).body.capabilities || {};
+  ok('V8.1', 'while the President still sees the approvals queue',
+    presCaps.hasOversight === true && presCaps.canViewDashboard === false,
+    JSON.stringify({ o: presCaps.hasOversight, d: presCaps.canViewDashboard }));
 
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {
     method: 'PATCH',
