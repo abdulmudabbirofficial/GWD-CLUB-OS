@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'app/app_scope.dart';
 import 'app/shell/club_shell.dart';
+import 'app/theme/apple_motion.dart';
 import 'app/theme/gwd_theme.dart';
 import 'app/widgets/brand.dart';
 import 'core/state/club_store.dart';
@@ -162,7 +163,7 @@ class _Root extends StatelessWidget {
       // does not cross a visible seam between two differently-lit screens.
       child: AppBackdrop(
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 420),
+          duration: AppleDuration.slow,
           switchInCurve: Curves.easeOutCubic,
           child: KeyedSubtree(key: ValueKey(session.state), child: screen),
         ),

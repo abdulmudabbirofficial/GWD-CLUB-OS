@@ -59,6 +59,9 @@ void main() {
         'mustSetName': true,
       });
       expect(placeholder.displayName, 'No name set');
+      // And no initials made from the placeholder: "Faculty Coordinator" came
+      // out as "FC" on the avatar beside "No name set".
+      expect(placeholder.initials, '?');
     });
 
     test('the flags survive copyWith, which rebuilds the member field by field', () {

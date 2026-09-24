@@ -168,6 +168,10 @@ class Member {
   }
 
   String get initials {
+    // A placeholder is not a person, so it has no initials. "Faculty
+    // Coordinator" came out as "FC" on the avatar while the name beside it
+    // correctly read "No name set".
+    if (mustSetName) return '?';
     final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
     if (words.isEmpty) return '?';
     if (words.length == 1) {
