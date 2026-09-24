@@ -44,11 +44,11 @@ v1 residue and must be removed.
 
 | Role | Count | Assigns to | Sees | Approved by |
 |---|---|---|---|---|
-| Club Director | 2 | anyone | everything app-wide, full audit | none (pre-seeded) |
-| **Faculty Coordinator** | 1 | President, VP, Sec Gen, all Leads | everything, full audit | none (pre-seeded) |
+| Director (one is Super Admin) | 3 | officers and Leads by name, departments; the Super Admin anyone | everything app-wide, full audit | none (pre-seeded) |
+| **Faculty Coordinator** | 1 | President, VP, General Secretary, all Leads (by name) | everything, full audit | none (pre-seeded) |
 | President | 1 | VP, Sec Gen, all Leads | everything below | Directors (once) |
 | Vice President | 1 | all Leads | same tier as Sec Gen | President |
-| Secretary General | 1 | all Leads | same tier as VP | President |
+| General Secretary (`secretaryGeneral`) | 1 | all Leads | same tier as VP | President |
 | Club Lead | dynamic | own dept's members; may request across Leads and to Pres/VP/SecGen | own dept | President (Directors notified) |
 | Club Member | many | — | own tasks only | own dept's Lead |
 
@@ -74,6 +74,79 @@ something.** Their job is getting the team's work done, so a department that
 delivers is a Lead who delivered; crediting only the pair of hands makes running
 a department look like doing nothing. Never twice — a Lead who did the task
 themselves earns it once.
+
+## The hierarchy at V8 — one Director above the others
+
+The club's three Director seats are held by **Director Mudabbir** (Abdul
+Mudabbir, the **Super Admin**), **Director Rehman** (Rehman Pasha) and
+**Director Moin** (Mohammed Moin). Never "Director 1/2/3" and never "Club
+Director Three" — a number names a seat, not the person in it.
+
+**The Super Admin is a flag, not a role** (`users.superAdmin`, checked by
+`isSuperAdmin` in `permissions.js`). Everything that treats Directors as
+supervisors keeps applying without a second role threaded through every check.
+It is written only by `scripts/v8-hierarchy.js` and `seed-club.js` — **no route
+writes it** — so no API call can mint one, and it only counts on an approved
+Director, so a stale flag on a demoted account holds nothing.
+
+What it adds is **governance of the supervisor tier itself**: only the Super
+Admin appoints, demotes, removes or resets the password of a Director or the
+Faculty Coordinator, and nobody changes the Super Admin's role, name or password
+through the API. The Super Admin may also hand work to anybody by name. The
+other two Directors keep the full Director powers minus those.
+
+**Things that only ever reach down.** Each of these was an upward takeover path
+before V8, and each has a test:
+
+- `canChangeRoleOf(actor, target)` — the role route used to check only
+  appointments *into* the supervisor tier, so the President could demote a
+  Director.
+- `canResetPasswordOf(actor, target)` — a reset hands the resetter a working
+  password. It was gated on `canManageDepartments`, which includes the VP, so the
+  VP could reset the President's password and sign in as them. Now: strictly
+  senior only (equal rank is not seniority), supervisors only by the Super Admin.
+- `canRenameMember` — the President could rename a Director.
+- `canDecideEventBill` — nobody decides their own expense, **supervisors and the
+  Super Admin included**. Supervisors used to pass before anybody looked at the
+  filer. Separation of duties is a control, not a restriction on administration.
+
+**The Faculty Coordinator names the Club Leads** (and the officers). Members are
+still reached through their Lead.
+
+**Names.** A Director with `knownAs` reads "Director Mudabbir" everywhere:
+`displayNameOf` in `backend/src/people.js` for anything the server writes
+(notifications, broadcast signatures, every `id → name` map), `Member.displayName`
+on the client. The short name is **stored**, because it cannot be derived — the
+last word of "Abdul Mudabbir", the first of "Rehman Pasha". The line under the
+name is "Club Director · Super Admin" for the Super Admin and "Director" for the
+other two. The office is **General Secretary** in every label; the wire name
+stays `secretaryGeneral`, because renaming it would break every stored account.
+A person's office is said **once**: in the line under the name, never again as a
+badge beside it. `Member.shortName` / `shortNameOf` exist because cutting
+"Director Mudabbir" to its first word leaves only the title.
+
+**Ask the server what a button may do.** Where the answer depends on *this*
+person or *this* record, the payload says so — `can` on `GET /users/:id/stats`,
+`canRemove` on every document and bill, `canDecide` per bill — computed by the
+same function the route enforces. Gating buttons on role alone offered the
+President "Change their role" on a Director, and the filer Approve on their own
+expense.
+
+### Why production had five Directors and two Presidents
+
+**Render deploys `origin/main`, which lags local work, and shares the production
+database.** Its seed had no cap check and put any bootstrap account back to
+`approved` on every start, so on a cold start it created a duplicate of both real
+Directors, a second President and six placeholder Leads that sat in the approval
+queue. Both seed defects are fixed, and `src/placeholders.js` retires a bootstrap
+account only when it has **never been used and somebody real holds its seat** —
+the old rule deleted everything on a list that includes `faculty@gwd.club`,
+which in production *is* the Faculty Coordinator.
+
+**Until V8 is deployed there, the old Render seed will recreate those accounts on
+its next cold start.** Re-running `node scripts/v8-hierarchy.js --apply` after a
+deploy (or removing the `SEED_*` variables from Render's environment) makes it
+stick. The script dry-runs by default, backs up first, and is idempotent.
 
 ## Assigning work — two steps, never one long list
 
@@ -113,7 +186,8 @@ a Dart `enum` — that was the bug.
 
 Sign up (name, email, phone, department) → pending → that department's Lead
 approves. If the signup *is* a Lead, it routes to the President, and **Directors
-are notified too** for visibility. President + 2 Directors are pre-seeded.
+are notified too** for visibility. The three Directors, the Faculty Coordinator
+and the President are pre-seeded.
 
 ## Navigation — five tabs, one question each
 
@@ -303,6 +377,35 @@ all the record anyone needs.
 - Amounts are stored in **paise** so no total ever drifts by a rounding error,
   and rendered with lakh/crore grouping (₹1,45,000).
 - A settled bill cannot be deleted — it is the record of a payment that happened.
+
+## Live sync — two lists that must agree
+
+The server emits **28** kinds of live event; `SocketClient.eventNames` must
+subscribe to every one and `ClubStore` must handle every one. The subscription
+list had stopped at 14 while the server grew, so events, meetings, the schedule,
+the help board, comments, documents, bills, categories and club alerts **never
+arrived live on any client** — for weeks, with every test green, because toasts
+(`notification:new`) did arrive and the app looked live.
+`backend/scripts/test-contract.js` now reads the server, the socket and the store
+side by side and fails the suite if they disagree, and checks every endpoint the
+app calls exists. It needs no server, so it runs first in `test-all.ps1`.
+
+The **web build** passes an empty base (same origin). That must become
+`Uri.base.origin` for the socket: `io('/')` is "same origin" to the JavaScript
+client but a URI with no host to the Dart one, and live sync on the website had
+never connected. The dot beside the date on Home is green when live, amber when
+not — it was amber on the web the whole time.
+
+A handler that has never run is untested code. When the list was fixed, the
+department handler turned out to rebuild a department from a payload with no
+member count ("0 people" after any rename); it merges now.
+
+**Home by role.** `/api/home` returns `overview` (the club, in aggregate) for
+supervisors and the officers, and `myDepartment` (triage pile first) for a Lead;
+a member gets neither. Those figures refresh on a **debounced** timer after live
+changes — one request after a burst, and only for people whose Home shows them —
+because refetching the heaviest endpoint on every task update would be a flood
+during a busy sprint.
 
 ## Security (v4)
 
@@ -624,7 +727,12 @@ the design brief and are genuinely good. They provide:
 
 **Colour rule, inherited from v1 and worth keeping:** the canvas and cards stay
 quiet; crimson is spent only on the one thing on screen that actually needs
-attention.
+attention. V8 enforced it where it had slipped: More gave every row its own
+tinted tile and Home's "Start something" gave six buttons six colours — the look
+of a generated app. Icon tiles are now quiet everywhere; colour on a row means
+something (a crimson badge, a red or amber "Needs you"). Every avatar is in the
+palette too — the roster seed had carried its own, with violet and blue in it,
+and all fourteen production accounts wore colours from outside the family.
 
 Brand: crimson `#DC2626` + jet black `#09090B`, from the red club logo. Never
 default Material purple.
