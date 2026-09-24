@@ -205,11 +205,30 @@ function startWatchers() {
       handler: async (change) => {
         const doc = change.fullDocument;
         if (!doc) return;
-        // Approval queues are visible to the approver and to leadership.
+        // Only to whoever decides it, and the applicant. A member joining a
+        // department is that department's Lead's alone - or, with no Lead yet,
+        // the President's - so it no longer goes to the whole leadership room
+        // (or to every member of the department, which the department room
+        // would include). Officer and Lead requests stay with the leadership.
+        let deciders = [room.leadership];
+        if (doc.requestedRole === ROLES.clubMember) {
+          const department = doc.departmentId
+            ? await col(C.departments).findOne(
+              { _id: doc.departmentId }, { projection: { leadUserId: 1 } },
+            )
+            : null;
+          if (department?.leadUserId) {
+            deciders = [room.user(idOf(department.leadUserId))];
+          } else {
+            const presidents = await col(C.users)
+              .find({ role: ROLES.president, approvalStatus: 'approved' }, { projection: { _id: 1 } })
+              .toArray();
+            deciders = presidents.map((p) => room.user(idOf(p._id)));
+          }
+        }
         emitTo(
           [
-            doc.departmentId && room.dept(idOf(doc.departmentId)),
-            room.leadership,
+            ...deciders,
             doc.userId && room.user(idOf(doc.userId)),
           ],
           change.operationType === 'insert' ? 'accessRequest:created' : 'accessRequest:updated',

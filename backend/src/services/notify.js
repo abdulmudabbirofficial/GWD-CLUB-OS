@@ -33,14 +33,26 @@ const COPY = {
     body: `"${p.taskTitle ?? 'A task'}" went to ${p.departmentName ?? 'a department'}, `
       + 'which has nobody to receive it.',
   }),
-  taskRequestReceived: (p) => ({
-    title: 'Task request received',
-    body: `${p.fromName ?? 'Someone'} asked you to take on "${p.taskTitle ?? 'a task'}".`,
-  }),
-  taskRequestAccepted: (p) => ({
-    title: 'Request accepted',
-    body: `${p.byName ?? 'They'} accepted "${p.taskTitle ?? 'your request'}".`,
-  }),
+  // A member asking their Lead for work reads as exactly that - not as the
+  // member handing their Lead a job, which is what the generic line implied.
+  taskRequestReceived: (p) => (p.asksForWork
+    ? {
+      title: 'Asking for work',
+      body: `${p.fromName ?? 'Someone'} would like to take on "${p.taskTitle ?? 'a task'}".`,
+    }
+    : {
+      title: 'Task request received',
+      body: `${p.fromName ?? 'Someone'} asked you to take on "${p.taskTitle ?? 'a task'}".`,
+    }),
+  taskRequestAccepted: (p) => (p.asksForWork
+    ? {
+      title: 'It\u2019s yours',
+      body: `${p.byName ?? 'Your Lead'} said yes: "${p.taskTitle ?? 'the task'}" is on your list now.`,
+    }
+    : {
+      title: 'Request accepted',
+      body: `${p.byName ?? 'They'} accepted "${p.taskTitle ?? 'your request'}".`,
+    }),
   taskRequestDeclined: (p) => ({
     title: 'Request declined',
     body: `${p.byName ?? 'They'} declined "${p.taskTitle ?? 'your request'}".`,

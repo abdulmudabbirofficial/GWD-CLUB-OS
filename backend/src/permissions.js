@@ -195,9 +195,8 @@ const EXECUTIVE_TIER = [
 /**
  * Who may this role hand a task *to*, by name?
  *
- * `'ownDepartment'` → members of the actor's own department, plus the officers
- * `'ownLead'`       → the actor's own department Lead, and nobody else
- * a list of roles   → exactly those roles, club-wide
+ * `'ownDepartment'` → members of the actor's own department
+ * a list of roles   → exactly those roles, club-wide (empty: nobody)
  *
  * The leadership tier still reaches *departments* through
  * `canAssignToDepartment`; this is only the by-name path.
@@ -218,7 +217,11 @@ const ASSIGN_TARGETS = {
   vicePresident: [ROLES.secretaryGeneral],
   secretaryGeneral: [ROLES.vicePresident],
   clubLead: 'ownDepartment',
-  clubMember: 'ownLead',
+  // A member gives work to nobody - not even their own Lead. They *ask* their
+  // Lead for work (REQUEST_TARGETS below), and the Lead decides. This used to
+  // be 'ownLead', which let a member put a task on their Lead's list: the
+  // hierarchy running backwards.
+  clubMember: [],
 };
 
 /**
@@ -238,9 +241,9 @@ const REQUEST_TARGETS = {
     ROLES.vicePresident,
     ROLES.secretaryGeneral,
   ],
-  // A member can also *ask* their own Lead rather than assigning outright —
-  // "could you look at this?" is a different thing from "this is yours", and
-  // both are reasonable for somebody reaching their own Lead.
+  // A member asks their own Lead, and nobody else, **for work**. Accepting it
+  // hands the task to the member, priced by the Lead - see `asksForWork` - so
+  // a member's request is never a way of giving their Lead something to do.
   clubMember: 'ownLead',
 };
 
@@ -256,7 +259,6 @@ function canAssign(role) {
   if (canAssignToDepartment(role)) return true;
   const targets = ASSIGN_TARGETS[role];
   return targets === 'ownDepartment'
-    || targets === 'ownLead'
     || (Array.isArray(targets) && targets.length > 0);
 }
 
@@ -290,13 +292,22 @@ function canAssignTo(actor, target) {
     return target.role === ROLES.clubMember && sameDepartment(target, actor);
   }
 
-  if (rule === 'ownLead') {
-    // A member reaches exactly one person by name: the Lead of their own
-    // department. Not another department's Lead, not the officers.
-    return target.role === ROLES.clubLead && sameDepartment(target, actor);
-  }
-
   return Array.isArray(rule) && rule.includes(target.role);
+}
+
+/**
+ * Is this request a member asking their own Lead for work?
+ *
+ * Then accepting it gives the task to the **member**, not the Lead: the Lead
+ * is deciding "yes, take this on", and pricing it as they would any hand-out.
+ * Decided from the two people rather than stored on the request alone, so a
+ * request raised before this rule existed is read the same way.
+ */
+function asksForWork(requester, recipient) {
+  return Boolean(requester && recipient)
+    && requester.role === ROLES.clubMember
+    && recipient.role === ROLES.clubLead
+    && sameDepartment(requester, recipient);
 }
 
 /**
@@ -636,26 +647,36 @@ function approvalRouteFor(role) {
   }
 }
 
-/** May `actor` approve `request` (an accessRequests document)? */
+/**
+ * May `actor` approve `request` (an accessRequests document)?
+ *
+ * Also decides who *sees* it: the queue, the Home count and the live event all
+ * ask this, so a request nobody may decide is a request nobody is shown.
+ */
 function canApproveAccess(actor, request, department) {
   if (actor.approvalStatus !== 'approved') return false;
-  // A Director or the Faculty Coordinator can always unblock a stuck queue.
-  if (isSupervisor(actor.role)) return true;
 
   const route = approvalRouteFor(request.requestedRole);
   if (!route) return false;
 
   if (route.approver === 'departmentLead') {
-    const isThatLead =
-      actor.role === ROLES.clubLead &&
-      department &&
-      String(department.leadUserId || '') === String(actor._id);
-    if (isThatLead) return true;
+    // A member joins a department, so that department's Lead decides - and
+    // only them. Not the President, the VP, the General Secretary, and not the
+    // Directors either (V8.1): the Lead is the one person who knows whether
+    // this is somebody from their team, and a queue everybody can see is a
+    // queue everybody assumes somebody else is dealing with.
+    if (department?.leadUserId) {
+      return actor.role === ROLES.clubLead
+        && String(department.leadUserId) === String(actor._id);
+    }
     // A department with no Lead yet would otherwise have a permanently stuck
-    // queue — and its first member is usually the person who becomes that Lead.
-    return actor.role === ROLES.president && !department?.leadUserId;
+    // queue - and its first member is usually the person who becomes that Lead.
+    return actor.role === ROLES.president;
   }
 
+  // Officers and Leads: a Director or the Faculty Coordinator can always
+  // unblock a stuck queue.
+  if (isSupervisor(actor.role)) return true;
   return actor.role === route.approver;
 }
 
@@ -914,6 +935,7 @@ module.exports = {
   canAssign,
   canAssignTo,
   canRequestTo,
+  asksForWork,
   taskVisibilityFilter,
   userVisibilityFilter,
   canViewMemberDetail,

@@ -64,9 +64,16 @@ router.get('/assignable', async (request, response, next) => {
     const toDepartment = canAssignToDepartment(actor.role);
 
     if (!canAssign(actor.role)) {
+      // A member assigns to nobody, but may still *ask* - their own Lead, and
+      // only them - so that one name is still reported.
+      const askable = actor.departmentId
+        ? await col(C.users)
+          .find({ approvalStatus: 'approved', role: ROLES.clubLead, departmentId: actor.departmentId })
+          .toArray()
+        : [];
       return response.json({
         assignable: [],
-        requestable: [],
+        requestable: askable.filter((c) => canRequestTo(actor, c)).map(publicUser),
         departments: [],
         canAssignToDepartment: false,
         pointValues: TASK_POINT_VALUES,

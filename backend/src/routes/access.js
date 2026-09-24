@@ -19,9 +19,11 @@ const oid = (value, name) => {
  * The pending-approvals queue (Section 4.3).
  *
  * What you see here is exactly what you are entitled to action:
- *   - a Lead sees their own department's Member requests
- *   - the President sees Lead / VP / Secretary General requests
- *   - a Director sees everything, and can unblock any stuck queue
+ *   - a Lead sees their own department's Member requests, and nobody else does
+ *   - the President sees Lead / VP / General Secretary requests, plus members
+ *     joining a department that has no Lead yet
+ *   - a Director or the Faculty Coordinator sees officer and Lead requests,
+ *     and can unblock that queue
  */
 router.get('/pending', async (request, response, next) => {
   try {
@@ -72,15 +74,18 @@ router.get('/pending', async (request, response, next) => {
 });
 
 /**
- * Directors get read-only visibility of the whole queue, including requests
- * they are not the acting approver for (Section 4.4).
+ * Directors get read-only visibility of the officer and Lead queue, including
+ * requests they are not the acting approver for (Section 4.4). Members joining
+ * a department are that department's Lead's business and are left out.
  */
 router.get('/all', async (request, response, next) => {
   try {
     if (!isDirector(request.user.role) && rankOf(request.user.role) < RANK.president) {
       fail('You do not have permission to view the full queue.', 403);
     }
-    const requests = await col(C.accessRequests).find({}).sort({ createdAt: -1 }).limit(200).toArray();
+    const requests = await col(C.accessRequests)
+      .find({ requestedRole: { $ne: ROLES.clubMember } })
+      .sort({ createdAt: -1 }).limit(200).toArray();
     const users = await col(C.users).find({ _id: { $in: requests.map((r) => r.userId) } }).toArray();
     const userById = new Map(users.map((u) => [String(u._id), u]));
     response.json({

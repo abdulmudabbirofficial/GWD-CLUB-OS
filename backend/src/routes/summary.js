@@ -10,7 +10,7 @@ const {
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
   earnsPoints, appearsOnLeaderboard,
   canChangeRole,
-  isSuperAdmin, isSupervisor, rankOf, RANK, ROLES,
+  isSuperAdmin, isSupervisor, rankOf, RANK, ROLES, canApproveAccess,
 } = require('../permissions');
 const { serialiseTask } = require('../realtime');
 
@@ -45,6 +45,28 @@ const withTime = (date, hhmm) => {
  * The rest are scannable rows, not competing cards. More information, same
  * number of decisions.
  */
+/**
+ * How many join requests this person can actually decide.
+ *
+ * Counting every pending request put a new member's signup in front of the
+ * President, the VP and the Directors - "2 waiting to join" that none of them
+ * could act on, since a member is their department Lead's to admit. Filtered
+ * by the same rule the queue and the decision route use, so the number on Home
+ * is always the length of the list it opens.
+ */
+async function actionableJoinCount(actor) {
+  const pending = await col(C.accessRequests)
+    .find({ status: 'pending' }, { projection: { requestedRole: 1, departmentId: 1 } })
+    .toArray();
+  if (pending.length === 0) return 0;
+  const departments = await col(C.departments)
+    .find({}, { projection: { leadUserId: 1 } })
+    .toArray();
+  const byId = new Map(departments.map((d) => [String(d._id), d]));
+  return pending.filter((r) =>
+    canApproveAccess(actor, r, r.departmentId ? byId.get(String(r.departmentId)) : null)).length;
+}
+
 router.get('/home', async (request, response, next) => {
   try {
     const user = request.user;
@@ -68,7 +90,7 @@ router.get('/home', async (request, response, next) => {
         .limit(1)
         .toArray(),
       col(C.notifications).countDocuments({ userId: user._id, read: false }),
-      col(C.accessRequests).countDocuments({ status: 'pending' }),
+      actionableJoinCount(user),
       // Everything on the schedule today, whatever the lane.
       col(C.calendarEvents)
         .find({ date: { $gte: today, $lt: tomorrow } })
@@ -191,7 +213,7 @@ router.get('/home', async (request, response, next) => {
           col(C.tasks).countDocuments({ status: 'blocked' }),
           col(C.eventDocuments).countDocuments({ kind: 'approval', status: 'pending' }),
           col(C.eventBills).countDocuments({ status: 'pending' }),
-          col(C.accessRequests).countDocuments({ status: 'pending' }),
+          actionableJoinCount(user),
           col(C.users).countDocuments({ approvalStatus: 'approved' }),
           col(C.departments).countDocuments({ active: { $ne: false }, leadUserId: null }),
         ]);
@@ -216,7 +238,7 @@ router.get('/home', async (request, response, next) => {
         col(C.tasks).countDocuments({ departmentId: deptId, assignedTo: null, status: OPEN }),
         col(C.tasks).countDocuments({ departmentId: deptId, status: OPEN }),
         col(C.tasks).countDocuments({ departmentId: deptId, status: OPEN, dueDate: { $lt: now } }),
-        col(C.accessRequests).countDocuments({ status: 'pending', departmentId: deptId }),
+        actionableJoinCount(user),
         col(C.users).countDocuments({ departmentId: deptId, approvalStatus: 'approved' }),
       ]);
       myDepartment = { incoming, open, overdue, joins, members };
@@ -324,12 +346,10 @@ router.get('/home', async (request, response, next) => {
         isSuperAdmin: isSuperAdmin(user),
         earnsPoints: earnsPoints(user.role),
         onLeaderboard: appearsOnLeaderboard(user.role),
-        // A Lead approves their own department's joiners, so that is the
-        // number they are shown — it used to be the whole club's queue, most
-        // of which they could not action.
-        pendingApprovals: hasOversight(user.role)
-          ? pendingApprovals
-          : (isLead ? myDepartment.joins : 0),
+        // Only what this person can decide: a Lead their own department's
+        // members, the President the officers and Leads (and members of a
+        // department with no Lead), the Directors officers and Leads.
+        pendingApprovals,
       },
       config: { pointsPerTask: config.pointsPerTask, clubName: config.clubName },
     });

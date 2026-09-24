@@ -5,7 +5,7 @@ const { ObjectId } = require('mongodb');
 const config = require('../config');
 const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
-const { canRequestTo } = require('../permissions');
+const { canRequestTo, asksForWork, isValidTaskPoints } = require('../permissions');
 const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
@@ -23,10 +23,17 @@ const oid = (value, name) => {
  * The difference from a task: a request cannot be imposed. Leads use it
  * sideways to other Leads and upward to the executive tier, where they have no
  * authority to assign. Accepting one is what actually creates the task.
+ *
+ * A member uses it for one thing only: asking their own Lead for work. That
+ * request runs the other way round - accepting it gives the task to the member
+ * who asked, priced by the Lead - because a member gives work to nobody.
  */
 
-function serialise(r) {
+function serialise(r, askForWork = r.kind === 'askForWork') {
   return {
+    // The member asking their own Lead for work, rather than somebody asking
+    // the recipient to do something. The Lead's card prices it on accepting.
+    asksForWork: askForWork,
     id: String(r._id),
     fromUserId: String(r.fromUserId),
     fromName: r.fromName,
@@ -60,7 +67,20 @@ router.get('/', async (request, response, next) => {
       filter.status = request.query.status;
     }
     const requests = await col(C.taskRequests).find(filter).sort({ createdAt: -1 }).limit(200).toArray();
-    response.json({ requests: requests.map(serialise) });
+
+    // Rows raised before `kind` existed are read from the people involved, so
+    // an old member request still shows as asking for work.
+    const unknown = requests.filter((r) => !r.kind);
+    const people = unknown.length === 0 ? [] : await col(C.users).find(
+      { _id: { $in: [...new Set(unknown.flatMap((r) => [String(r.fromUserId), String(r.toUserId)]))].map((id) => new ObjectId(id)) } },
+      { projection: { role: 1, departmentId: 1 } },
+    ).toArray();
+    const personById = new Map(people.map((u) => [String(u._id), u]));
+    const isAsk = (r) => (r.kind
+      ? r.kind === 'askForWork'
+      : asksForWork(personById.get(String(r.fromUserId)), personById.get(String(r.toUserId))));
+
+    response.json({ requests: requests.map((r) => serialise(r, isAsk(r))) });
   } catch (error) {
     next(error);
   }
@@ -120,7 +140,9 @@ router.post('/', async (request, response, next) => {
       ? await col(C.departments).findOne({ _id: actor.departmentId }, { projection: { name: 1 } })
       : null;
 
+    const askForWork = asksForWork(actor, target);
     const doc = {
+      kind: askForWork ? 'askForWork' : 'request',
       fromUserId: actor._id,
       fromName: actor.name,
       fromDepartmentId: actor.departmentId ?? null,
@@ -139,7 +161,11 @@ router.post('/', async (request, response, next) => {
 
     await notify(target._id, 'taskRequestReceived', {
       taskTitle: doc.title,
-      fromName: fromDepartment ? `${actor.name} (${fromDepartment.name})` : actor.name,
+      // Their own member needs no department after the name.
+      fromName: fromDepartment && !askForWork
+        ? `${displayNameOf(actor)} (${fromDepartment.name})`
+        : displayNameOf(actor),
+      asksForWork: askForWork,
     });
     await audit(actor._id, 'taskRequest.create', { toUserId: String(target._id), title: doc.title });
 
@@ -160,16 +186,33 @@ router.post('/:id/accept', async (request, response, next) => {
     }
     if (taskRequest.status !== 'pending') fail('That request has already been decided.', 409);
 
+    // A member asking their Lead for work: saying yes gives it to the member,
+    // and the Lead prices it now, exactly as when handing out any task.
+    const requester = await col(C.users).findOne(
+      { _id: taskRequest.fromUserId }, { projection: { role: 1, departmentId: 1, approvalStatus: 1 } },
+    );
+    const askForWork = taskRequest.kind
+      ? taskRequest.kind === 'askForWork'
+      : asksForWork(requester, request.user);
+    if (askForWork && (!requester || requester.approvalStatus !== 'approved')) {
+      fail('They are no longer in the club.', 409);
+    }
+    let points = config.pointsPerTask;
+    if (askForWork) {
+      points = request.body.points === undefined ? 1 : Number(request.body.points);
+      if (!isValidTaskPoints(points)) fail('Points must be 1, 3 or 5.');
+    }
+
     const now = new Date();
     const task = {
       title: taskRequest.title,
       description: taskRequest.description ?? '',
-      assignedBy: taskRequest.fromUserId,
-      assignedTo: taskRequest.toUserId,
+      assignedBy: askForWork ? request.user._id : taskRequest.fromUserId,
+      assignedTo: askForWork ? taskRequest.fromUserId : taskRequest.toUserId,
       departmentId: request.user.departmentId ?? null,
       status: 'pending',
       dueDate: taskRequest.dueDate ?? null,
-      points: config.pointsPerTask,
+      points,
       priority: 'normal',
       originRequestId: id,
       // Kept so the accepting department can see who the work is for. A
@@ -188,6 +231,7 @@ router.post('/:id/accept', async (request, response, next) => {
     await notify(taskRequest.fromUserId, 'taskRequestAccepted', {
       taskTitle: taskRequest.title, byName: displayNameOf(request.user),
       taskId: String(task._id),
+      asksForWork: askForWork,
     });
     await audit(request.user._id, 'taskRequest.accept', { requestId: String(id) });
 

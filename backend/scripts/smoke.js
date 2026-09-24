@@ -437,11 +437,11 @@ async function main() {
   const home = await api('/api/home', { token: memberToken });
   ok('Home returns exactly one "what\'s next" focal point', home.status === 200
     && ('whatsNext' in home.body));
-  // A member can now put something on their own Lead's list — and nobody
-  // else's — so the compose sheet exists for them too.
+  // A member gives work to nobody, their own Lead included - they ask their
+  // Lead for work instead - so there is no compose sheet for them.
   ok('Home reports capabilities so the client mirrors the server',
-    home.body?.capabilities?.canAssign === true,
-    'a Member can assign to their own Lead');
+    home.body?.capabilities?.canAssign === false,
+    'a Member gives work to nobody');
 
   const directorHome = await api('/api/home', { token: directorToken });
   ok('A Director does get the assign capability',
@@ -1664,11 +1664,14 @@ async function main() {
   });
   const memberOthers = (memberTargets.body?.assignable ?? [])
     .filter((m) => m.id !== teammate.body.user.id);
-  ok('A member can assign only to their own department Lead',
-    memberOthers.length > 0 && memberOthers.every((m) => m.role === 'clubLead'),
+  ok('A member can assign to nobody, their own Lead included',
+    memberOthers.length === 0,
     memberOthers.map((m) => `${m.name}:${m.role}`).join(', '));
-  ok('And never to the officers or another member',
-    memberOthers.every((m) => !officerRoles.includes(m.role) && m.role !== 'clubMember'));
+  const memberAsks = memberTargets.body?.requestable ?? [];
+  ok('They can only ask their own Lead - never the officers or another member',
+    memberAsks.length === 1 && memberAsks[0].role === 'clubLead'
+    && memberAsks.every((m) => !officerRoles.includes(m.role)),
+    memberAsks.map((m) => `${m.name}:${m.role}`).join(', '));
 
   // --- "what did I hand out?" ---------------------------------------------
   const handedOutView = await api('/api/users/my-overview', { token: presidentToken });
@@ -1716,11 +1719,18 @@ async function main() {
       departmentId: creative.id,
     },
   });
+  // Creative has no Lead yet, so the President is the one who lets its first
+  // member in - a Director no longer decides a member's request at all.
   const creativePending = await api('/api/access/pending', { token: presidentToken });
   const creativeRow = creativePending.body.requests
     .find((r) => r.userId === creativeLeadSignup.body.user.id);
+  ok('A member joining a department with no Lead reaches the President', Boolean(creativeRow));
   if (creativeRow) {
-    await api(`/api/access/${creativeRow.id}/approve`, { method: 'POST', token: directorToken });
+    const directorTries = await api(`/api/access/${creativeRow.id}/approve`,
+      { method: 'POST', token: directorToken });
+    ok('But a Director cannot decide a member\u2019s request', directorTries.status === 403,
+      `got ${directorTries.status}`);
+    await api(`/api/access/${creativeRow.id}/approve`, { method: 'POST', token: presidentToken });
   }
   // PUT, and it promotes them to Lead itself — no separate role change needed.
   const creativeLeadSet = await api(`/api/departments/${creative.id}/lead`, {

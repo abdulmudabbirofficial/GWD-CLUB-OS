@@ -1209,6 +1209,118 @@ const login = async (email, password) => {
     presCaps.hasOversight === true && presCaps.canViewDashboard === false,
     JSON.stringify({ o: presCaps.hasOversight, d: presCaps.canViewDashboard }));
 
+  // ------------------------------------------------------------ V8.1 members
+  //
+  // A member picks their department at signup and that department's Lead - and
+  // nobody else - lets them in. After that they give work to nobody, their Lead
+  // included; they ask their own Lead for work, and a yes puts it on their list.
+  console.log('\nV8.1: a member asks their Lead, and only their Lead lets them in');
+
+  const mstamp = Date.now();
+  const joinerEmail = `joiner.${mstamp}@gwd.club`;
+  const joinerName = `Joining Member ${mstamp}`;
+  const joiner = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: joinerName, email: joinerEmail, phone: '9000000333',
+      password: 'JoinerPass1', role: 'clubMember', departmentId: tech.id,
+    },
+  });
+  const joinerId = joiner.body.user && joiner.body.user.id;
+  const queueOf = async (w) => ((await api('/api/access/pending', { token: w.token })).body.requests || []);
+  const leadQueue = await queueOf(who.tech);
+  const others = {
+    President: await queueOf(who.president),
+    'Vice President': await queueOf(who.vp),
+    'General Secretary': await queueOf(who.gensec),
+    'Director Rehman': await queueOf(who.ceo),
+    'Club Director': await queueOf(who.cmo),
+  };
+  const joinRow = leadQueue.find((r) => r.userId === joinerId);
+  ok('V8.1', 'A member\u2019s join request reaches their department\u2019s Lead', Boolean(joinRow));
+  const leaked = Object.entries(others)
+    .filter(([, q]) => q.some((r) => r.userId === joinerId)).map(([name]) => name);
+  ok('V8.1', 'and nobody else - not the President, VP, General Secretary or any Director',
+    leaked.length === 0, leaked.join(', ') || 'none');
+
+  const presHomeNow = (await api('/api/home', { token: who.president.token })).body || {};
+  ok('V8.1', 'The President\u2019s "waiting to join" counts only what they can decide',
+    (presHomeNow.capabilities || {}).pendingApprovals === others.President.length,
+    `${(presHomeNow.capabilities || {}).pendingApprovals} vs ${others.President.length}`);
+  const presWasTold = ((await api('/api/notifications', { token: who.president.token })).body.notifications || [])
+    .some((n) => n.type === 'approvalNeeded' && JSON.stringify(n.payload || {}).includes(joinerName));
+  ok('V8.1', 'and the President is not notified about it', !presWasTold);
+
+  if (joinRow) {
+    const rehmanDecides = await api(`/api/access/${joinRow.id}/approve`, { method: 'POST', token: who.ceo.token });
+    const presDecides = await api(`/api/access/${joinRow.id}/approve`, { method: 'POST', token: who.president.token });
+    ok('V8.1', 'Neither a Director nor the President can decide it',
+      rehmanDecides.status === 403 && presDecides.status === 403,
+      `${rehmanDecides.status} / ${presDecides.status}`);
+    await api(`/api/access/${joinRow.id}/approve`, { method: 'POST', token: who.tech.token });
+  }
+  const joinerIn = await login(joinerEmail, 'JoinerPass1');
+  const joinerMe = joinerIn ? (await api('/api/auth/me', { token: joinerIn.token })).body.user : null;
+  ok('V8.1', 'Their Lead lets them in', Boolean(joinerMe) && joinerMe.approvalStatus === 'approved');
+
+  if (joinerIn) {
+    const toLead = await api('/api/tasks', {
+      method: 'POST', token: joinerIn.token,
+      body: { title: `For my Lead ${mstamp}`, assignedTo: [techLead.id], points: 1 },
+    });
+    const toSelf = await api('/api/tasks', {
+      method: 'POST', token: joinerIn.token,
+      body: { title: `For me ${mstamp}`, assignedTo: [joinerId], points: 1 },
+    });
+    ok('V8.1', 'A member cannot give their Lead a task', toLead.status === 403, `got ${toLead.status}`);
+    ok('V8.1', 'or anybody else', toSelf.status === 403, `got ${toSelf.status}`);
+    const joinerCaps = (await api('/api/home', { token: joinerIn.token })).body.capabilities || {};
+    ok('V8.1', 'and the app is told so, so it offers no "Assign task"', joinerCaps.canAssign === false);
+
+    const askOtherLead = await api('/api/task-requests', {
+      method: 'POST', token: joinerIn.token, body: { toUserId: prodLead.id, title: 'Can I help?' },
+    });
+    const askPresident = await api('/api/task-requests', {
+      method: 'POST', token: joinerIn.token, body: { toUserId: who.president.user.id, title: 'Can I help?' },
+    });
+    const askOtherDept = await api('/api/task-requests', {
+      method: 'POST', token: joinerIn.token, body: { toDepartmentId: production.id, title: 'Can I help?' },
+    });
+    ok('V8.1', 'A member can ask nobody but their own Lead',
+      askOtherLead.status === 403 && askPresident.status === 403 && askOtherDept.status === 403,
+      `${askOtherLead.status} / ${askPresident.status} / ${askOtherDept.status}`);
+
+    const ask = await api('/api/task-requests', {
+      method: 'POST', token: joinerIn.token,
+      body: { toUserId: techLead.id, title: `Design the poster ${mstamp}` },
+    });
+    ok('V8.1', 'They can ask their own Lead for work',
+      ask.status === 201 && ask.body.request && ask.body.request.asksForWork === true, ask.txt.slice(0, 140));
+
+    const incoming = ((await api('/api/task-requests?direction=incoming', { token: who.tech.token })).body.requests || [])
+      .find((r) => ask.body.request && r.id === ask.body.request.id);
+    ok('V8.1', 'and their Lead sees it as asking for work', Boolean(incoming) && incoming.asksForWork === true);
+
+    if (incoming) {
+      const badPrice = await api(`/api/task-requests/${incoming.id}/accept`, {
+        method: 'POST', token: who.tech.token, body: { points: 4 },
+      });
+      ok('V8.1', 'The Lead prices it 1, 3 or 5', badPrice.status === 400, `got ${badPrice.status}`);
+      const yes = await api(`/api/task-requests/${incoming.id}/accept`, {
+        method: 'POST', token: who.tech.token, body: { points: 3 },
+      });
+      const mine = ((await api('/api/tasks?scope=mine', { token: joinerIn.token })).body.tasks || [])
+        .find((t) => t.title === `Design the poster ${mstamp}`);
+      ok('V8.1', 'Saying yes puts it on the member\u2019s list, not the Lead\u2019s, at the Lead\u2019s price',
+        yes.status === 200 && Boolean(mine) && mine.assignedTo === joinerId
+        && mine.assignedBy === techLead.id && mine.points === 3,
+        mine ? JSON.stringify({ to: mine.assignedTo, by: mine.assignedBy, points: mine.points }) : yes.txt.slice(0, 120));
+    }
+  }
+  if (joinerId) {
+    await api(`/api/users/${joinerId}`, { method: 'DELETE', token: who.cmo.token });
+  }
+
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {
     method: 'PATCH',
     token: who.cmo.token,
