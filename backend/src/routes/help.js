@@ -5,6 +5,7 @@ const { ObjectId } = require('mongodb');
 const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
 const { rankOf, RANK, isSupervisor } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -174,7 +175,7 @@ router.post('/', async (request, response, next) => {
         { projection: { _id: 1 } },
       ).toArray();
       await notify(colleagues.map((u) => u._id), 'helpRequested', {
-        helpTitle: doc.title, byName: request.user.name, helpId: String(inserted.insertedId),
+        helpTitle: doc.title, byName: displayNameOf(request.user), helpId: String(inserted.insertedId),
       });
     }
 
@@ -244,7 +245,7 @@ router.post('/:id/offer', async (request, response, next) => {
     await col(C.tasks).insertOne(task);
 
     await notify(help.createdBy, 'helpOffered', {
-      helpTitle: help.title, byName: request.user.name, helpId: String(id),
+      helpTitle: help.title, byName: displayNameOf(request.user), helpId: String(id),
     });
     // The helper gets one too, so the new item on their list is not a surprise.
     await notify(request.user._id, 'helpJoined', {

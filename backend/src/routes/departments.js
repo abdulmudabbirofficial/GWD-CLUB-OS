@@ -7,6 +7,7 @@ const { authenticate, requireApproved, publicUser, fail } = require('../auth');
 const {
   canManageDepartments, canViewMemberDetail, canViewDepartmentRoster, ROLES,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -394,7 +395,7 @@ router.get('/:id/workspace', async (request, response, next) => {
 /** Section 6.6 — President and Directors only, from here down. */
 function requireManage(request, response, next) {
   if (!canManageDepartments(request.user.role)) {
-    return next(Object.assign(new Error('Only the President and Club Directors manage departments.'), { status: 403 }));
+    return next(Object.assign(new Error('Only the Directors, the Faculty Coordinator, the President and the Vice President manage departments.'), { status: 403 }));
   }
   return next();
 }
@@ -441,7 +442,7 @@ router.post('/', requireManage, async (request, response, next) => {
       await notify(assigners.map((u) => u._id), 'departmentCreated', {
         departmentName: name,
         departmentId: String(doc._id),
-        byName: request.user.name,
+        byName: displayNameOf(request.user),
       });
     }
 

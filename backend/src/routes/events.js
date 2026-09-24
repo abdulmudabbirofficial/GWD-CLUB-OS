@@ -10,6 +10,7 @@ const {
   EVENT_STATUSES, canCreateEvent, canManageEvent, canManageEventDepartment,
   ROLES, isDirector,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -281,7 +282,7 @@ router.post('/', async (request, response, next) => {
           if (!doc.assignedTo || String(doc.assignedTo) === String(actor._id)) continue;
           await notify(doc.assignedTo, 'taskAssigned', {
             taskTitle: doc.title ?? name,
-            byName: actor.name,
+            byName: displayNameOf(actor),
             taskId: String(doc._id),
             eventId: String(event._id),
           });
@@ -296,7 +297,7 @@ router.post('/', async (request, response, next) => {
     ])].filter((id) => id !== String(actor._id));
     if (audience.length > 0) {
       await notify(audience.map((id) => new ObjectId(id)), 'eventCreated', {
-        eventTitle: name, byName: actor.name,
+        eventTitle: name, byName: displayNameOf(actor),
       });
     }
 
@@ -515,7 +516,7 @@ router.post('/:id/tasks', async (request, response, next) => {
 
     if (task.assignedTo && String(task.assignedTo) !== String(request.user._id)) {
       await notify(task.assignedTo, 'taskAssigned', {
-        taskTitle: title, byName: request.user.name,
+        taskTitle: title, byName: displayNameOf(request.user),
         taskId: String(task._id), eventId: String(id),
       });
     }
@@ -570,7 +571,7 @@ router.post('/:id/tasks/:taskId/claim', async (request, response, next) => {
     });
     if (!claimingForSelf) {
       await notify(target, 'taskAssigned', {
-        taskTitle: task.title, byName: request.user.name,
+        taskTitle: task.title, byName: displayNameOf(request.user),
         taskId: String(taskId), eventId: String(id),
       });
     }
@@ -1237,7 +1238,7 @@ router.delete('/:id', async (request, response, next) => {
       || actor.role === ROLES.facultyCoordinator
       || actor.role === ROLES.president;
     if (!mayCancel) {
-      fail('Only a Club Director or the President can cancel an event.', 403);
+      fail('Only a Director, the Faculty Coordinator or the President can cancel an event.', 403);
     }
 
     // `?purge=true` removes it outright. Only for an event already cancelled —
@@ -1288,7 +1289,7 @@ router.delete('/:id', async (request, response, next) => {
       await notify(audience.map((who) => new ObjectId(who)), 'eventCancelled', {
         eventName: event.name,
         eventId: String(id),
-        byName: actor.name,
+        byName: displayNameOf(actor),
       });
     }
 

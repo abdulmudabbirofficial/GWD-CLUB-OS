@@ -12,8 +12,10 @@ const {
   canManageDepartments, ROLES, isDirector, isSupervisor,
   canAwardPoints, canViewMemberDetail, SUPERVISOR_ROLES,
   canAssignToDepartment, TASK_POINT_VALUES, canRenameMember, isRole,
-  canRemoveMember, canChangeRole, ROLE_CAPS,
+  canRemoveMember, canChangeRole, ROLE_CAPS, canChangeRoleOf, canAppointSupervisors,
+  isSuperAdmin, canResetPasswordOf,
 } = require('../permissions');
+const { displayNameOf, roleTitle } = require('../people');
 const { notify, audit } = require('../services/notify');
 // Attendance is derived from the meetings collection, so the one implementation
 // lives with the meetings and every caller shares it.
@@ -593,16 +595,27 @@ router.patch('/:id/name', async (request, response, next) => {
     if (name.length > 80) fail('That name is too long.');
 
     const previous = target.name;
+    const set = { name: name.slice(0, 80), mustSetName: false };
+    // The short name a Director is addressed by ("Director Mudabbir"). Only a
+    // Director has one; on anybody else it would be a second name nothing
+    // reads. Sent as an empty string, it is cleared.
+    if (typeof request.body.knownAs === 'string' && target.role === ROLES.clubDirector) {
+      const knownAs = request.body.knownAs.trim();
+      if (knownAs.length > 30) fail('Keep the name they are known by short.');
+      set.knownAs = knownAs;
+    }
     const updated = await col(C.users).findOneAndUpdate(
       { _id: id },
-      { $set: { name: name.slice(0, 80), mustSetName: false } },
+      { $set: set },
       { returnDocument: 'after' },
     );
 
     // Tell them their account was renamed. Finding out later that somebody
     // changed what you are called, silently, is worse than the rename itself.
     if (String(actor._id) !== String(id)) {
-      await notify(id, 'profileRenamed', { by: actor.name, from: previous, to: updated.name });
+      await notify(id, 'profileRenamed', {
+        by: displayNameOf(actor), from: previous, to: updated.name,
+      });
     }
     await audit(actor._id, 'user.rename', {
       targetId: String(id), from: previous, to: updated.name,
@@ -649,7 +662,7 @@ router.post('/:id/award', async (request, response, next) => {
     const updated = await col(C.users).findOneAndUpdate(
       { _id: id }, { $inc: { points } }, { returnDocument: 'after' },
     );
-    await notify(id, 'pointsAwarded', { points, reason, byName: actor.name });
+    await notify(id, 'pointsAwarded', { points, reason, byName: displayNameOf(actor) });
     await audit(actor._id, 'points.award', { userId: String(id), points, reason });
 
     response.json({ user: publicUser(updated) });
@@ -674,13 +687,17 @@ router.post('/:id/reset-password', async (request, response, next) => {
   try {
     const actor = request.user;
     if (!canManageDepartments(actor.role)) {
-      fail('Only the President and Directors can reset a password.', 403);
+      fail('Only the Directors, the Faculty Coordinator, the President and the Vice President can reset a password.', 403);
     }
     const id = oid(request.params.id, 'User id');
     const target = await col(C.users).findOne({ _id: id });
     if (!target) fail('Member not found.', 404);
-    if (isSupervisor(target.role) && !isSupervisor(actor.role)) {
-      fail('A supervisor\'s password can only be reset by another supervisor.', 403);
+    if (!canResetPasswordOf(actor, target)) {
+      fail(String(actor._id) === String(id)
+        ? 'Change your own password from your profile instead.'
+        : isSupervisor(target.role)
+          ? 'Only the Super Admin can reset a Director\u2019s or the Faculty Coordinator\u2019s password.'
+          : 'You can only reset the password of somebody below you.', 403);
     }
 
     // Readable on purpose — this gets said out loud or typed into a chat, so
@@ -703,7 +720,7 @@ router.post('/:id/reset-password', async (request, response, next) => {
       $unset: { passwordResetRequestedAt: '' },
     });
 
-    await notify(id, 'passwordReset', { byName: actor.name });
+    await notify(id, 'passwordReset', { byName: displayNameOf(actor) });
     await audit(actor._id, 'password.reset', { userId: String(id), name: target.name });
 
     response.json({
@@ -736,9 +753,11 @@ router.delete('/:id', async (request, response, next) => {
 
     if (!canRemoveMember(actor, target)) {
       fail(
-        isDirector(actor.role)
-          ? 'Directors and the Faculty Coordinator cannot be removed from here.'
-          : 'Only a Club Director can remove somebody from the club.',
+        isSuperAdmin(target)
+          ? 'The Super Admin cannot be removed from inside the app.'
+          : isDirector(actor.role)
+            ? 'Only the Super Admin can remove a Director or the Faculty Coordinator.'
+            : 'Only a Director can remove somebody from the club.',
         403,
       );
     }
@@ -801,7 +820,7 @@ router.delete('/:id', async (request, response, next) => {
 router.patch('/:id/role', async (request, response, next) => {
   try {
     if (!canChangeRole(request.user.role)) {
-      fail('Only the President and Club Directors can change roles.', 403);
+      fail('Only the President, the Faculty Coordinator and the Directors can change roles.', 403);
     }
     const id = oid(request.params.id, 'User id');
     const target = await col(C.users).findOne({ _id: id });
@@ -813,6 +832,15 @@ router.patch('/:id/role', async (request, response, next) => {
       fail('You cannot change your own role. Ask another Director.', 403);
     }
 
+    // The target decides as much as the actor does. Checking only the role
+    // being *granted* let the President demote a Director to a member, which
+    // is oversight being removed by the person it oversees.
+    if (!canChangeRoleOf(request.user, target)) {
+      fail(isSuperAdmin(target)
+        ? 'The Super Admin\u2019s role is not changed from inside the app.'
+        : 'Only the Super Admin can change a Director\u2019s or the Faculty Coordinator\u2019s role.', 403);
+    }
+
     const update = {};
     if (request.body.role) {
       // Validated against the known roles. An unchecked value would write an
@@ -820,10 +848,10 @@ router.patch('/:id/role', async (request, response, next) => {
       // and silently strands the account.
       if (!isRole(request.body.role)) fail('That is not a role.');
 
-      // Only a Director can appoint into the supervisor tier — otherwise the
-      // President could promote themselves above their own oversight.
-      if (isSupervisor(request.body.role) && !isDirector(request.user.role)) {
-        fail('Only a Club Director can appoint a Director or Faculty Coordinator.', 403);
+      // Only the Super Admin appoints into the supervisor tier. It used to be
+      // any Director, which meant any one of them could quietly add another.
+      if (isSupervisor(request.body.role) && !canAppointSupervisors(request.user)) {
+        fail('Only the Super Admin can appoint a Director or the Faculty Coordinator.', 403);
       }
 
       // The singleton posts stay singleton. Without this the club could end up
@@ -837,7 +865,10 @@ router.patch('/:id/role', async (request, response, next) => {
           _id: { $ne: id },
         });
         if (held >= cap) {
-          fail(`There are already ${cap} ${request.body.role} account(s). Remove one first.`, 409);
+          // In words, not the wire name: "3 clubDirector account(s)" is a
+          // database talking.
+          fail(`That post is full \u2014 the club has ${cap === 1 ? 'one' : cap} `
+            + `${roleTitle(request.body.role)}${cap === 1 ? '' : 's'} already. Move one first.`, 409);
         }
       }
       update.role = request.body.role;

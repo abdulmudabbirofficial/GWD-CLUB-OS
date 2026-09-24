@@ -9,6 +9,7 @@ const {
   canScheduleMeeting, canMarkAttendance, ROLES, isSupervisor, rankOf, RANK,
   canAssign, canAssignToDepartment, canAssignTo, isValidTaskPoints,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -249,7 +250,7 @@ router.post('/', async (request, response, next) => {
     await notify(
       doc.participants.map((p) => p.userId).filter((id) => String(id) !== String(actor._id)),
       'meetingInvited',
-      { meetingTitle: title, byName: actor.name, meetingId: String(doc._id) },
+      { meetingTitle: title, byName: displayNameOf(actor), meetingId: String(doc._id) },
     );
     await audit(actor._id, 'meeting.create', {
       meetingId: String(doc._id), title, invited: doc.participants.length,
@@ -309,7 +310,7 @@ router.patch('/:id', async (request, response, next) => {
         (meeting.participants ?? []).map((p) => p.userId)
           .filter((uid) => String(uid) !== String(request.user._id)),
         update.status === 'cancelled' ? 'meetingCancelled' : 'meetingMoved',
-        { meetingTitle: updated.title, byName: request.user.name, meetingId: String(id) },
+        { meetingTitle: updated.title, byName: displayNameOf(request.user), meetingId: String(id) },
       );
     }
 
@@ -404,7 +405,7 @@ router.post('/:id/actions', async (request, response, next) => {
       if (department.leadUserId) {
         await notify(department.leadUserId, 'departmentTaskAssigned', {
           taskTitle: title,
-          byName: actor.name,
+          byName: displayNameOf(actor),
           departmentName: department.name,
           taskId: String(doc._id),
           meetingId: String(id),
@@ -437,7 +438,7 @@ router.post('/:id/actions', async (request, response, next) => {
     if (String(target._id) !== String(actor._id)) {
       await notify(target._id, 'taskAssigned', {
         taskTitle: title,
-        byName: actor.name,
+        byName: displayNameOf(actor),
         taskId: String(doc._id),
         meetingId: String(id),
       });

@@ -16,6 +16,7 @@ const {
   BILL_CATEGORIES, canAddEventBill, canDecideEventBill, canSettleEventBill,
   canViewEventFinance, ROLES,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -227,7 +228,7 @@ router.post(
           billTitle: bill.title,
           amount: rupees(amountPaise),
           eventTitle: event.name,
-          byName: request.user.name,
+          byName: displayNameOf(request.user),
           eventId: String(eventId),
         },
       );
@@ -280,7 +281,7 @@ router.post('/bills/:id/decision', async (request, response, next) => {
       billTitle: bill.title,
       amount: rupees(bill.amountPaise),
       status,
-      byName: request.user.name,
+      byName: displayNameOf(request.user),
       eventId: String(bill.eventId),
     });
     await audit(request.user._id, 'bill.decision', {
@@ -331,7 +332,7 @@ router.post('/bills/:id/settle', async (request, response, next) => {
     await notify(bill.createdBy, 'billSettled', {
       billTitle: bill.title,
       amount: rupees(bill.amountPaise),
-      byName: request.user.name,
+      byName: displayNameOf(request.user),
     });
     await audit(request.user._id, 'bill.settle', {
       eventId: String(bill.eventId),

@@ -15,6 +15,7 @@ const { authenticate, requireApproved, fail } = require('../auth');
 const {
   canUploadEventFile, canUploadOfficialDocument, canDecideDocument, canManageEvent,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -207,7 +208,7 @@ router.post(
         await discard(request.file);
         fail(
           'Official approvals can only be uploaded by the President, Vice President, '
-          + 'Secretary General, a supervisor, or the organising department Lead.',
+          + 'General Secretary, a supervisor, or the organising department Lead.',
           403,
         );
       }
@@ -369,7 +370,7 @@ router.post('/documents/:id/decision', async (request, response, next) => {
       fail('Only official approvals carry a decision.');
     }
     if (!canDecideDocument(request.user)) {
-      fail('Only the President, Vice President, Secretary General or a supervisor can decide this.', 403);
+      fail('Only the President, Vice President, General Secretary or a supervisor can decide this.', 403);
     }
 
     const status = request.body.status;
@@ -387,7 +388,7 @@ router.post('/documents/:id/decision', async (request, response, next) => {
 
     if (String(document.createdBy) !== String(request.user._id)) {
       await notify(document.createdBy, 'documentDecision', {
-        title: document.title, status, byName: request.user.name,
+        title: document.title, status, byName: displayNameOf(request.user),
         eventId: String(document.eventId),
       });
     }

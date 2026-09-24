@@ -86,6 +86,12 @@ function publicUser(user) {
     // Only ever true for the person asking about themselves, or for an admin
     // looking at the directory — publicUser is not exposed anonymously.
     passwordResetRequested: Boolean(user.passwordResetRequestedAt),
+    // The name the club addresses a Director by ("Mudabbir"), which cannot be
+    // derived from the full name. Presentation only: it confers nothing.
+    knownAs: typeof user.knownAs === 'string' ? user.knownAs : null,
+    // Presentation for the client. The server never reads this from a request;
+    // `isSuperAdmin` in permissions.js is the only thing that grants anything.
+    superAdmin: user.superAdmin === true && user.role === 'clubDirector',
   };
 }
 

@@ -58,7 +58,7 @@ router.post('/signup', signupLimiter, async (request, response, next) => {
     if (password.length < 8) fail('Use a password with at least 8 characters.');
     if (!isRole(requestedRole)) fail('Choose a valid role.');
     if (requestedRole === ROLES.clubDirector) {
-      fail('Club Director accounts are set up by the club, not through signup.', 403);
+      fail('Director accounts are set up by the club, not through signup.', 403);
     }
 
     // Departments are required for everyone who sits inside one.

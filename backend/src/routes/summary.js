@@ -9,7 +9,8 @@ const {
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
   earnsPoints, appearsOnLeaderboard,
   canChangeRole,
-  isDirector,} = require('../permissions');
+  isSuperAdmin,
+} = require('../permissions');
 const { serialiseTask } = require('../realtime');
 
 const router = express.Router();
@@ -258,7 +259,9 @@ router.get('/home', async (request, response, next) => {
         // Only a Director may appoint into the supervisor tier, so the client
         // needs to know which of the two it is to offer the right list rather
         // than a choice the server will refuse.
-        canAppointSupervisors: isDirector(user.role),
+        // The Super Admin alone governs the supervisor tier.
+        canAppointSupervisors: isSuperAdmin(user),
+        isSuperAdmin: isSuperAdmin(user),
         earnsPoints: earnsPoints(user.role),
         onLeaderboard: appearsOnLeaderboard(user.role),
         pendingApprovals:

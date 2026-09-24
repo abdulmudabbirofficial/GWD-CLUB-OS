@@ -56,15 +56,21 @@ async function upsertPerson({ name, email, password }, role) {
   }
 
   if (existing) {
-    // Never silently overwrite a live account's password on restart.
-    if (existing.role !== role || existing.approvalStatus !== 'approved') {
-      await col(C.users).updateOne(
-        { _id: existing._id },
-        { $set: { role, approvalStatus: 'approved' } },
-      );
-      return { email, action: 'promoted' };
-    }
-    return { email, action: 'unchanged' };
+    // Never silently overwrite a live account's password on restart — and
+    // never its role or standing either.
+    //
+    // This used to put any bootstrap account back to `approved` in its seeded
+    // role on every start. That turned every restart into an undo: a Director
+    // the Super Admin had demoted, or a placeholder somebody had retired, came
+    // back the next time the laptop woke up — and on a hosted server that
+    // spins down when idle, that is every few minutes. An account that differs
+    // from its seed was changed by a person on purpose, and the seed defers.
+    return {
+      email,
+      action: existing.role === role && existing.approvalStatus === 'approved'
+        ? 'unchanged'
+        : 'left alone (changed since it was seeded)',
+    };
   }
   await col(C.users).insertOne({
     name,

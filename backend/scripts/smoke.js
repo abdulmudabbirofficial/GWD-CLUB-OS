@@ -462,19 +462,22 @@ async function main() {
   ok('Faculty Coordinator has full oversight',
     facultyHome.body?.capabilities?.canViewAudit === true);
 
-  // She directs the leadership, not individual members. The club's officers
-  // hold posts rather than run teams, so there is no department to route
-  // through and she reaches them by name.
+  // She directs the leadership, not individual members. The officers hold
+  // posts rather than run teams, and since V8 she also names the Club Leads —
+  // the role table always said "all Leads", and a Faculty Coordinator who can
+  // send work to Marketing but not to the person running Marketing was a gap,
+  // not a principle. Members are still reached through their Lead.
   const facultyTargets = await api('/api/users/assignable', { token: facultyToken });
-  const OFFICERS = ['president', 'vicePresident', 'secretaryGeneral'];
+  const LEADERSHIP = ['president', 'vicePresident', 'secretaryGeneral', 'clubLead'];
   const facultyOthers = facultyTargets.body.assignable
     .filter((m) => m.role !== 'facultyCoordinator');
-  ok('The Faculty Coordinator reaches the club officers by name',
-    facultyOthers.length > 0 && facultyOthers.every((m) => OFFICERS.includes(m.role)),
+  ok('The Faculty Coordinator reaches the officers and the Club Leads by name',
+    facultyOthers.length > 0 && facultyOthers.every((m) => LEADERSHIP.includes(m.role))
+      && facultyOthers.some((m) => m.role === 'clubLead'),
     facultyOthers.map((m) => `${m.name}:${m.role}`).join(', '));
-  ok('But never an individual member or Lead',
-    facultyOthers.every((m) => m.role !== 'clubMember' && m.role !== 'clubLead'),
-    'those go through the department');
+  ok('But never an individual member',
+    facultyOthers.every((m) => m.role !== 'clubMember'),
+    'those go through their Lead');
   // At least the two the seed creates, plus whatever this run has added.
   ok('But she is still offered departments',
     facultyTargets.body?.canAssignToDepartment === true

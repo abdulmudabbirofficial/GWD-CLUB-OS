@@ -738,6 +738,211 @@ const login = async (email, password) => {
   const noToken = await api('/api/users');
   ok('R28', 'and nothing is readable without a token', noToken.status === 401, `got ${noToken.status}`);
 
+  // ------------------------------------------------------------ V8 hierarchy
+  //
+  // One Director above the others, the Faculty Coordinator reaching the Leads,
+  // and the three ways an account below could take over one above it.
+  console.log('\nV8 hierarchy: Super Admin, Directors, Faculty Coordinator');
+
+  const roster = (await api('/api/users', { token: who.cmo.token })).body.users || [];
+  const byEmail = (e) => roster.find((u) => u.email === e) || {};
+  ok('V8-H', 'Director Mudabbir is the Super Admin',
+    byEmail('cmo@gwd.global').superAdmin === true
+    && byEmail('cmo@gwd.global').knownAs === 'Mudabbir',
+    JSON.stringify({ s: byEmail('cmo@gwd.global').superAdmin, k: byEmail('cmo@gwd.global').knownAs }));
+  ok('V8-H', 'and Director Rehman and Director Moin are Directors, not Super Admins',
+    byEmail('ceo@gwd.global').superAdmin === false && byEmail('ceo@gwd.global').knownAs === 'Rehman'
+    && byEmail('director3@gwd.global').superAdmin === false
+    && byEmail('director3@gwd.global').knownAs === 'Moin');
+  ok('V8-H', 'Nobody is called "Club Director Three" any more',
+    !roster.some((u) => /Director (One|Two|Three|\d)/i.test(u.name || '')),
+    roster.filter((u) => /Director/i.test(u.name || '')).map((u) => u.name).join(', '));
+
+  const capsFor = async (w) => ((await api('/api/home', { token: w.token })).body.capabilities || {});
+  const superCaps = await capsFor(who.cmo);
+  const rehmanCaps = await capsFor(who.ceo);
+  ok('V8-H', 'Only the Super Admin is told they can appoint Directors',
+    superCaps.canAppointSupervisors === true && rehmanCaps.canAppointSupervisors === false,
+    `super ${superCaps.canAppointSupervisors} / rehman ${rehmanCaps.canAppointSupervisors}`);
+
+  const rehmanAppoints = await api(`/api/users/${who.gensec.user.id}/role`, {
+    method: 'PATCH', token: who.ceo.token, body: { role: 'facultyCoordinator' },
+  });
+  ok('V8-H', 'A Director who is not the Super Admin cannot appoint a supervisor',
+    rehmanAppoints.status === 403, `got ${rehmanAppoints.status}`);
+
+  // The hole: the route checked only appointments *into* the tier.
+  const presidentDemotes = await api(`/api/users/${who.director3.user.id}/role`, {
+    method: 'PATCH', token: who.president.token, body: { role: 'clubMember' },
+  });
+  ok('V8-H', 'The President cannot demote a Director',
+    presidentDemotes.status === 403, `got ${presidentDemotes.status}`);
+  const directorDemotes = await api(`/api/users/${who.director3.user.id}/role`, {
+    method: 'PATCH', token: who.ceo.token, body: { role: 'clubMember' },
+  });
+  ok('V8-H', 'nor can one Director demote another',
+    directorDemotes.status === 403, `got ${directorDemotes.status}`);
+  const demoteSuper = await api(`/api/users/${who.cmo.user.id}/role`, {
+    method: 'PATCH', token: who.ceo.token, body: { role: 'clubMember' },
+  });
+  ok('V8-H', 'and nobody can change the Super Admin\u2019s role',
+    demoteSuper.status === 403, `got ${demoteSuper.status}`);
+
+  // A password reset hands the resetter a working password. It must only
+  // ever reach down.
+  const vpResetsPresident = await api(`/api/users/${who.president.user.id}/reset-password`, {
+    method: 'POST', token: who.vp.token,
+  });
+  ok('V8-S', 'The Vice President cannot reset the President\u2019s password',
+    vpResetsPresident.status === 403 && !vpResetsPresident.body.temporaryPassword,
+    `got ${vpResetsPresident.status}`);
+  const rehmanResetsSuper = await api(`/api/users/${who.cmo.user.id}/reset-password`, {
+    method: 'POST', token: who.ceo.token,
+  });
+  ok('V8-S', 'A Director cannot reset the Super Admin\u2019s password',
+    rehmanResetsSuper.status === 403 && !rehmanResetsSuper.body.temporaryPassword,
+    `got ${rehmanResetsSuper.status}`);
+  const rehmanResetsMoin = await api(`/api/users/${who.director3.user.id}/reset-password`, {
+    method: 'POST', token: who.ceo.token,
+  });
+  ok('V8-S', 'nor another Director\u2019s',
+    rehmanResetsMoin.status === 403, `got ${rehmanResetsMoin.status}`);
+  const presidentRenamesDirector = await api(`/api/users/${who.director3.user.id}/name`, {
+    method: 'PATCH', token: who.president.token, body: { name: 'Somebody Else' },
+  });
+  ok('V8-S', 'and the President cannot rename a Director',
+    presidentRenamesDirector.status === 403, `got ${presidentRenamesDirector.status}`);
+
+  // --- the Faculty Coordinator ---------------------------------------------
+  // Signed in the way the club would do it: the Super Admin resets the seat
+  // and passes the temporary password on. Nothing about this test knows a
+  // password in advance.
+  const facultyRow = roster.find((u) => u.role === 'facultyCoordinator');
+  let faculty = null;
+  if (facultyRow) {
+    const reset = await api(`/api/users/${facultyRow.id}/reset-password`, {
+      method: 'POST', token: who.cmo.token,
+    });
+    ok('V8-S', 'The Super Admin can reset a supervisor\u2019s password',
+      reset.status === 200 && Boolean(reset.body.temporaryPassword), `got ${reset.status}`);
+    faculty = await login(facultyRow.email, reset.body.temporaryPassword);
+  }
+  ok('V8-F', 'The Faculty Coordinator can sign in', Boolean(faculty),
+    facultyRow ? `found ${facultyRow.email}, sign-in failed` : `roles present: ${[...new Set(roster.map((u) => u.role))].join(',')}`);
+
+  if (faculty) {
+    const offered = (await api('/api/users/assignable', { token: faculty.token })).body.assignable || [];
+    const offeredRoles = new Set(offered.map((u) => u.role));
+    ok('V8-F', 'The Faculty Coordinator is offered the President, VP, General Secretary and every Lead',
+      ['president', 'vicePresident', 'secretaryGeneral', 'clubLead'].every((r) => offeredRoles.has(r)),
+      `offered: ${[...offeredRoles].join(',')}`);
+    ok('V8-F', 'but never an individual member — they go through their Lead',
+      !offeredRoles.has('clubMember'));
+
+    const toLead = await api('/api/tasks', {
+      method: 'POST', token: faculty.token,
+      body: { title: 'Faculty sign-off on the lab booking', assignedTo: who.tech.user.id, priority: 'high' },
+    });
+    ok('V8-F', 'The Faculty Coordinator can assign straight to a Club Lead',
+      toLead.status === 201, toLead.txt.slice(0, 140));
+    const toMember = await api('/api/tasks', {
+      method: 'POST', token: faculty.token,
+      body: { title: 'Not through the Lead', assignedTo: mateId },
+    });
+    ok('V8-F', 'and still cannot reach past the Lead to a member',
+      toMember.status === 403, `got ${toMember.status}`);
+
+    // --- §31: across roles, and live --------------------------------------
+    // Faculty Coordinator → President → completed → the Faculty Coordinator
+    // sees it, on a socket, without asking.
+    const { io } = require('socket.io-client');
+    const facultySocket = io(BASE, { auth: { token: faculty.token }, transports: ['websocket'] });
+    await new Promise((resolve) => {
+      facultySocket.on('connect', resolve);
+      setTimeout(resolve, 5000);
+    });
+    ok('V8-X', 'The Faculty Coordinator is connected live', facultySocket.connected);
+
+    const seen = [];
+    facultySocket.on('task:updated', (t) => seen.push(t));
+
+    const due = new Date(Date.now() + 3 * 864e5).toISOString();
+    const handed = await api('/api/tasks', {
+      method: 'POST', token: faculty.token,
+      body: {
+        title: 'Countersign the sponsorship MoU', assignedTo: who.president.user.id,
+        dueDate: due, priority: 'high', description: 'Needed before Friday.',
+      },
+    });
+    ok('V8-X', 'The Faculty Coordinator assigns a task to the President',
+      handed.status === 201, handed.txt.slice(0, 140));
+    const handedId = handed.body.tasks && handed.body.tasks[0] && handed.body.tasks[0].id;
+
+    const presMine = (await api('/api/tasks?scope=mine', { token: who.president.token })).body.tasks || [];
+    ok('V8-X', 'The President sees it on their own list',
+      presMine.some((t) => t.id === handedId && t.priority === 'high'));
+    const presNotes = (await api('/api/notifications', { token: who.president.token })).body.notifications || [];
+    const assignedNote = presNotes.find((n) => n.type === 'taskAssigned'
+      && (n.payload || {}).taskId === handedId);
+    ok('V8-X', 'and is told, with a notification that opens it', Boolean(assignedNote));
+
+    await api(`/api/tasks/${handedId}`, {
+      method: 'PATCH', token: who.president.token, body: { status: 'inProgress' },
+    });
+    const moved = await new Promise((resolve) => {
+      const t0 = Date.now();
+      const tick = () => {
+        if (seen.some((t) => t.id === handedId && t.status === 'inProgress')) return resolve(true);
+        if (Date.now() - t0 > 6000) return resolve(false);
+        return setTimeout(tick, 100);
+      };
+      tick();
+    });
+    ok('V8-X', 'The Faculty Coordinator sees the President start it, live, without asking',
+      moved, `${seen.length} live updates seen`);
+
+    const done = await api(`/api/tasks/${handedId}`, {
+      method: 'PATCH', token: who.president.token, body: { status: 'completed' },
+    });
+    ok('V8-X', 'The President completes it', done.status === 200, done.txt.slice(0, 120));
+    const finishedLive = await new Promise((resolve) => {
+      const t0 = Date.now();
+      const tick = () => {
+        if (seen.some((t) => t.id === handedId && t.status === 'completed')) return resolve(true);
+        if (Date.now() - t0 > 6000) return resolve(false);
+        return setTimeout(tick, 100);
+      };
+      tick();
+    });
+    ok('V8-X', 'and the Faculty Coordinator sees the completion live', finishedLive);
+
+    const facultyNotes = (await api('/api/notifications', { token: faculty.token })).body.notifications || [];
+    const completedNote = facultyNotes.find((n) => n.type === 'taskCompleted'
+      && (n.payload || {}).taskId === handedId);
+    ok('V8-X', 'with a completion notice that opens the task',
+      Boolean(completedNote), completedNote ? '' : `${facultyNotes.length} notices`);
+    facultySocket.close();
+  }
+
+  // --- the Super Admin is not stopped by the shape of the hierarchy ---------
+  const superToMember = await api('/api/tasks', {
+    method: 'POST', token: who.cmo.token,
+    body: { title: 'A word, please', assignedTo: mateId },
+  });
+  ok('V8-H', 'The Super Admin can hand work to anybody by name',
+    superToMember.status === 201, `got ${superToMember.status}`);
+  const rehmanToMember = await api('/api/tasks', {
+    method: 'POST', token: who.ceo.token,
+    body: { title: 'Also a word', assignedTo: mateId },
+  });
+  ok('V8-H', 'where another Director still goes through the member\u2019s Lead',
+    rehmanToMember.status === 403, `got ${rehmanToMember.status}`);
+  const mateNotes = (await api('/api/notifications', { token: mate.token })).body.notifications || [];
+  const fromSuper = mateNotes.find((n) => n.type === 'taskAssigned');
+  ok('V8-H', 'and the notice names them the way the club does: "Director Mudabbir"',
+    Boolean(fromSuper) && JSON.stringify(fromSuper).includes('Director Mudabbir'),
+    fromSuper ? JSON.stringify(fromSuper.payload || fromSuper).slice(0, 120) : 'no notice');
+
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {
     method: 'PATCH',
     token: who.cmo.token,

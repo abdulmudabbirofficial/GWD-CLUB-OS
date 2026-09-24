@@ -6,6 +6,7 @@ const config = require('../config');
 const { col, C } = require('../db');
 const { authenticate, requireApproved, fail } = require('../auth');
 const { canRequestTo } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 
 const router = express.Router();
@@ -185,7 +186,7 @@ router.post('/:id/accept', async (request, response, next) => {
     await col(C.taskRequests).updateOne({ _id: id }, { $set: { status: 'accepted', decidedAt: now } });
 
     await notify(taskRequest.fromUserId, 'taskRequestAccepted', {
-      taskTitle: taskRequest.title, byName: request.user.name,
+      taskTitle: taskRequest.title, byName: displayNameOf(request.user),
       taskId: String(task._id),
     });
     await audit(request.user._id, 'taskRequest.accept', { requestId: String(id) });
@@ -211,7 +212,7 @@ router.post('/:id/decline', async (request, response, next) => {
       { $set: { status: 'declined', decidedAt: new Date(), declineReason: (request.body.reason ?? '').toString().slice(0, 500) } },
     );
     await notify(taskRequest.fromUserId, 'taskRequestDeclined', {
-      taskTitle: taskRequest.title, byName: request.user.name,
+      taskTitle: taskRequest.title, byName: displayNameOf(request.user),
       requestId: String(id),
     });
     response.json({ ok: true });

@@ -66,6 +66,35 @@ const SUPERVISOR_ROLES = new Set([ROLES.clubDirector, ROLES.facultyCoordinator])
 
 const isSupervisor = (role) => SUPERVISOR_ROLES.has(role);
 
+/**
+ * The Super Admin: one Director above the others.
+ *
+ * Every Director already clears nearly every gate in this file, so the tier is
+ * not about seeing more. It is about **who governs the supervisors
+ * themselves.** Before it existed, any Director could appoint another Director,
+ * and nothing stopped one Director demoting another — or the President
+ * demoting a Director, because the role route only checked appointments *into*
+ * the tier, never out of it. A tier that anybody in it can reshape is not a
+ * root of trust.
+ *
+ * So the Super Admin alone may appoint, demote or remove a Director or the
+ * Faculty Coordinator, and may hand work to anybody by name.
+ *
+ * It is a **flag on the user, never a role**, for two reasons. Everything that
+ * treats Directors as supervisors (no points, off the leaderboard, full
+ * visibility) must keep applying to them without a second role name threaded
+ * through every check. And the flag is set only by a server-side script
+ * (`scripts/v8-hierarchy.js`) — no route writes it — so no API call, however
+ * crafted, can mint a Super Admin. Requiring the Director role and an approved
+ * account as well means a demoted or suspended account carrying a stale flag
+ * holds no power at all.
+ */
+const isSuperAdmin = (user) =>
+  Boolean(user)
+  && user.superAdmin === true
+  && user.role === ROLES.clubDirector
+  && user.approvalStatus === 'approved';
+
 /** Does completing a task credit this person? */
 const earnsPoints = (role) => !isSupervisor(role);
 
@@ -95,6 +124,11 @@ const canAwardPoints = (role) =>
 function canRenameMember(actor, target) {
   if (!actor || !target) return false;
   if (String(actor._id) === String(target._id)) return true;
+  // The Super Admin's name is theirs alone.
+  if (isSuperAdmin(target)) return false;
+  // Nobody renames the people who oversee them. This used to let the
+  // President rename a Director, which is an identity change made upward.
+  if (isSupervisor(target.role)) return isSupervisor(actor.role);
   return isSupervisor(actor.role) || actor.role === ROLES.president;
 }
 
@@ -169,8 +203,15 @@ const EXECUTIVE_TIER = [
  * Self-assignment is always allowed and is handled in `canAssignTo`.
  */
 const ASSIGN_TARGETS = {
-  clubDirector: EXECUTIVE_TIER,
-  facultyCoordinator: EXECUTIVE_TIER,
+  // The Directors and the Faculty Coordinator reach the officers **and the
+  // Club Leads** by name. The role table in CLAUDE.md always said so ("all
+  // Leads"); the code stopped at the officers, which meant the Faculty
+  // Coordinator could send work to a department but could not name the person
+  // running it. Members are still reached through their Lead — the two-step
+  // rule is about not making leadership choose among forty names, and a Lead
+  // is one name, not forty.
+  clubDirector: [...EXECUTIVE_TIER, ROLES.clubLead],
+  facultyCoordinator: [...EXECUTIVE_TIER, ROLES.clubLead],
   // The officers address departments, and each other.
   president: [ROLES.vicePresident, ROLES.secretaryGeneral],
   vicePresident: [ROLES.secretaryGeneral],
@@ -226,6 +267,11 @@ const sameDepartment = (a, b) =>
 function canAssignTo(actor, target) {
   if (!actor || !target) return false;
   if (String(actor._id) === String(target._id)) return true; // always yourself
+
+  // The Super Admin is never blocked by the shape of the hierarchy below them.
+  // Only people who can actually receive work, though: an unapproved account
+  // has nobody behind it to do anything.
+  if (isSuperAdmin(actor)) return target.approvalStatus === 'approved';
 
   const rule = ASSIGN_TARGETS[actor.role];
 
@@ -475,6 +521,58 @@ function canChangeRole(role) {
 }
 
 /**
+ * May `actor` reset `target`'s password and be handed a temporary one?
+ *
+ * A reset is an **account takeover with extra steps** — whoever performs it
+ * holds a working password for that account until its owner changes it. So it
+ * may only ever reach *down*. It used to be gated on `canManageDepartments`,
+ * which includes the Vice President, and checked the target only for being a
+ * supervisor: the VP could reset the President's password and sign in as the
+ * President, and any Director could do the same to another Director — the
+ * Super Admin included.
+ *
+ * - nobody resets their own through here (that is a password change)
+ * - nobody resets the Super Admin's through the API at all
+ * - a supervisor's is reset only by the Super Admin
+ * - otherwise a supervisor, or somebody strictly senior to the target — equal
+ *   rank is not seniority, which is why the VP and the General Secretary
+ *   cannot reset each other
+ */
+function canResetPasswordOf(actor, target) {
+  if (!actor || !target) return false;
+  if (!canManageDepartments(actor.role)) return false;
+  if (String(actor._id) === String(target._id)) return false;
+  if (isSuperAdmin(target)) return false;
+  if (isSupervisor(target.role)) return isSuperAdmin(actor);
+  if (isSupervisor(actor.role)) return true;
+  return rankOf(actor.role) > rankOf(target.role);
+}
+
+/** May `actor` appoint somebody *into* the supervisor tier? */
+const canAppointSupervisors = (actor) => isSuperAdmin(actor);
+
+/**
+ * May `actor` change `target`'s role at all?
+ *
+ * `canChangeRole` answers "is this somebody who appoints people"; this answers
+ * "may they do it to *this* person". The difference is the hole it closes: the
+ * route used to check only appointments into the supervisor tier, so the
+ * President could demote a Director or the Faculty Coordinator to a member,
+ * and any Director could demote another. Governing the supervisors is the
+ * Super Admin's alone, and the Super Admin's own role is changed by nobody
+ * through the API — not even themselves, since an account that can demote
+ * itself by a slip of the thumb leaves the club with no root at all.
+ */
+function canChangeRoleOf(actor, target) {
+  if (!actor || !target) return false;
+  if (!canChangeRole(actor.role)) return false;
+  if (String(actor._id) === String(target._id)) return false;
+  if (isSuperAdmin(target)) return false;
+  if (isSupervisor(target.role)) return isSuperAdmin(actor);
+  return true;
+}
+
+/**
  * Remove a person from the club entirely.
  *
  * Directors only, and deliberately so: this is the one action that can take the
@@ -485,6 +583,11 @@ function canChangeRole(role) {
 function canRemoveMember(actor, target) {
   if (!actor || !target) return false;
   if (String(actor._id) === String(target._id)) return false; // never yourself
+  if (isSuperAdmin(target)) return false; // nobody, through the API
+  // A Director cannot remove another Director — that is a conversation, not a
+  // button — but somebody has to be able to act on the outcome of that
+  // conversation, or a Director who has left the club holds the seat forever.
+  if (isSuperAdmin(actor)) return true;
   if (!isDirector(actor.role)) return false;
   return !isDirector(target.role) && target.role !== ROLES.facultyCoordinator;
 }
@@ -755,6 +858,10 @@ module.exports = {
   ROLE_CAPS,
   PRESEEDED_ROLES,
   SUPERVISOR_ROLES,
+  isSuperAdmin,
+  canAppointSupervisors,
+  canChangeRoleOf,
+  canResetPasswordOf,
   TASK_STATUSES,
   TASK_POINT_VALUES,
   isValidTaskPoints,

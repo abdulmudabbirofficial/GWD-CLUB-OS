@@ -46,27 +46,13 @@ const RESET_PASSWORDS = process.argv.includes('--reset-passwords');
 const REPLACE_PLACEHOLDERS = !process.argv.includes('--keep-placeholders');
 
 /**
- * The accounts `src/seed.js` creates on a fresh database so the club can
- * bootstrap: two Directors, a Faculty Coordinator, a President and one Lead per
- * department, all on `@gwd.club`.
- *
- * Once the real roster exists they are duplicates, and worse than duplicates —
- * the club would have four Directors and two Presidents, past the caps the app
- * enforces at signup. `--replace-placeholders` retires them.
- *
- * Opt-in, never automatic: deleting accounts from a live database is not
- * something a seeding script should decide by itself.
+ * The bootstrap accounts `src/seed.js` creates are retired here once the real
+ * roster exists — but only the ones that are provably spare. The rule, and why
+ * it is careful, lives in `src/placeholders.js`: the first version of this
+ * deleted everything on its list, which includes the only Faculty Coordinator
+ * a live club may have. `--keep-placeholders` skips the step entirely.
  */
-const PLACEHOLDER_EMAILS = [
-  'director1@gwd.club', 'director2@gwd.club',
-  'faculty@gwd.club', 'president@gwd.club',
-  // Current seed.
-  'lead.tech@gwd.club', 'lead.production@gwd.club',
-  // Retired from earlier versions, listed so an older database can still be
-  // tidied up by the same command.
-  'lead.marketing@gwd.club', 'lead.events@gwd.club', 'lead.technical@gwd.club',
-  'lead.creative@gwd.club', 'lead.cinematography@gwd.club', 'lead.pr@gwd.club',
-];
+const { planPlaceholderRetirement, retireAccounts } = require('../src/placeholders');
 
 /**
  * Readable on purpose. These get read aloud and typed into a chat, so the
@@ -93,13 +79,21 @@ function avatarColorFor(seed) {
  */
 const ROSTER = [
   // --- oversight -------------------------------------------------------
-  // Three Director seats, which is the cap in ROLE_CAPS.
-  { post: 'GWD Global CMO', name: 'Mohammed Abdul Mudabbir', email: 'cmo@gwd.global', role: ROLES.clubDirector },
-  { post: 'GWD Global CEO', name: 'Mohd Abdul Rahman Pasha', email: 'ceo@gwd.global', role: ROLES.clubDirector },
-  // The third seat is real — a role in the permission system with its own
-  // account, not a placeholder in the UI. Rename it once the club decides who
-  // holds it; the post is what matters, not the label.
-  { post: 'Club Director', name: 'Club Director Three', email: 'director3@gwd.global', role: ROLES.clubDirector },
+  // Three Director seats, which is the cap in ROLE_CAPS. `knownAs` is how the
+  // club addresses each one — "Director Mudabbir" — and cannot be derived from
+  // the full name. Exactly one seat is the Super Admin (see permissions.js).
+  {
+    post: 'Club Director', name: 'Abdul Mudabbir', knownAs: 'Mudabbir',
+    superAdmin: true, email: 'cmo@gwd.global', role: ROLES.clubDirector,
+  },
+  {
+    post: 'Director', name: 'Rehman Pasha', knownAs: 'Rehman',
+    email: 'ceo@gwd.global', role: ROLES.clubDirector,
+  },
+  {
+    post: 'Director', name: 'Mohammed Moin', knownAs: 'Moin',
+    email: 'director3@gwd.global', role: ROLES.clubDirector,
+  },
 
   // --- the executive tier ----------------------------------------------
   { post: 'President', name: 'Aldrin Paul', email: 'president@gwd.global', role: ROLES.president },
@@ -143,6 +137,8 @@ async function seedPeople() {
           departmentId,
           approvalStatus: 'approved',
           mustSetName: false,
+          knownAs: person.knownAs ?? null,
+          superAdmin: person.superAdmin === true,
         },
       });
       updated.push({ ...person, id: existing._id });
@@ -162,6 +158,10 @@ async function seedPeople() {
       passwordHash: await hashPassword(password),
       // A real name, given by the club. Nobody needs to be asked for it.
       mustSetName: false,
+      knownAs: person.knownAs ?? null,
+      // Set here and by scripts/v8-hierarchy.js, and by no route: the API has
+      // no way to mint a Super Admin.
+      superAdmin: person.superAdmin === true,
       // They were handed this password, so it is not private until they change
       // it. The app asks on first sign-in.
       mustChangePassword: true,
@@ -214,46 +214,14 @@ async function resetPasswords() {
  * to them) is handed over rather than orphaned.
  */
 async function replacePlaceholders() {
-  const doomed = await col(C.users)
-    .find({ email: { $in: PLACEHOLDER_EMAILS } }).toArray();
-  if (doomed.length === 0) return { removed: 0, reassigned: 0 };
-
-  const ids = doomed.map((u) => u._id);
-  let reassigned = 0;
-
-  // A department must not be left pointing at an account that is about to go.
-  for (const user of doomed) {
-    const holding = await col(C.departments).find({ leadUserId: user._id }).toArray();
-    for (const department of holding) {
-      const realLead = await col(C.users).findOne({
-        departmentId: department._id,
-        role: ROLES.clubLead,
-        _id: { $nin: ids },
-      });
-      await col(C.departments).updateOne(
-        { _id: department._id },
-        { $set: { leadUserId: realLead?._id ?? null } },
-      );
-      if (realLead) reassigned += 1;
-    }
-  }
-
-  // Work they were carrying goes back to the department's triage pile rather
-  // than pointing at somebody who no longer exists.
-  const president = await col(C.users).findOne({
-    role: ROLES.president, _id: { $nin: ids },
-  });
-  await col(C.tasks).updateMany({ assignedTo: { $in: ids } }, { $set: { assignedTo: null } });
-  if (president) {
-    await col(C.tasks).updateMany({ assignedBy: { $in: ids } }, { $set: { assignedBy: president._id } });
-  }
-
-  // Their queue entries and notifications have nowhere to point either.
-  await col(C.accessRequests).deleteMany({ userId: { $in: ids } });
-  await col(C.notifications).deleteMany({ userId: { $in: ids } });
-
-  await col(C.users).deleteMany({ _id: { $in: ids } });
-  return { removed: doomed.length, reassigned, emails: doomed.map((u) => u.email) };
+  const { retire, keep } = await planPlaceholderRetirement();
+  const { removed, reassigned } = await retireAccounts(retire);
+  return {
+    removed,
+    reassigned,
+    emails: retire.map((u) => u.email),
+    kept: keep.map(({ user, reason }) => `${user.email} (${reason})`),
+  };
 }
 
 /* ------------------------------------------------------------------ demo */
@@ -481,6 +449,7 @@ async function main() {
     } else {
       console.log('  No bootstrap accounts left to retire.');
     }
+    for (const k of gone.kept ?? []) console.log(`    kept     ${k}`);
   }
 
   if (DEMO) {

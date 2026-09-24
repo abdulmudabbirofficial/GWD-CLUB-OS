@@ -11,6 +11,7 @@ const {
   canAssignToDepartment, canDistributeDepartmentTask, isValidTaskPoints,
   ROLES,
 } = require('../permissions');
+const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
 const { serialiseTask } = require('../realtime');
 
@@ -186,7 +187,7 @@ router.post('/', async (request, response, next) => {
       // the President is told instead rather than the task sitting unseen.
       if (department.leadUserId) {
         await notify(department.leadUserId, 'departmentTaskAssigned', {
-          taskTitle: title, byName: actor.name, departmentName: department.name,
+          taskTitle: title, byName: displayNameOf(actor), departmentName: department.name,
           taskId: String(doc._id),
         });
       } else {
@@ -256,7 +257,7 @@ router.post('/', async (request, response, next) => {
         .map((doc, i) => ({ doc, target: targets[i] }))
         .filter(({ target }) => String(target._id) !== String(actor._id))
         .map(({ doc, target }) => notify(target._id, 'taskAssigned', {
-          taskTitle: title, byName: actor.name, taskId: String(doc._id),
+          taskTitle: title, byName: displayNameOf(actor), taskId: String(doc._id),
         })),
     );
     await audit(actor._id, 'task.create', { count: docs.length, title });
@@ -314,7 +315,7 @@ router.post('/:id/assign', async (request, response, next) => {
 
     if (!isSelf) {
       await notify(target._id, 'taskAssigned', {
-        taskTitle: task.title, byName: actor.name, taskId: String(id),
+        taskTitle: task.title, byName: displayNameOf(actor), taskId: String(id),
       });
     }
     await audit(actor._id, 'task.distribute', {
@@ -418,7 +419,9 @@ router.patch('/:id', async (request, response, next) => {
       }
 
       if (String(task.assignedBy) !== String(task.assignedTo)) {
-        await notify(task.assignedBy, 'taskCompleted', { taskTitle: task.title, byName: actor.name });
+        await notify(task.assignedBy, 'taskCompleted', {
+          taskTitle: task.title, byName: displayNameOf(actor), taskId: String(id),
+        });
       }
     }
 
@@ -452,7 +455,7 @@ router.post('/:id/comments', async (request, response, next) => {
       .map(String);
     await notify([...new Set(others)].map((s) => new ObjectId(s)), 'taskComment', {
       taskTitle: task.title,
-      byName: request.user.name,
+      byName: displayNameOf(request.user),
     });
 
     response.status(201).json({
