@@ -29,6 +29,7 @@ import '../profile/profile_sheet.dart';
 import '../schedule/schedule_editor.dart';
 import '../schedule/schedule_page.dart';
 import '../search/search_page.dart';
+import '../tasks/ask_for_work_sheet.dart';
 import '../tasks/new_task_sheet.dart';
 import '../tasks/task_detail_page.dart';
 
@@ -69,6 +70,8 @@ class HomePage extends StatelessWidget {
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     final openRequests = store.incomingRequests.where((r) => r.isPending).length;
+    final asksForWork =
+        store.incomingRequests.where((r) => r.isPending && r.asksForWork).length;
     final live = store.eventsOngoing;
     final soon = store.eventsUpcoming.take(2).toList();
     // Other people's open asks. Yours are not "someone needs a hand" — you
@@ -252,8 +255,14 @@ class HomePage extends StatelessWidget {
                             child: _ActionRow(
                               icon: Icons.pan_tool_alt_outlined,
                               tint: GwdColors.warning,
-                              title: '$openRequests task request${openRequests == 1 ? '' : 's'}',
-                              subtitle: 'Accept or decline',
+                              // A member asking for work reads as exactly that,
+                              // not as somebody sending the Lead a job.
+                              title: asksForWork == openRequests
+                                  ? '$openRequests asking for work'
+                                  : '$openRequests task request${openRequests == 1 ? '' : 's'}',
+                              subtitle: asksForWork == openRequests
+                                  ? 'Give it to them, or decline'
+                                  : 'Accept or decline',
                               onTap: () => onNavigate(2),
                             ),
                           ),
@@ -1327,6 +1336,14 @@ class _QuickActions extends StatelessWidget {
           icon: Icons.add_task_rounded,
           label: 'Assign task',
           onTap: () => showNewTaskSheet(context),
+        )
+      // A member gives work to nobody. What they can do is ask their own Lead
+      // for some - so that is what sits where "Assign task" would.
+      else if (AppScope.sessionOf(context).me?.role == ClubRole.clubMember)
+        _Action(
+          icon: Icons.front_hand_outlined,
+          label: 'Ask for work',
+          onTap: () => showAskForWorkSheet(context),
         ),
       _Action(
         icon: Icons.pan_tool_alt_outlined,

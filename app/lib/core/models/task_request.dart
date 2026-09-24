@@ -18,6 +18,7 @@ class TaskRequest {
     this.dueDate,
     this.createdAt,
     this.fromDepartmentName,
+    this.asksForWork = false,
   });
 
   final String id;
@@ -34,6 +35,10 @@ class TaskRequest {
   /// Which department is asking. Null for the executive tier, who have none,
   /// and on requests raised before this was recorded.
   final String? fromDepartmentName;
+
+  /// A member asking their own Lead for work. Accepting it gives the task to
+  /// the member, so the Lead prices it on the way (1, 3 or 5).
+  final bool asksForWork;
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
@@ -58,6 +63,7 @@ class TaskRequest {
             ? null
             : DateTime.tryParse(json['createdAt'].toString())?.toLocal(),
         fromDepartmentName: json['fromDepartmentName'] as String?,
+        asksForWork: json['asksForWork'] == true,
       );
 }
 

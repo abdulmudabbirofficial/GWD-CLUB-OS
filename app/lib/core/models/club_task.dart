@@ -207,6 +207,9 @@ class ClubTask {
   String? get dueLabel {
     final due = dueDate;
     if (due == null) return null;
+    // Finished or called off: the date is a fact about it, not a warning. A
+    // completed task used to read "4 days overdue" in Recently done.
+    if (!status.isOpen) return 'Due ${due.day}/${due.month}';
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final target = DateTime(due.year, due.month, due.day);

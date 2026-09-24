@@ -149,13 +149,17 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     // Director looking at somebody else's task saw no delete, even though the
     // server would have allowed it.
     final role = session.me?.role;
+    // The VP and General Secretary address work to departments too, so the
+    // server lets them tidy a department's task away; this used to leave them
+    // out and hide a button they could use.
     final isAssigner = task.assignedBy == session.me?.id ||
         role == ClubRole.clubDirector ||
         role == ClubRole.facultyCoordinator ||
         role == ClubRole.president ||
-        (role == ClubRole.clubLead &&
-            task.departmentId != null &&
-            task.departmentId == session.me?.departmentId);
+        (task.departmentId != null &&
+            (role == ClubRole.vicePresident ||
+                role == ClubRole.secretaryGeneral ||
+                (role == ClubRole.clubLead && task.departmentId == session.me?.departmentId)));
     final gutter = GwdSpace.gutter(MediaQuery.sizeOf(context).width);
 
     return Scaffold(

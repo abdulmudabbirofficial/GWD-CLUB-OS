@@ -50,7 +50,7 @@ v1 residue and must be removed.
 | Vice President | 1 | General Secretary; departments | same tier as General Secretary | President |
 | General Secretary (`secretaryGeneral`) | 1 | all Leads | same tier as VP | President |
 | Club Lead | dynamic | own dept's members; may request across Leads and to the officers | own dept | President (Directors notified) |
-| Club Member | many | — | own tasks only | own dept's Lead |
+| Club Member | many | **nobody** — asks their own Lead for work | own tasks only | own dept's Lead, and only them |
 
 The five roles above Lead address a **department**, not one of its members — see
 "Assigning work" below. By name they reach only the officers (and, for the
@@ -225,6 +225,26 @@ Director · Faculty Coordinator · President · VP · Secretary General
   are the authority; `/api/users/assignable` returns departments *or* people so
   the client never guesses.
 
+### A member asks; a member never assigns (V8.2)
+
+A member gives work to **nobody** — not another member, not the officers, and
+not their own Lead. `ASSIGN_TARGETS.clubMember` is empty, so `canAssign` is
+false, `POST /api/tasks` refuses them, and the app offers no "Assign task" or
+"New task". It used to be `'ownLead'`, which let a member put a job on their
+Lead's list: the hierarchy running backwards.
+
+What a member *can* do is **ask their own Lead for work** ("Ask for work" on
+Home and on the Work tab). It is a task request (`REQUEST_TARGETS.clubMember`
+stays `'ownLead'`, so nobody else can be asked), but it runs the other way
+round from every other request: accepting it gives the task to the **member**,
+and the Lead prices it 1, 3 or 5 on the way, exactly as at any hand-out.
+`asksForWork(requester, recipient)` in `permissions.js` decides which kind a
+request is — from the two people, so a request raised before the rule existed is
+read the same way — and new rows also carry `kind: 'askForWork'`. The API marks
+them `asksForWork: true`; the Lead's card says "Asking for work" and its button
+"Give it to them"; the member sees what they asked for under "Waiting on your
+Lead" until it is decided.
+
 **Departments are a dynamic collection, not an enum.** President and Directors
 create/rename/deactivate them and assign Leads at runtime. v1 hardcoded these as
 a Dart `enum` — that was the bug.
@@ -232,9 +252,23 @@ a Dart `enum` — that was the bug.
 ## Onboarding
 
 Sign up (name, email, phone, department) → pending → that department's Lead
-approves. If the signup *is* a Lead, it routes to the President, and **Directors
-are notified too** for visibility. The three Directors, the Faculty Coordinator
-and the President are pre-seeded.
+approves or declines. If the signup *is* a Lead, it routes to the President, and
+**Directors are notified too** for visibility. The three Directors, the Faculty
+Coordinator and the President are pre-seeded.
+
+**A member's join request is their department Lead's alone (V8.2).** Not the
+President, VP or General Secretary, and not the Directors or the Faculty
+Coordinator either: the Lead is the one person who knows whether this is
+somebody from their team, and a queue everybody can see is a queue everybody
+assumes somebody else is handling. Only when the department has **no Lead yet**
+does it fall to the President — otherwise the department's first member could
+never get in. `canApproveAccess` decides this, and everything that shows a
+request asks it: the queue (`/api/access/pending`), the Home "waiting to join"
+count (`actionableJoinCount`, which used to count the whole club's queue), the
+live `accessRequest:*` event (sent to that Lead, or the President, rather than
+the whole leadership room), and the read-only `/api/access/all`, which leaves
+member requests out. Officer and Lead signups are unchanged — the President
+decides, and Directors and the Faculty Coordinator can still unblock them.
 
 ## Navigation — five tabs, one question each
 
@@ -1090,7 +1124,7 @@ $env:PATH="$root\flutter\bin;$root\jdk\bin;$root\git\cmd;$env:PATH"
   | 50 at once | 2.9 s |
   | 100 at once | 5.6 s |
 
-  `ClubStore.loadAll` is 15 requests, so 100 people arriving together is 1500
+  `ClubStore.loadAll` is 16 requests, so 100 people arriving together is 1600
   requests in one instant. That is the *synthetic* worst case: a real club
   trickles in over half a minute, which is ~50 req/s and leaves screen loads
   near the 204ms figure. Worth knowing before optimising anything — it is not
@@ -1130,6 +1164,17 @@ $env:PATH="$root\flutter\bin;$root\jdk\bin;$root\git\cmd;$env:PATH"
   the pane returns is scaled relative to the click frame it reports; reading
   positions off the image and clicking them lands a few percent short — in the
   gap between two buttons — and looks exactly like a dead button.
+- **Your own event work belongs on Work.** `/api/tasks` leaves event work out
+  so one festival does not bury everybody's list — but the app loaded *only*
+  that, so a Lead with four festival jobs saw "No tasks for you" on Work while
+  Home named one of them as their next task. `loadTasks` now merges `/api/tasks`
+  with `/api/tasks?scope=mine` (which carries your own event work), and
+  `_upsertTask` applies the same rule to live updates — event work stays in the
+  list only while it is assigned to you — so a reload and a live change agree.
+- **Two numbers that looked wrong in QA were the pane, not the app.** Progress
+  rings count up from zero; a screenshot taken while the browser pane is not
+  painting catches them mid-way (an event read "0%" beside "2 of 8 done").
+  Check the API before chasing one.
 - **Anything the app must fetch on load has to be in `ClubStore.loadAll`.**
   `loadIncoming` existed, was called from two write paths, and was missing from
   `loadAll` — so a Lead's triage pile was empty until they assigned something.

@@ -57,13 +57,13 @@ void main() {
         _task('someday'),
       ], now: _now);
 
-      expect(_headings(rows), ['Overdue', 'Today', 'This week', 'Anytime']);
+      expect(_headings(rows), ['Overdue', 'Today', 'This week', 'Later']);
       expect(_idsUnder(rows, 'Overdue'), ['late']);
       expect(_idsUnder(rows, 'Today'), ['today']);
       expect(_idsUnder(rows, 'This week'), ['week']);
       // Undated work and work due beyond the week are the same thing to
       // somebody planning today: not now.
-      expect(_idsUnder(rows, 'Anytime'), containsAll(['later', 'someday']));
+      expect(_idsUnder(rows, 'Later'), containsAll(['later', 'someday']));
     });
 
     test('a task due earlier today is still due today, not overdue', () {

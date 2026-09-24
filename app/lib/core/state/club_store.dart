@@ -621,8 +621,22 @@ class ClubStore extends ChangeNotifier {
   }
 
   Future<void> loadTasks() async {
-    final json = await _api.get('/api/tasks');
-    tasks = listFrom(json, 'tasks', ClubTask.fromJson);
+    // Two reads, merged. The general list leaves event work out on purpose -
+    // one festival would bury everybody's own to-do list - but event work that
+    // is *yours* is still yours, and `scope=mine` is the read that carries it.
+    // Loading only the general list meant a Lead with four festival jobs saw
+    // "No tasks for you" on Work while Home named one of them as next.
+    final results = await Future.wait([
+      _api.get('/api/tasks'),
+      _api.get('/api/tasks', query: {'scope': 'mine'}),
+    ]);
+    final byId = <String, ClubTask>{};
+    for (final json in results) {
+      for (final task in listFrom(json, 'tasks', ClubTask.fromJson)) {
+        byId[task.id] = task;
+      }
+    }
+    tasks = byId.values.toList();
     // Wholesale replacements do not go through _upsertTask, so the widget is
     // refreshed here too.
     unawaited(_pushToWidget());
@@ -926,8 +940,13 @@ class ClubStore extends ChangeNotifier {
   /// Accepting turns the request into a real task, so the work, the deadline
   /// lane on the schedule and Home all have to catch up — not just the request
   /// list.
-  Future<void> respondToRequest(String id, {required bool accept}) async {
-    await _api.post('/api/task-requests/$id/${accept ? 'accept' : 'decline'}');
+  ///
+  /// [points] prices a member's ask for work, which becomes the member's task.
+  Future<void> respondToRequest(String id, {required bool accept, int? points}) async {
+    await _api.post(
+      '/api/task-requests/$id/${accept ? 'accept' : 'decline'}',
+      points == null ? null : {'points': points},
+    );
     await Future.wait([loadRequests(), loadTasks(), loadSchedule(), _loadHome()]);
     notifyListeners();
   }
@@ -1933,8 +1952,15 @@ class ClubStore extends ChangeNotifier {
   // ------------------------------------------------------------ live events
   void _upsertTask(ClubTask task) {
     final index = tasks.indexWhere((t) => t.id == task.id);
+    // The same rule as `loadTasks`, so a live update and a reload agree: event
+    // work belongs in this list only when it is yours. Everybody else's lives
+    // on its event's board.
+    final belongs = task.eventId == null || task.assignedTo == _meId;
     final next = [...tasks];
-    if (index >= 0) {
+    if (!belongs) {
+      if (index < 0) return;
+      next.removeAt(index);
+    } else if (index >= 0) {
       next[index] = task;
     } else {
       next.insert(0, task);

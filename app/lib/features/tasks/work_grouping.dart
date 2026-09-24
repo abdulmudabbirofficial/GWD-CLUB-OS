@@ -98,7 +98,10 @@ List<WorkRow> groupWork(List<ClubTask> tasks, {DateTime? now}) {
   section('Overdue', overdue);
   section('Today', due);
   section('This week', soon);
-  section('Anytime', undated);
+  // "Later", not "Anytime": this group also holds work due beyond the week,
+  // and a heading that says "anytime" over a card that says "due next week"
+  // contradicts itself.
+  section('Later', undated);
   section('Waiting on somebody else', waiting);
   // Kept short on purpose. This is a record that the day went somewhere, not
   // an archive — the full history is on the task itself.

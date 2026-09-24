@@ -5,9 +5,11 @@ import '../../app/responsive.dart';
 import '../../app/theme/apple_motion.dart';
 import '../../app/theme/gwd_theme.dart';
 import '../../app/widgets/common.dart';
+import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
 import '../../core/models/task_request.dart';
 import '../../core/state/club_store.dart';
+import 'ask_for_work_sheet.dart';
 import 'hand_out_sheet.dart';
 import 'new_task_sheet.dart';
 import 'task_card.dart';
@@ -41,6 +43,15 @@ class _TasksPageState extends State<TasksPage> {
 
     final pendingRequests = store.incomingRequests.where((r) => r.isPending).toList();
 
+    // A member gives work to nobody; the one thing they can start here is
+    // asking their own Lead for some. What they have asked and not heard back
+    // on sits above their list, so an ask never disappears into silence.
+    final asksForWork = !canAssign &&
+        AppScope.sessionOf(context).me?.role == ClubRole.clubMember;
+    final waitingOnLead = asksForWork
+        ? store.outgoingRequests.where((r) => r.isPending).toList()
+        : const <TaskRequest>[];
+
     return Scaffold(
       // Transparent so the shell's wash shows through; see ClubShell.
       backgroundColor: Colors.transparent,
@@ -53,7 +64,17 @@ class _TasksPageState extends State<TasksPage> {
               icon: const Icon(Icons.add_rounded, size: 20),
               label: Text('New task', style: GwdType.headline.copyWith(color: Colors.white)),
             )
-          : null,
+          : asksForWork
+              ? FloatingActionButton.extended(
+                  onPressed: () => showAskForWorkSheet(context),
+                  backgroundColor: GwdColors.primaryRed,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  icon: const Icon(Icons.front_hand_outlined, size: 20),
+                  label: Text('Ask for work',
+                      style: GwdType.headline.copyWith(color: Colors.white)),
+                )
+              : null,
       // Capped on a wide window: rows stretching the full width of a
       // desktop browser or a tablet are unreadable however nicely the
       // type is set.
@@ -124,6 +145,53 @@ class _TasksPageState extends State<TasksPage> {
                   ),
                 ),
 
+              if (_tab == 0 && waitingOnLead.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SectionHeader(
+                          title: 'Waiting on your Lead',
+                          subtitle: 'Work you asked for. It moves to your list if they say yes.',
+                        ),
+                        for (final ask in waitingOnLead)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: SurfaceCard(
+                              child: Row(
+                                children: [
+                                  Icon(Icons.hourglass_top_rounded,
+                                      size: 18, color: GwdColors.inkTertiaryOf(context)),
+                                  const SizedBox(width: GwdSpace.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(ask.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GwdType.headline
+                                                .copyWith(color: GwdColors.inkOf(context))),
+                                        Text('Asked ${ask.toName}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GwdType.footnote.copyWith(
+                                                color: GwdColors.inkTertiaryOf(context))),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: GwdSpace.lg),
+                      ],
+                    ),
+                  ),
+                ),
+
               // Incoming task requests — a distinct action, shown above the list
               // only when there are some, so it never becomes permanent furniture.
               if (_tab == 0 && pendingRequests.isNotEmpty)
@@ -160,9 +228,12 @@ class _TasksPageState extends State<TasksPage> {
                     title: _tab == 0 ? 'No tasks for you' : 'You haven\'t assigned anything',
                     message: _filter != null
                         ? 'Nothing is ${_filter!.label.toLowerCase()} right now.'
-                        : _tab == 0
-                            ? 'When someone assigns you work, it appears here straight away.'
-                            : 'Work you hand to other people shows up here so you can track it.',
+                        : asksForWork
+                            ? 'When your Lead gives you work, it appears here straight away. '
+                                'You can also ask them for some.'
+                            : _tab == 0
+                                ? 'When someone assigns you work, it appears here straight away.'
+                                : 'Work you hand to other people shows up here so you can track it.',
                     action: _filter != null
                         ? SecondaryButton(
                             label: 'Clear filter',
@@ -465,9 +536,16 @@ class _RequestCardState extends State<_RequestCard> {
   bool _busy = false;
 
   Future<void> _respond(bool accept) async {
+    // A member asking for work is handed it, so it is priced first - the same
+    // decision as any hand-out, made at the same moment.
+    int? points;
+    if (accept && widget.request.asksForWork) {
+      points = await showPriceAskSheet(context, widget.request);
+      if (points == null || !mounted) return;
+    }
     setState(() => _busy = true);
     try {
-      await widget.store.respondToRequest(widget.request.id, accept: accept);
+      await widget.store.respondToRequest(widget.request.id, accept: accept, points: points);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
@@ -487,7 +565,10 @@ class _RequestCardState extends State<_RequestCard> {
         children: [
           Row(
             children: [
-              const GwdChip(label: 'REQUEST', color: GwdColors.primaryRed),
+              GwdChip(
+                label: request.asksForWork ? 'ASKING FOR WORK' : 'REQUEST',
+                color: GwdColors.primaryRed,
+              ),
               const SizedBox(width: GwdSpace.sm),
               Expanded(
                 child: Text(
@@ -513,7 +594,7 @@ class _RequestCardState extends State<_RequestCard> {
             children: [
               Expanded(
                 child: PrimaryButton(
-                  label: 'Accept',
+                  label: request.asksForWork ? 'Give it to them' : 'Accept',
                   busy: _busy,
                   onPressed: () => _respond(true),
                 ),
