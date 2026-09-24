@@ -44,7 +44,7 @@ v1 residue and must be removed.
 
 | Role | Count | Assigns to | Sees | Approved by |
 |---|---|---|---|---|
-| Director (one is Super Admin) | 3 | officers and Leads by name, departments; the Super Admin anyone | everything app-wide, full audit | none (pre-seeded) |
+| Director (one is the **Club Director**, the Super Admin) | 3 | officers and Leads by name, departments; the Club Director anyone | everything app-wide; the Dashboard and audit log are the Club Director's alone | none (pre-seeded) |
 | **Faculty Coordinator** | 1 | President, VP, General Secretary, all Leads (by name) | everything, full audit | none (pre-seeded) |
 | President | 1 | VP, General Secretary; departments | everything below | Directors (once) |
 | Vice President | 1 | General Secretary; departments | same tier as General Secretary | President |
@@ -79,9 +79,10 @@ themselves earns it once.
 
 ## The hierarchy at V8 — one Director above the others
 
-The club's three Director seats are held by **Director Mudabbir** (Abdul
+The club's three Director seats are held by **Club Director Mudabbir** (Abdul
 Mudabbir, the **Super Admin**), **Director Rehman** (Rehman Pasha) and
-**Director Moin** (Mohammed Moin). Never "Director 1/2/3" and never "Club
+**Director Moin** (Mohammed Moin). "Club Director" is the Super Admin's title
+alone; the other two are "Director". Never "Director 1/2/3" and never "Club
 Director Three" — a number names a seat, not the person in it.
 
 **The Super Admin is a flag, not a role** (`users.superAdmin`, checked by
@@ -95,7 +96,47 @@ What it adds is **governance of the supervisor tier itself**: only the Super
 Admin appoints, demotes, removes or resets the password of a Director or the
 Faculty Coordinator, and nobody changes the Super Admin's role, name or password
 through the API. The Super Admin may also hand work to anybody by name. The
-other two Directors keep the full Director powers minus those.
+other two Directors keep the full Director powers minus those — and, since
+V8.1, minus the rest of the keys below.
+
+### The Club Director holds the keys (V8.1)
+
+The club decided, after using V8, that the things which change *who somebody
+is* belong to one person. `permissions.js` is the authority for all of it:
+
+| Action | Who | Function |
+|---|---|---|
+| Change somebody else's **name** | Club Director only | `canRenameMember` |
+| Reset somebody else's **password** | Club Director only | `canResetPasswordOf` |
+| Change somebody's **role** (Directors included) or **custom title** | Club Director only | `canChangeRole` / `canChangeRoleOf` |
+| **Remove** anybody, a Director included | Club Director | `canRemoveMember` |
+| Remove a **Lead or a member** | the other two Directors too | `canRemoveMember` |
+| Open the **Dashboard** (analytics + audit log) | Club Director only | `canViewDashboard` |
+
+Nobody acts on the Club Director through the API, and nobody changes their own
+role. "Forgot password" now notifies the Club Director (falling back to the
+Directors only if no Super Admin exists), because nobody else can act on it.
+
+`canViewAudit` was split in two rather than narrowed, because it gated two
+unrelated things: **`hasOversight`** (Directors, Faculty Coordinator, President)
+still opens the approvals queue and the club-wide Recognition page, while
+**`canViewDashboard`** is the Super Admin alone. Narrowing the old flag would
+have emptied the President's approvals queue. Both are on `/api/home`
+`capabilities`.
+
+**A custom title is words, never permissions.** `users.customTitle` (≤ 40
+characters, `''` clears it) is set alongside a role in the same sheet —
+"Treasurer" over the standing of a Club Member, say. It replaces the role's name
+in the line under the person's name ("Treasurer · Marketing") and on their
+record, and **everything they may do still follows `role`**. That is what makes
+a new post free: no permission rule is ever written for it, and there is no
+third thing for a check to forget.
+
+**A brand-new database needs a root.** With names, passwords and roles held by
+one person, a fresh install with no Super Admin could never hand the first
+President their password. `seed.js` flags the first seeded Director as Super
+Admin **only when no approved Super Admin exists** — production already has one
+and is never touched.
 
 **Things that only ever reach down.** Each of these was an upward takeover path
 before V8, and each has a test:
@@ -115,17 +156,21 @@ before V8, and each has a test:
 **The Faculty Coordinator names the Club Leads** (and the officers). Members are
 still reached through their Lead.
 
-**Names.** A Director with `knownAs` reads "Director Mudabbir" everywhere:
+**Names.** A Director with `knownAs` reads "Club Director Mudabbir" (the Super
+Admin) or "Director Rehman" everywhere:
 `displayNameOf` in `backend/src/people.js` for anything the server writes
 (notifications, broadcast signatures, every `id → name` map), `Member.displayName`
 on the client. The short name is **stored**, because it cannot be derived — the
 last word of "Abdul Mudabbir", the first of "Rehman Pasha". The line under the
-name is "Club Director · Super Admin" for the Super Admin and "Director" for the
-other two. The office is **General Secretary** in every label; the wire name
+name is "Super Admin" for the Club Director — the name has already said "Club
+Director", and the office twice in two lines is noise — and "Director" for the
+other two. Long names shrink to fit (`FittedBox`) on Home and More rather than
+cutting off, because "Club Director Mud…" is a name with the name missing. The office is **General Secretary** in every label; the wire name
 stays `secretaryGeneral`, because renaming it would break every stored account.
 A person's office is said **once**: in the line under the name, never again as a
 badge beside it. `Member.shortName` / `shortNameOf` exist because cutting
-"Director Mudabbir" to its first word leaves only the title.
+"Director Rehman" or "Club Director Mudabbir" to its first word leaves only the
+title.
 
 **Ask the server what a button may do.** Where the answer depends on *this*
 person or *this* record, the payload says so — `can` on `GET /users/:id/stats`,
@@ -207,10 +252,11 @@ into **More** and Home surfaces what is happening today instead — a tab you op
 once a week is a tab wasted. Admin screens (departments admin, analytics, audit)
 also live in **More**, so they add zero weight for members who cannot use them.
 
-**Home is the command centre.** Anything live today, then the one focal "what's
-next" card, today's schedule, coming events, what needs *you*, who needs a hand,
-quick actions, your week, and department progress — ordered by urgency, each
-section labelled. Still exactly **one** primary decision. More information does
+**Home is the command centre.** "Start something" (the quick actions) first —
+since V8.1, because at the bottom of a long page they sat behind the tab bar and
+people could not find how to call a meeting — then anything live today, the one
+focal "what's next" card, today's schedule, coming events, what needs *you*, who
+needs a hand, your week, and department progress, each section labelled. Still exactly **one** primary decision. More information does
 not have to mean more decisions.
 
 ## Events — the centre of gravity (v3)
@@ -562,9 +608,9 @@ guards the once-a-day rule, which is the one that fails silently.
 - **"Forgot password" is not an emailed link.** That needs an SMTP account the
   club does not have, and a club is not an anonymous internet service — every
   member can find the President in a corridor, which is a stronger identity
-  check than an inbox. `POST /api/auth/password/forgot` raises a flag; a
-  Director or the President resets it from the member record and is handed a
-  temporary password to pass on. The endpoint answers **identically** for an
+  check than an inbox. `POST /api/auth/password/forgot` raises a flag; the
+  Club Director (since V8.1, the only person who can) resets it from the member
+  record and is handed a temporary password to pass on. The endpoint answers **identically** for an
   unknown address, so it cannot be used to discover who has an account.
 - `npm run reset` empties every collection and the uploads directory, so the
   next `npm start` reseeds clean. Destructive and deliberately awkward — it
@@ -1051,6 +1097,39 @@ $env:PATH="$root\flutter\bin;$root\jdk\bin;$root\git\cmd;$env:PATH"
   the database (the indexes are complete and the collections are tiny), it is
   one Node thread doing JSON. Re-run it with
   `node scripts/seed-load-users.js --users 100` then `node scripts/load-test.js`.
+- **Why the app felt slow, and what V8.1 changed (keep it this way).** Four
+  things, none of them the network:
+  1. Page transitions faded the *whole page* in over transparent pages, so
+     every push showed the bare backdrop first and then the content "loaded"
+     in. Pages now slide in over an opaque `_OpaquePage` (translation only, no
+     full-screen `Opacity`) — see `FluidPageTransitionsBuilder`.
+  2. Every row ran its own fade-in cascade on every build and again as it
+     scrolled into view. `FluidReveal` now animates only while the route is
+     arriving, translation only, capped at 90 ms of stagger; rows scrolled to
+     later appear already in place.
+  3. The tab bar was a `BackdropFilter` (sigma 24) over content that ran
+     underneath it, re-blurred every scroll frame — the stutter at the bottom
+     of long lists. It is solid now and `extendBody` is **false**, so the body
+     stops above it and the last rows of Home, More and the directory are never
+     hidden behind it.
+  4. Wide, invisible dark-theme shadows (blur 30) cost a lot to paint and
+     showed nothing. `GwdShadow` is contact-only in dark.
+- **Sheets open on the root navigator** (`useRootNavigator: true`, in
+  `showGwdSheet`, `showMorphSheet` and the five direct `showModalBottomSheet`
+  calls). Left to the default, a sheet opens on the tab's nested navigator,
+  *under* the tab bar, and the bar covers the bottom of the sheet — exactly
+  where every sheet keeps its button. The session and store are scoped above
+  `MaterialApp`, so nothing a sheet reads is lost.
+- **First-load requests race.** The app asks for the schedule categories and
+  the schedule at the same moment, and on an empty database both used to seed
+  the starter categories — the second insert hit the unique index and the club
+  opened on "Cannot reach the server". `ensureSeeded` inserts unordered and
+  treats the duplicate as the expected case. Anything else seeded lazily from a
+  route needs the same treatment.
+- **Browser-pane QA: screenshot pixels are not click coordinates.** The image
+  the pane returns is scaled relative to the click frame it reports; reading
+  positions off the image and clicking them lands a few percent short — in the
+  gap between two buttons — and looks exactly like a dead button.
 - **Anything the app must fetch on load has to be in `ClubStore.loadAll`.**
   `loadIncoming` existed, was called from two write paths, and was missing from
   `loadAll` — so a Lead's triage pile was empty until they assigned something.
