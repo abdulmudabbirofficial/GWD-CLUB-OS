@@ -10,9 +10,14 @@ import '../../core/api/socket_client.dart';
 import '../../core/models/club_event.dart';
 import '../../core/models/club_role.dart';
 import '../../core/models/club_task.dart';
+import '../../core/models/member.dart';
+import '../../core/plural.dart';
 import '../../core/state/club_store.dart';
 import '../alerts/send_alert_sheet.dart';
+import '../analytics/analytics_page.dart';
 import '../approvals/approvals_page.dart';
+import '../departments/department_workspace_page.dart';
+import '../departments/departments_page.dart';
 import '../events/create_event_flow.dart';
 import '../events/event_workspace_page.dart';
 import '../events/events_page.dart' show EventCard;
@@ -69,8 +74,24 @@ class HomePage extends StatelessWidget {
     // Other people's open asks. Yours are not "someone needs a hand" — you
     // already know about yours.
     final helpNeeded = store.openHelp.where((h) => !h.mine && !h.helping).take(2).toList();
-    final needsYou =
-        store.pendingApprovals.isNotEmpty || openRequests > 0 || helpNeeded.isNotEmpty;
+    final overview = store.overview;
+    final pulse = store.myDepartmentPulse;
+    // Official paperwork is decided by the supervisors and the officers;
+    // money by the supervisors and the President. Offered only to them, and
+    // only when there is something waiting.
+    final decidesDocuments = overview != null &&
+        (me?.role.isSupervisor == true || (me?.role.rank ?? 0) >= ClubRole.vicePresident.rank);
+    final decidesBills = overview != null &&
+        (me?.role.isSupervisor == true || me?.role == ClubRole.president);
+    final documentsWaiting = decidesDocuments ? overview.documentsAwaiting : 0;
+    final billsWaiting = decidesBills ? overview.billsAwaiting : 0;
+    final toHandOut = pulse?.incoming ?? 0;
+    final needsYou = store.pendingApprovals.isNotEmpty ||
+        openRequests > 0 ||
+        helpNeeded.isNotEmpty ||
+        documentsWaiting > 0 ||
+        billsWaiting > 0 ||
+        toHandOut > 0;
 
     var step = 0;
     int next() => step++;
@@ -143,6 +164,54 @@ class HomePage extends StatelessWidget {
                     // one list is what makes it answerable.
                     if (needsYou) ...[
                       band('Needs you', subtitle: 'Nobody else can action these'),
+                      // A Lead's triage pile leads: work already sent to the
+                      // department that goes nowhere until they hand it out.
+                      if (toHandOut > 0)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(
+                              icon: Icons.move_to_inbox_outlined,
+                              tint: GwdColors.primaryRed,
+                              title: '${countOf(toHandOut, 'task')} to hand out',
+                              subtitle: 'Sent to your department, waiting on you',
+                              onTap: () => onNavigate(2),
+                            ),
+                          ),
+                        ),
+                      if (documentsWaiting > 0)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(
+                              icon: Icons.verified_outlined,
+                              tint: GwdColors.warning,
+                              title: documentsWaiting == 1
+                                  ? '1 official document to decide'
+                                  : '$documentsWaiting official documents to decide',
+                              subtitle: 'Permission letters and bookings, on their events',
+                              onTap: () => onNavigate(1),
+                            ),
+                          ),
+                        ),
+                      if (billsWaiting > 0)
+                        AppleStaggerItem(
+                          index: next(),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: GwdSpace.sm),
+                            child: _ActionRow(
+                              icon: Icons.receipt_long_outlined,
+                              tint: GwdColors.warning,
+                              title: billsWaiting == 1
+                                  ? '1 expense to approve'
+                                  : '$billsWaiting expenses to approve',
+                              subtitle: 'Somebody is out of pocket until then',
+                              onTap: () => onNavigate(1),
+                            ),
+                          ),
+                        ),
                       if (store.pendingApprovals.isNotEmpty)
                         AppleStaggerItem(
                           index: next(),
@@ -192,6 +261,53 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                         ),
+                    ],
+
+                    // ---------- the club, for the people running it ----------
+                    if (overview != null) ...[
+                      band('The club today',
+                          trailing: caps.canViewAudit
+                              ? _More(
+                                  label: 'Dashboard',
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const AnalyticsPage()),
+                                  ),
+                                )
+                              : null),
+                      AppleStaggerItem(
+                        index: next(),
+                        child: _ClubToday(
+                          overview: overview,
+                          onOpenDepartments: () => onNavigate(3),
+                          onOpenLeaderless: caps.canManageDepartments
+                              ? () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const DepartmentsPage()),
+                                  )
+                              : () => onNavigate(3),
+                        ),
+                      ),
+                    ],
+
+                    // ---------- the department, for its Lead ----------
+                    if (pulse != null && me?.departmentId != null) ...[
+                      band('Your department',
+                          subtitle: session.department?.name,
+                          trailing: _More(
+                            label: 'Open',
+                            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) =>
+                                  DepartmentWorkspacePage(departmentId: me!.departmentId!),
+                            )),
+                          )),
+                      AppleStaggerItem(
+                        index: next(),
+                        child: _DepartmentToday(
+                          pulse: pulse,
+                          onOpen: () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => DepartmentWorkspacePage(departmentId: me!.departmentId!),
+                          )),
+                        ),
+                      ),
                     ],
 
                     // ---------- today ----------
@@ -268,10 +384,6 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
 
-                    if (me != null && me.role.isSupervisor) ...[
-                      const SizedBox(height: GwdSpace.xxl),
-                      AppleStaggerItem(index: next(), child: _SupervisorNote(role: me.role)),
-                    ],
                   ],
                 ),
               ),
@@ -388,7 +500,6 @@ class _HomeHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = AppScope.sessionOf(context);
     final me = session.me;
-    final caps = store.capabilities;
 
     final open = store.myTasks.where((t) => t.status.isOpen).toList();
     final horizon = DateTime.now().add(const Duration(days: 7));
@@ -416,7 +527,7 @@ class _HomeHero extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              _timeGreeting(),
+                              _today(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GwdType.callout
@@ -436,7 +547,11 @@ class _HomeHero extends StatelessWidget {
                         me?.displayName ?? 'There',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GwdType.largeTitle.copyWith(
+                        // A name, not a headline. At the large title size it
+                        // was the biggest thing on the screen, which is the
+                        // wrong thing to be biggest on a screen whose job is
+                        // "what should I do now".
+                        style: GwdType.title1.copyWith(
                           color: me?.isUnnamed == true
                               ? GwdColors.inkTertiaryOf(context)
                               : GwdColors.inkOf(context),
@@ -494,98 +609,311 @@ class _HomeHero extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: GwdSpace.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeroStat(
-                    value: open.length,
-                    label: open.length == 1 ? 'task open' : 'tasks open',
-                    onTap: () => onNavigate(2),
-                  ),
-                ),
-                const SizedBox(width: GwdSpace.sm),
-                Expanded(
-                  child: _HeroStat(
-                    value: due,
-                    label: 'due this week',
-                    tint: due > 0 ? GwdColors.warning : null,
-                    onTap: () => onNavigate(2),
-                  ),
-                ),
-                const SizedBox(width: GwdSpace.sm),
-                Expanded(
-                  // Supervisors do not collect points, so they are not shown a
-                  // score they can never move.
-                  child: caps.earnsPoints
-                      ? _HeroStat(value: me?.points ?? 0, label: 'points earned')
-                      : _HeroStat(
-                          value: store.members.length,
-                          label: 'in the club',
-                          onTap: () => onNavigate(3),
-                        ),
-                ),
-              ],
-            ),
+            const SizedBox(height: GwdSpace.lg),
+            _Pulse(figures: _figures(context, me, open.length, due)),
           ],
         ),
       ),
     );
   }
 
-  static String _timeGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+  /// Three numbers that are worth reading for *this* person.
+  ///
+  /// It used to be the same three for everybody — your open tasks, your due
+  /// tasks, your points — which for a Director is "0, 0, 0" on every visit.
+  /// Each role now sees the figures its job turns on, and each one opens the
+  /// screen that explains it.
+  List<_Figure> _figures(BuildContext context, Member? me, int open, int due) {
+    final overview = store.overview;
+    final pulse = store.myDepartmentPulse;
+    final role = me?.role;
+
+    if (overview != null && role != null && role.isSupervisor) {
+      return [
+        _Figure(overview.openWork, 'open across the club', () => onNavigate(3)),
+        _Figure(overview.overdue, 'overdue', () => onNavigate(3),
+            warn: overview.overdue > 0),
+        _Figure(overview.members, overview.members == 1 ? 'person' : 'people',
+            () => onNavigate(3)),
+      ];
+    }
+    if (overview != null) {
+      return [
+        _Figure(open, open == 1 ? 'task of yours' : 'tasks of yours', () => onNavigate(2)),
+        _Figure(overview.openWork, 'open across the club', () => onNavigate(3)),
+        _Figure(overview.overdue, 'overdue', () => onNavigate(3), warn: overview.overdue > 0),
+      ];
+    }
+    if (pulse != null) {
+      return [
+        _Figure(pulse.incoming, 'to hand out', () => onNavigate(2), warn: pulse.incoming > 0),
+        _Figure(pulse.open, 'open in your team', () => onNavigate(3)),
+        _Figure(me?.points ?? 0, 'points', null),
+      ];
+    }
+    return [
+      _Figure(open, 'open', () => onNavigate(2)),
+      _Figure(due, 'due this week', () => onNavigate(2), warn: due > 0),
+      _Figure(me?.points ?? 0, 'points', null),
+    ];
+  }
+
+  /// "Thursday 24 September" — a fact about today rather than a pleasantry.
+  static String _today() {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    final now = DateTime.now();
+    return '${days[now.weekday - 1]} ${now.day} ${months[now.month - 1]}';
   }
 }
 
-/// One figure in the hero.
-///
-/// The number is set in the display face at tabular width, so three tiles side
-/// by side keep their digits on one baseline grid however the values change.
-/// Counters that reflow as they tick read as unstable.
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.value, required this.label, this.tint, this.onTap});
-
+class _Figure {
+  const _Figure(this.value, this.label, this.onTap, {this.warn = false});
   final int value;
   final String label;
-  final Color? tint;
   final VoidCallback? onTap;
+  final bool warn;
+}
+
+/// The hero's figures, set as type rather than as three boxes.
+///
+/// Three identical rounded cards in a row is the most recognisable shape of a
+/// generated dashboard. The numbers carry the weight here; hairlines separate
+/// them, and nothing else competes.
+class _Pulse extends StatelessWidget {
+  const _Pulse({required this.figures});
+  final List<_Figure> figures;
 
   @override
   Widget build(BuildContext context) {
-    final card = SurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: GwdSpace.md, vertical: GwdSpace.md),
-      borderRadius: GwdRadius.lg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedCounter(
-            value: value,
-            style: GwdType.title1.merge(GwdType.numeric).copyWith(
-                  color: tint ?? GwdColors.inkOf(context),
-                  height: 1.0,
-                ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
-          ),
-        ],
-      ),
-    );
+    final children = <Widget>[];
+    for (var i = 0; i < figures.length; i++) {
+      if (i > 0) {
+        children.add(Container(
+          width: 1,
+          height: 30,
+          margin: const EdgeInsets.symmetric(horizontal: GwdSpace.md),
+          color: GwdColors.hairlineOf(context),
+        ));
+      }
+      children.add(Expanded(child: _PulseFigure(figure: figures[i])));
+    }
+    return Row(children: children);
+  }
+}
 
-    if (onTap == null) return Semantics(label: '$value $label', child: card);
+class _PulseFigure extends StatelessWidget {
+  const _PulseFigure({required this.figure});
+  final _Figure figure;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedCounter(
+          value: figure.value,
+          style: GwdType.title2.merge(GwdType.numeric).copyWith(
+                color: figure.warn ? GwdColors.warning : GwdColors.inkOf(context),
+                height: 1.0,
+              ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          figure.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GwdType.micro.copyWith(color: GwdColors.inkTertiaryOf(context)),
+        ),
+      ],
+    );
+    final label = '${figure.value} ${figure.label}';
+    if (figure.onTap == null) return Semantics(label: label, child: body);
+    return Semantics(
+      button: true,
+      label: label,
+      child: PressableScale(onTap: figure.onTap, child: body),
+    );
+  }
+}
+
+/// The club in four questions, for the people running it: what has been sent
+/// somewhere and not picked up, what is late, what is stuck, and which
+/// department has nobody to receive work.
+class _ClubToday extends StatelessWidget {
+  const _ClubToday({
+    required this.overview,
+    required this.onOpenDepartments,
+    required this.onOpenLeaderless,
+  });
+
+  final ClubOverview overview;
+  final VoidCallback onOpenDepartments;
+  final VoidCallback onOpenLeaderless;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      if (overview.unassigned > 0)
+        _FactRow(
+          icon: Icons.outbox_outlined,
+          value: overview.unassigned,
+          label: 'sent to a department, not yet handed out',
+          onTap: onOpenDepartments,
+        ),
+      if (overview.overdue > 0)
+        _FactRow(
+          icon: Icons.schedule_outlined,
+          value: overview.overdue,
+          label: 'past its due date',
+          warn: true,
+          onTap: onOpenDepartments,
+        ),
+      if (overview.blocked > 0)
+        _FactRow(
+          icon: Icons.block_outlined,
+          value: overview.blocked,
+          label: overview.blocked == 1 ? 'task blocked' : 'tasks blocked',
+          warn: true,
+          onTap: onOpenDepartments,
+        ),
+      if (overview.departmentsWithoutLead > 0)
+        _FactRow(
+          icon: Icons.person_off_outlined,
+          value: overview.departmentsWithoutLead,
+          label: overview.departmentsWithoutLead == 1
+              ? 'department with no Lead to receive work'
+              : 'departments with no Lead to receive work',
+          warn: true,
+          onTap: onOpenLeaderless,
+        ),
+    ];
+
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(vertical: GwdSpace.xs),
+      child: rows.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(GwdSpace.lg),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline_rounded,
+                      size: 18, color: GwdColors.success),
+                  const SizedBox(width: GwdSpace.md),
+                  Expanded(
+                    child: Text(
+                      'Nothing is stuck. Every department\u2019s work is moving, '
+                      '${countOf(overview.openWork, 'task')} open.',
+                      style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(children: _divided(context, rows)),
+    );
+  }
+}
+
+/// A Lead's own department: the triage pile, then how the team is doing.
+class _DepartmentToday extends StatelessWidget {
+  const _DepartmentToday({required this.pulse, required this.onOpen});
+
+  final DepartmentPulse pulse;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      _FactRow(
+        icon: Icons.task_alt_outlined,
+        value: pulse.open,
+        label: 'open in the team',
+        onTap: onOpen,
+      ),
+      if (pulse.overdue > 0)
+        _FactRow(
+          icon: Icons.schedule_outlined,
+          value: pulse.overdue,
+          label: 'past its due date',
+          warn: true,
+          onTap: onOpen,
+        ),
+      _FactRow(
+        icon: Icons.groups_outlined,
+        value: pulse.members,
+        label: pulse.members == 1 ? 'person in the department' : 'people in the department',
+        onTap: onOpen,
+      ),
+    ];
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(vertical: GwdSpace.xs),
+      child: Column(children: _divided(context, rows)),
+    );
+  }
+}
+
+List<Widget> _divided(BuildContext context, List<Widget> rows) => [
+      for (var i = 0; i < rows.length; i++) ...[
+        if (i > 0)
+          Divider(
+            height: 1,
+            indent: GwdSpace.lg + 18 + GwdSpace.md,
+            color: GwdColors.hairlineOf(context),
+          ),
+        rows[i],
+      ],
+    ];
+
+/// One fact in a list: the number, what it counts, and where it leads.
+class _FactRow extends StatelessWidget {
+  const _FactRow({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.onTap,
+    this.warn = false,
+  });
+
+  final IconData icon;
+  final int value;
+  final String label;
+  final VoidCallback onTap;
+  final bool warn;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = warn ? GwdColors.warning : GwdColors.inkTertiaryOf(context);
     return Semantics(
       button: true,
       label: '$value $label',
-      child: PressableScale(onTap: onTap, child: card),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: GwdSpace.lg, vertical: GwdSpace.md),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: tint),
+              const SizedBox(width: GwdSpace.md),
+              Text('$value',
+                  style: GwdType.headline.merge(GwdType.numeric).copyWith(
+                        color: warn ? GwdColors.warning : GwdColors.inkOf(context),
+                      )),
+              const SizedBox(width: GwdSpace.sm),
+              Expanded(
+                child: Text(label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GwdType.footnote.copyWith(color: GwdColors.inkSecondaryOf(context))),
+              ),
+              Icon(Icons.chevron_right_rounded, size: 18, color: GwdColors.inkTertiaryOf(context)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1297,35 +1625,6 @@ class _DepartmentStrip extends StatelessWidget {
 /// Directors and the Faculty Coordinator oversee the club rather than compete
 /// in it, so they earn no points and are absent from the leaderboard. Without
 /// a line saying so, an empty points area just looks like a bug.
-class _SupervisorNote extends StatelessWidget {
-  const _SupervisorNote({required this.role});
-  final ClubRole role;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(GwdSpace.md),
-      decoration: BoxDecoration(
-        color: GwdColors.sunkenOf(context),
-        borderRadius: BorderRadius.circular(GwdRadius.md),
-      ),
-      child: Row(
-        children: [
-          Icon(role.icon, size: 15, color: GwdColors.inkTertiaryOf(context)),
-          const SizedBox(width: GwdSpace.md),
-          Expanded(
-            child: Text(
-              'As ${role.title} you have full visibility across the club, and '
-              'can award points to anyone.',
-              style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.icon,

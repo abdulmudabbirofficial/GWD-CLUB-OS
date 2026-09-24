@@ -69,6 +69,13 @@ function Drop-Database([string]$name) {
 if ($Only -eq 'all') {
     & node (Join-Path $PSScriptRoot 'test-exit.js')
     if ($LASTEXITCODE -ne 0) { $failed = 1 }
+
+    # The app and the server, read side by side: every live event the server
+    # sends is one the app subscribes to and handles, and every endpoint the
+    # app calls exists. Two hand-kept lists in two languages drifted apart once
+    # and cost the app its live sync for weeks without a single test failing.
+    & node (Join-Path $PSScriptRoot 'test-contract.js')
+    if ($LASTEXITCODE -ne 0) { $failed = 1 }
 }
 
 # ------------------------------------------------------------------ smoke ---

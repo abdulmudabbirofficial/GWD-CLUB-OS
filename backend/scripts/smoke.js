@@ -439,9 +439,13 @@ async function main() {
   ok('A Director does get the assign capability',
     directorHome.body?.capabilities?.canAssign === true);
 
-  const widget = await api('/api/widget', { token: memberToken });
-  ok('Widget payload is available for the home-screen widget', widget.status === 200
-    && 'pendingCount' in widget.body);
+  // `/api/widget` is gone: nothing ever called it. The home-screen widget is
+  // fed on the phone from data the app already holds, which is also why it
+  // keeps showing the next task while the server is asleep. What the member
+  // does get is a Home that is theirs, not the club's.
+  const memberHome = await api('/api/home', { token: memberToken });
+  ok('A member’s Home carries no club-wide overview',
+    memberHome.status === 200 && memberHome.body.overview == null);
 
   // ------------------------------------------------- faculty coordinator
   console.log('\nfaculty coordinator');

@@ -93,6 +93,84 @@ class AssignmentTargets {
   );
 }
 
+int _n(Map<String, dynamic>? json, String key) => (json?[key] as num?)?.toInt() ?? 0;
+
+/// The club, in aggregate, for the people running it.
+///
+/// Home used to show everybody three tiles counting their *own* tasks. For a
+/// Director, who is almost never given a task, that read "0 open, 0 due, 0
+/// points" on every visit. The people running the club need the club. Counts
+/// only — nothing here names anybody.
+class ClubOverview {
+  const ClubOverview({
+    this.openWork = 0,
+    this.overdue = 0,
+    this.unassigned = 0,
+    this.blocked = 0,
+    this.members = 0,
+    this.departmentsWithoutLead = 0,
+    this.documentsAwaiting = 0,
+    this.billsAwaiting = 0,
+    this.joinsAwaiting = 0,
+  });
+
+  final int openWork;
+  final int overdue;
+
+  /// Sent to a department and not yet handed to anybody.
+  final int unassigned;
+  final int blocked;
+  final int members;
+  final int departmentsWithoutLead;
+  final int documentsAwaiting;
+  final int billsAwaiting;
+  final int joinsAwaiting;
+
+  factory ClubOverview.fromJson(Map<String, dynamic> json) {
+    final waiting = (json['awaitingDecision'] as Map?)?.cast<String, dynamic>();
+    return ClubOverview(
+      openWork: _n(json, 'openWork'),
+      overdue: _n(json, 'overdue'),
+      unassigned: _n(json, 'unassigned'),
+      blocked: _n(json, 'blocked'),
+      members: _n(json, 'members'),
+      departmentsWithoutLead: _n(json, 'departmentsWithoutLead'),
+      documentsAwaiting: _n(waiting, 'documents'),
+      billsAwaiting: _n(waiting, 'bills'),
+      joinsAwaiting: _n(waiting, 'joins'),
+    );
+  }
+
+  /// Nothing stuck anywhere a leader would need to look.
+  bool get isCalm => overdue == 0 && unassigned == 0 && blocked == 0 && departmentsWithoutLead == 0;
+}
+
+/// A Lead's own department at a glance: the triage pile first.
+class DepartmentPulse {
+  const DepartmentPulse({
+    this.incoming = 0,
+    this.open = 0,
+    this.overdue = 0,
+    this.joins = 0,
+    this.members = 0,
+  });
+
+  /// Work addressed to the department and waiting for its Lead to hand out.
+  final int incoming;
+  final int open;
+  final int overdue;
+  final int joins;
+  final int members;
+
+  factory DepartmentPulse.fromJson(Map<String, dynamic> json) => DepartmentPulse(
+        incoming: _n(json, 'incoming'),
+        open: _n(json, 'open'),
+        overdue: _n(json, 'overdue'),
+        joins: _n(json, 'joins'),
+        members: _n(json, 'members'),
+      );
+}
+
 /// Home's single focal point.
 class WhatsNext {
   const WhatsNext({this.task, this.entry});
@@ -313,6 +391,12 @@ class ClubStore extends ChangeNotifier {
   List<HelpRequest> helpRequests = const [];
 
   WhatsNext whatsNext = const WhatsNext();
+
+  /// Set for the people running the club; null for everybody else.
+  ClubOverview? overview;
+
+  /// Set for a department Lead; null for everybody else.
+  DepartmentPulse? myDepartmentPulse;
   Capabilities capabilities = const Capabilities();
   WeekProgress progress = const WeekProgress();
   int unreadNotifications = 0;
@@ -344,6 +428,29 @@ class ClubStore extends ChangeNotifier {
   /// screen stayed as it was. Same shape as [commentsChangedFor] — a nudge
   /// with an id, so only the page it is about reloads.
   final ValueNotifier<String?> meetingChangedFor = ValueNotifier(null);
+
+  /// Refetch Home's figures shortly, once, however many changes arrive.
+  ///
+  /// The club-wide and department figures on Home come from `/api/home`, and
+  /// nothing refreshed them when work moved, so a Director's "3 overdue" was
+  /// right only as of opening the app. Refetching on every change would be a
+  /// burst of the heaviest request the app makes; a club finishing a sprint
+  /// sends dozens of task updates a minute. So changes arriving together cost
+  /// one request, a moment after the last of them — and only for people whose
+  /// Home actually shows those figures.
+  Timer? _homeRefresh;
+  void _refreshHomeSoon() {
+    if (overview == null && myDepartmentPulse == null) return;
+    _homeRefresh?.cancel();
+    _homeRefresh = Timer(const Duration(milliseconds: 1200), () async {
+      try {
+        await _loadHome();
+        notifyListeners();
+      } catch (_) {
+        // Home keeps what it had; the next change or pull-to-refresh retries.
+      }
+    });
+  }
 
   void _nudgeMeeting(String? id) {
     if (id == null || id.isEmpty) return;
@@ -418,6 +525,7 @@ class ClubStore extends ChangeNotifier {
     socket.dispose();
     commentsChangedFor.dispose();
     meetingChangedFor.dispose();
+    _homeRefresh?.cancel();
     super.dispose();
   }
 
@@ -485,6 +593,11 @@ class ClubStore extends ChangeNotifier {
         .whereType<Map>()
         .map((e) => TodayItem.fromJson(e.cast<String, dynamic>()))
         .toList();
+
+    final overviewJson = (json['overview'] as Map?)?.cast<String, dynamic>();
+    overview = overviewJson == null ? null : ClubOverview.fromJson(overviewJson);
+    final deptJson = (json['myDepartment'] as Map?)?.cast<String, dynamic>();
+    myDepartmentPulse = deptJson == null ? null : DepartmentPulse.fromJson(deptJson);
 
     final next = json['whatsNext'] as Map<String, dynamic>?;
     if (next == null) {
@@ -1821,6 +1934,7 @@ class ClubStore extends ChangeNotifier {
         final task = ClubTask.fromJson(event.data);
         _upsertTask(task);
         _nudgeMeeting(task.meetingId);
+        _refreshHomeSoon();
         // Event work moving on somebody else's screen should move on this one
         // too — but only refetch the board actually open, not all of them.
         final eventId = task.eventId;
@@ -1883,8 +1997,21 @@ class ClubStore extends ChangeNotifier {
 
       case 'department:created':
       case 'department:updated':
-        final incoming = Department.fromJson(event.data);
-        final index = departments.indexWhere((d) => d.id == incoming.id);
+        // The live payload carries the department's own fields, never its
+        // figures — member count and progress are computed per request. Built
+        // from the payload alone, every rename or change of Lead showed the
+        // department as "0 people, nothing done" until the next full reload.
+        final index = departments.indexWhere((d) => d.id == event.data['id']);
+        final before = index >= 0 ? departments[index] : null;
+        final incoming = Department.fromJson({
+          if (before != null) ...{
+            'memberCount': before.memberCount,
+            'assigned': before.assigned,
+            'completed': before.completed,
+            'completionRate': before.completionRate,
+          },
+          ...event.data,
+        });
         final next = [...departments];
         if (index >= 0) {
           next[index] = incoming;
@@ -1917,6 +2044,7 @@ class ClubStore extends ChangeNotifier {
         eventsCompleted = eventsCompleted.where((e) => e.id != id).toList();
 
       case 'eventDocument:changed':
+        _refreshHomeSoon();
         final id = event.data['eventId'] as String?;
         if (id != null && _documents.containsKey(id)) {
           unawaited(loadEventDocuments(id));
@@ -1928,6 +2056,7 @@ class ClubStore extends ChangeNotifier {
       // every board the app has ever loaded would turn one person filing an
       // expense into a burst of requests from everybody in the club.
       case 'bill:changed':
+        _refreshHomeSoon();
         final id = event.data['eventId'] as String?;
         if (id != null && _finance.containsKey(id)) {
           unawaited(loadEventFinance(id));
@@ -1966,7 +2095,7 @@ class ClubStore extends ChangeNotifier {
         // A meeting carries a date, so the schedule and Home's "what's next"
         // move with it.
         unawaited(loadSchedule());
-        unawaited(_loadHome());
+        _refreshHomeSoon();
         // Attendance is what every profile and department figure is derived
         // from, so recording it has to refresh those too — otherwise the
         // numbers only catch up on the next cold start.

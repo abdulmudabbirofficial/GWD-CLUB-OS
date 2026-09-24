@@ -40,23 +40,49 @@ class SocketClient {
 
   final ValueNotifier<LiveStatus> status = ValueNotifier(LiveStatus.idle);
 
-  /// Every event the server can push. Listed explicitly rather than using a
-  /// catch-all so an unexpected event name is a visible gap, not a silent drop.
-  static const _eventNames = <String>[
+  /// Every event the server pushes.
+  ///
+  /// Listed explicitly — but a list is only as good as its upkeep, and this
+  /// one had stopped at fourteen while the server grew to twenty-eight. The
+  /// store had a handler for every one of them; the socket simply never
+  /// subscribed, so events, meetings, the schedule, the help board, task
+  /// comments, documents, bills, categories and club alerts **never arrived
+  /// live on any client**. Three of the names here (`calendarEvent:*`) had not
+  /// been sent by the server since the schedule's events became `schedule:*`.
+  /// It went unnoticed because `notification:new` did arrive, so toasts still
+  /// appeared and the app looked live.
+  ///
+  /// `backend/scripts/test-contract.js` now reads this list and fails the
+  /// suite if the server emits anything that is not on it.
+  static const eventNames = <String>[
     'task:created',
     'task:updated',
+    'comment:changed',
     'notification:new',
+    'alert:new',
     'taskRequest:created',
     'taskRequest:updated',
     'accessRequest:created',
     'accessRequest:updated',
-    'calendarEvent:created',
-    'calendarEvent:updated',
-    'calendarEvent:deleted',
+    'schedule:created',
+    'schedule:updated',
+    'schedule:deleted',
+    'category:changed',
     'department:created',
     'department:updated',
     'department:deleted',
     'user:updated',
+    'event:created',
+    'event:updated',
+    'event:deleted',
+    'eventDocument:changed',
+    'bill:changed',
+    'meeting:created',
+    'meeting:updated',
+    'meeting:deleted',
+    'help:created',
+    'help:updated',
+    'help:deleted',
   ];
 
   bool get isConnected => _socket?.connected ?? false;
@@ -70,7 +96,15 @@ class SocketClient {
     status.value = LiveStatus.connecting;
 
     final socket = io.io(
-      baseUrl.isEmpty ? '/' : baseUrl,
+      // The web build talks to the server it was loaded from, so its base is
+      // empty. That used to become '/', which the JavaScript client reads as
+      // "same origin" — but this Dart client parses it as a URI with no
+      // scheme, no host and port 0, and connected to nothing. Live sync on the
+      // website had never worked; every change needed a manual refresh, and
+      // the amber dot next to the date was telling the truth about it.
+      // Guarded by kIsWeb because Uri.base.origin throws for the file:// base
+      // a phone has, and only the web build ever has an empty base.
+      baseUrl.isNotEmpty ? baseUrl : (kIsWeb ? Uri.base.origin : '/'),
       io.OptionBuilder()
           .setTransports(['websocket'])
           .setAuth({'token': token})
@@ -113,7 +147,7 @@ class SocketClient {
       if (data is Map) _emit('ready', data);
     });
 
-    for (final name in _eventNames) {
+    for (final name in eventNames) {
       socket.on(name, (data) {
         if (data is Map) _emit(name, data);
       });

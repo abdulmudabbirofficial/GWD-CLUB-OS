@@ -10,7 +10,7 @@ const {
   canEditSchedule, canCreateScheduleEntry, canBroadcast, canAwardPoints,
   earnsPoints, appearsOnLeaderboard,
   canChangeRole,
-  isSuperAdmin,
+  isSuperAdmin, isSupervisor, rankOf, RANK, ROLES,
 } = require('../permissions');
 const { serialiseTask } = require('../realtime');
 
@@ -169,6 +169,59 @@ router.get('/home', async (request, response, next) => {
     const openTotal = pending + inProgress;
     const weekTotal = openTotal + completedThisWeek;
 
+    // --- the picture each role actually needs ----------------------------
+    //
+    // Home used to be the same screen for everybody: three tiles counting the
+    // viewer's own tasks. For a member that is right. For a Director — who is
+    // almost never given a task — it read "0 tasks open, 0 due, 0 points" every
+    // time they opened the app, which is three numbers saying nothing. The
+    // people running the club need the club; a Lead needs their department's
+    // triage pile. Aggregates only: nothing here names anybody.
+    const OPEN = { $in: ['pending', 'inProgress', 'review', 'blocked'] };
+    const leadership = isSupervisor(user.role) || rankOf(user.role) >= RANK.secretaryGeneral;
+    const isLead = user.role === ROLES.clubLead && Boolean(user.departmentId);
+
+    let overview = null;
+    if (leadership) {
+      const [openWork, overdue, unassigned, blocked, docs, bills, joins, members, leaderless] =
+        await Promise.all([
+          col(C.tasks).countDocuments({ status: OPEN }),
+          col(C.tasks).countDocuments({ status: OPEN, dueDate: { $lt: now } }),
+          col(C.tasks).countDocuments({ status: OPEN, assignedTo: null, departmentId: { $ne: null } }),
+          col(C.tasks).countDocuments({ status: 'blocked' }),
+          col(C.eventDocuments).countDocuments({ kind: 'approval', status: 'pending' }),
+          col(C.eventBills).countDocuments({ status: 'pending' }),
+          col(C.accessRequests).countDocuments({ status: 'pending' }),
+          col(C.users).countDocuments({ approvalStatus: 'approved' }),
+          col(C.departments).countDocuments({ active: { $ne: false }, leadUserId: null }),
+        ]);
+      overview = {
+        openWork,
+        overdue,
+        // Sent to a department and not yet handed to anybody.
+        unassigned,
+        blocked,
+        awaitingDecision: { documents: docs, bills, joins, total: docs + bills + joins },
+        members,
+        departmentsWithoutLead: leaderless,
+      };
+    }
+
+    let myDepartment = null;
+    if (isLead) {
+      const deptId = user.departmentId;
+      const [incoming, open, overdue, joins, members] = await Promise.all([
+        // The triage pile: work addressed to the department, waiting for its
+        // Lead to hand it out.
+        col(C.tasks).countDocuments({ departmentId: deptId, assignedTo: null, status: OPEN }),
+        col(C.tasks).countDocuments({ departmentId: deptId, status: OPEN }),
+        col(C.tasks).countDocuments({ departmentId: deptId, status: OPEN, dueDate: { $lt: now } }),
+        col(C.accessRequests).countDocuments({ status: 'pending', departmentId: deptId }),
+        col(C.users).countDocuments({ departmentId: deptId, approvalStatus: 'approved' }),
+      ]);
+      myDepartment = { incoming, open, overdue, joins, members };
+    }
+
     response.json({
       user: {
         id: String(user._id),
@@ -193,6 +246,8 @@ router.get('/home', async (request, response, next) => {
         ratio: weekTotal === 0 ? 0 : completedThisWeek / weekTotal,
       },
       whatsNext,
+      overview,
+      myDepartment,
       today: [
         ...todaySchedule.map((e) => ({
           id: String(e._id),
@@ -265,8 +320,12 @@ router.get('/home', async (request, response, next) => {
         isSuperAdmin: isSuperAdmin(user),
         earnsPoints: earnsPoints(user.role),
         onLeaderboard: appearsOnLeaderboard(user.role),
-        pendingApprovals:
-          canViewAudit(user.role) || user.role === 'clubLead' ? pendingApprovals : 0,
+        // A Lead approves their own department's joiners, so that is the
+        // number they are shown — it used to be the whole club's queue, most
+        // of which they could not action.
+        pendingApprovals: canViewAudit(user.role)
+          ? pendingApprovals
+          : (isLead ? myDepartment.joins : 0),
       },
       config: { pointsPerTask: config.pointsPerTask, clubName: config.clubName },
     });
@@ -275,28 +334,10 @@ router.get('/home', async (request, response, next) => {
   }
 });
 
-/** Compact payload for the native home-screen widget. */
-router.get('/widget', async (request, response, next) => {
-  try {
-    const user = request.user;
-    const [pending, next] = await Promise.all([
-      col(C.tasks).countDocuments({ assignedTo: user._id, status: { $in: ['pending', 'inProgress'] } }),
-      col(C.tasks)
-        .find({ assignedTo: user._id, status: { $in: ['pending', 'inProgress'] }, dueDate: { $ne: null } })
-        .sort({ dueDate: 1 })
-        .limit(1)
-        .toArray(),
-    ]);
-    response.json({
-      pendingCount: pending,
-      nextTitle: next[0]?.title ?? null,
-      nextDue: next[0]?.dueDate ?? null,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+// `GET /widget` lived here: a compact payload for the home-screen widget that
+// nothing ever called. The widget is fed on the phone, by
+// `ClubStore._pushToWidget`, from data the app already holds — which is also
+// why it keeps working when the server is asleep.
 
 /** One clean chart screen — not a BI dashboard. */
 router.get('/analytics', async (request, response, next) => {

@@ -1034,6 +1034,43 @@ const login = async (email, password) => {
   await api(`/api/events/${plannedId}`, { method: 'DELETE', token: who.president.token });
   await api(`/api/events/${plannedId}?purge=true`, { method: 'DELETE', token: who.president.token });
 
+  // --------------------------------------------------------- V8 Home by role
+  console.log('\nV8 Home: each role sees what its job turns on');
+  const homeOf = async (w) => (await api('/api/home', { token: w.token })).body;
+  const superHome = await homeOf(who.cmo);
+  const presHome = await homeOf(who.president);
+  const leadHome = await homeOf(who.tech);
+  const mateHome = await homeOf(mate);
+  ok('V8-HOME', 'The people running the club get the club in aggregate',
+    superHome.overview && typeof superHome.overview.openWork === 'number'
+    && presHome.overview && typeof presHome.overview.unassigned === 'number',
+    JSON.stringify(superHome.overview || null).slice(0, 140));
+  ok('V8-HOME', 'a Lead gets their department, triage pile first',
+    !leadHome.overview && leadHome.myDepartment
+    && typeof leadHome.myDepartment.incoming === 'number',
+    JSON.stringify(leadHome.myDepartment || null));
+  ok('V8-HOME', 'and a member gets neither — their own work is theirs to see',
+    !mateHome.overview && !mateHome.myDepartment);
+
+  // The triage count is real: send the Tech department something, and it moves.
+  const incomingBefore = leadHome.myDepartment ? leadHome.myDepartment.incoming : 0;
+  const sentToTech = await api('/api/tasks', {
+    method: 'POST', token: who.president.token,
+    body: { title: 'Wire the demo stage', departmentId: tech.id },
+  });
+  const deptAfter = (await homeOf(who.tech)).myDepartment || {};
+  ok('V8-HOME', 'Work sent to a department lands in its Lead\u2019s count to hand out',
+    sentToTech.status === 201 && deptAfter.incoming === incomingBefore + 1, `${incomingBefore} \u2192 ${deptAfter.incoming}`);
+
+  // A Lead used to be shown the whole club's join queue, most of which they
+  // could not action.
+  const leadCaps = (await homeOf(who.tech)).capabilities || {};
+  const clubJoins = (superHome.overview && superHome.overview.awaitingDecision
+    && superHome.overview.awaitingDecision.joins) || 0;
+  ok('V8-HOME', 'A Lead\u2019s join count is their own department\u2019s',
+    leadCaps.pendingApprovals === (deptAfter.joins ?? -1),
+    `lead sees ${leadCaps.pendingApprovals}, own dept ${deptAfter.joins}, club ${clubJoins}`);
+
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {
     method: 'PATCH',
     token: who.cmo.token,
