@@ -684,7 +684,9 @@ class _DepartmentRow extends StatelessWidget {
             AnimatedScale(
               scale: selected ? 1 : 0,
               duration: AppleDuration.fast,
-              curve: AppleCurves.overshoot,
+              // Springs in, but not out: the overshoot on the way to zero went
+              // negative, and the tick flipped over as it vanished.
+              curve: selected ? AppleCurves.overshoot : AppleCurves.standard,
               child: Icon(Icons.check_circle_rounded, size: 20, color: _tint),
             ),
           ],

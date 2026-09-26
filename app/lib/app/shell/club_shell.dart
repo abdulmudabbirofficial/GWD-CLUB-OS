@@ -463,6 +463,14 @@ class _ClubNavRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fixed width, so the same cap on text scaling as the bottom bar.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: _rail(context),
+    );
+  }
+
+  Widget _rail(BuildContext context) {
     return Container(
       width: extended ? 208 : 88,
       decoration: BoxDecoration(
@@ -594,46 +602,42 @@ class _ClubNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Frosted, not opaque.
-    //
-    // The bar sits *over* the content rather than beside it, so the list
-    // scrolling underneath stays faintly visible through it. That is the cue
-    // that tells somebody the page continues past the bar — an opaque slab
-    // reads as the end of the page, and it is most of the difference between
-    // chrome that feels attached to the app and chrome that feels stuck on.
-    //
-    // The blur is clipped to the bar's own rect: an unbounded BackdropFilter
-    // samples the whole layer tree and is one of the few genuinely expensive
-    // things you can put on a screen that repaints on every scroll frame.
     // Solid. It was frosted glass over the content: a 24-sigma blur of
     // whatever scrolled beneath it, recomputed on every frame of every scroll,
     // on every screen — the single most expensive thing in the app, spent on
     // a bar. And it only worked by letting content run underneath the bar,
     // which is how the last rows of every list ended up hidden behind it.
-    return ClipRect(
-      child: RepaintBoundary(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0E0B0C) : GwdColors.surfaceOf(context),
-            border: Border(
-              top: BorderSide(color: GwdColors.hairlineOf(context).withValues(alpha: 0.9)),
+    //
+    // Its labels scale with the system text size only so far: the bar is a
+    // fixed 60 high, and at 1.5x or 2x text the icon, label and bracket rule
+    // no longer fit in it. Tab bars everywhere cap this the same way.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: ClipRect(
+        child: RepaintBoundary(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0E0B0C) : GwdColors.surfaceOf(context),
+              border: Border(
+                top: BorderSide(color: GwdColors.hairlineOf(context).withValues(alpha: 0.9)),
+              ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: height,
-              child: Row(
-                children: [
-                  for (var i = 0; i < items.length; i++)
-                    Expanded(
-                      child: _NavButton(
-                        item: items[i],
-                        selected: i == index,
-                        onTap: () => onChanged(i),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                height: height,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      Expanded(
+                        child: _NavButton(
+                          item: items[i],
+                          selected: i == index,
+                          onTap: () => onChanged(i),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -697,15 +701,22 @@ class _NavButton extends StatelessWidget {
             ),
             // The selected tab gets a short bracket rule rather than a generic
             // pill — a small piece of the logo, doing real work.
-            AnimatedContainer(
+            //
+            // Clamped: the overshoot that makes it spring open also carried it
+            // past zero on the way closed, a negative width that is an error in
+            // a debug build and a flicker in a release one.
+            TweenAnimationBuilder<double>(
+              tween: Tween(end: selected ? 16 : 0),
               duration: AppleDuration.standard,
               curve: AppleCurves.overshoot,
-              margin: const EdgeInsets.only(top: 3),
-              height: 2,
-              width: selected ? 16 : 0,
-              decoration: BoxDecoration(
-                color: GwdColors.primaryRed,
-                borderRadius: BorderRadius.circular(1),
+              builder: (context, width, _) => Container(
+                margin: const EdgeInsets.only(top: 3),
+                height: 2,
+                width: width.clamp(0.0, 24.0),
+                decoration: BoxDecoration(
+                  color: GwdColors.primaryRed,
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
             ),
           ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -64,6 +65,12 @@ class Session extends ChangeNotifier {
   int pointsPerTask = 5;
   String clubName = 'GWD Club';
 
+  /// The account exactly as the server last sent it. Saved whole, so a restart
+  /// shows the right name and title before the server has answered - the
+  /// hand-picked subset this used to save dropped "Club Director", custom
+  /// titles and the unnamed flag until the network came back.
+  Map<String, dynamic>? _meJson;
+
   Member? get me => _me;
   Department? get department => _department;
   SessionState get state => _state;
@@ -116,20 +123,27 @@ class Session extends ChangeNotifier {
       final cached = prefs.getString(_userKey);
       if (cached != null) {
         try {
-          _me = Member.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+          _meJson = jsonDecode(cached) as Map<String, dynamic>;
+          _me = Member.fromJson(_meJson!);
         } catch (_) {
           _me = null;
+          _meJson = null;
         }
       }
       if (_token == null || _me == null) {
         _set(SessionState.signedOut);
         return;
       }
-      // Show the cached identity immediately, then confirm with the server.
+      // Show the cached identity immediately, then confirm with the server -
+      // in the background. `main` awaits this before the first frame, so
+      // awaiting the network here held the splash screen up for as long as
+      // the request took: twenty seconds, the timeout, whenever the club's
+      // server was asleep or had moved. The saved identity is enough to draw;
+      // the refresh corrects it when it lands.
       _set(_me!.approvalStatus == ApprovalStatus.approved
           ? SessionState.active
           : SessionState.pendingApproval);
-      await refresh();
+      unawaited(refresh());
     } catch (_) {
       _set(SessionState.signedOut);
     }
@@ -171,6 +185,7 @@ class Session extends ChangeNotifier {
 
   void _applyUser(Map<String, dynamic>? json) {
     if (json == null) return;
+    _meJson = json;
     _me = Member.fromJson(json);
     _state = _me!.approvalStatus == ApprovalStatus.approved
         ? SessionState.active
@@ -180,6 +195,11 @@ class Session extends ChangeNotifier {
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     if (_token != null) await prefs.setString(_tokenKey, _token!);
+    final json = _meJson;
+    if (json != null) {
+      await prefs.setString(_userKey, jsonEncode(json));
+      return;
+    }
     final me = _me;
     if (me != null) {
       await prefs.setString(
@@ -274,6 +294,7 @@ class Session extends ChangeNotifier {
   Future<void> signOut() async {
     _token = null;
     _me = null;
+    _meJson = null;
     _department = null;
     _error = null;
     final prefs = await SharedPreferences.getInstance();
@@ -293,6 +314,12 @@ class Session extends ChangeNotifier {
       role: data['role'] == null ? null : ClubRole.fromWire(data['role'] as String?),
       approvalStatus: status,
     );
+    _meJson = {
+      ...?_meJson,
+      if (data['points'] != null) 'points': data['points'],
+      if (data['role'] != null) 'role': data['role'],
+      if (data['approvalStatus'] != null) 'approvalStatus': data['approvalStatus'],
+    };
     if (status == ApprovalStatus.approved && _state == SessionState.pendingApproval) {
       _state = SessionState.active;
     }

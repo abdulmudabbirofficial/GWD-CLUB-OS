@@ -359,24 +359,28 @@ class _TabBar extends StatelessWidget {
                 ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: GwdType.callout.copyWith(
-                  color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          // Shrinks rather than overflowing at large text sizes.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GwdType.callout.copyWith(
+                    color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 5),
-                Text('$count',
-                    style: GwdType.caption.copyWith(
-                      color: selected ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(context),
-                    )),
+                if (count > 0) ...[
+                  const SizedBox(width: 5),
+                  Text('$count',
+                      style: GwdType.caption.copyWith(
+                        color: selected ? GwdColors.primaryRed : GwdColors.inkTertiaryOf(context),
+                      )),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

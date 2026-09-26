@@ -277,55 +277,86 @@ class _BoardCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: GwdSpace.sm),
-          Row(
-            children: [
-              if (card.departmentName != null) ...[
-                GwdChip(
-                  label: card.departmentName!,
-                  color: GwdColors.inkTertiaryOf(context),
-                  dense: true,
-                ),
-                const SizedBox(width: 5),
+          // The chips, then the date and who has it. Side by side when the
+          // card is wide enough; in a narrow board column (a tablet, a phone
+          // held sideways) the date and the button move under the chips, since
+          // side by side they ran off the card.
+          LayoutBuilder(builder: (context, constraints) {
+            final chips = Wrap(
+              spacing: 5,
+              runSpacing: 4,
+              children: [
+                if (card.departmentName != null)
+                  GwdChip(
+                    label: card.departmentName!,
+                    color: GwdColors.inkTertiaryOf(context),
+                    dense: true,
+                  ),
+                if (card.status == TaskStatus.blocked)
+                  const GwdChip(
+                    label: 'Blocked',
+                    color: GwdColors.warning,
+                    icon: Icons.report_problem_outlined,
+                    dense: true,
+                  ),
               ],
-              if (card.status == TaskStatus.blocked)
-                const GwdChip(
-                  label: 'Blocked',
-                  color: GwdColors.warning,
-                  icon: Icons.report_problem_outlined,
-                  dense: true,
-                ),
-              const Spacer(),
-              if (card.dueDate != null)
-                Text(
-                  '${card.dueDate!.day}/${card.dueDate!.month}',
-                  style: GwdType.micro.copyWith(
-                    color: card.isOverdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
-                  ),
-                ),
-              const SizedBox(width: GwdSpace.sm),
-              if (unclaimed)
-                PressableScale(
-                  onTap: () => _claim(context, store, eventId, card),
-                  haptic: HapticStrength.light,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: GwdColors.primaryRed.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(GwdRadius.sm),
+            );
+            final trailing = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (card.dueDate != null) ...[
+                  Text(
+                    '${card.dueDate!.day}/${card.dueDate!.month}',
+                    style: GwdType.micro.copyWith(
+                      color: card.isOverdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
                     ),
-                    child: Text('I’ll take it',
-                        style: GwdType.micro.copyWith(color: GwdColors.primaryRed)),
                   ),
-                )
-              else
-                Avatar(
-                  initials: _initials(card.assigneeName ?? '?'),
-                  tint: card.accent,
-                  size: 22,
-                  selected: mine,
-                ),
-            ],
-          ),
+                  const SizedBox(width: GwdSpace.sm),
+                ],
+                if (unclaimed)
+                  PressableScale(
+                    onTap: () => _claim(context, store, eventId, card),
+                    haptic: HapticStrength.light,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: GwdColors.primaryRed.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(GwdRadius.sm),
+                      ),
+                      child: Text('I’ll take it',
+                          style: GwdType.micro.copyWith(color: GwdColors.primaryRed)),
+                    ),
+                  )
+                else
+                  Avatar(
+                    initials: _initials(card.assigneeName ?? '?'),
+                    tint: card.accent,
+                    size: 22,
+                    selected: mine,
+                  ),
+              ],
+            );
+            final hasChips = card.departmentName != null || card.status == TaskStatus.blocked;
+            if (constraints.maxWidth < 240) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasChips) ...[chips, const SizedBox(height: 6)],
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FittedBox(fit: BoxFit.scaleDown, child: trailing),
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: chips),
+                const SizedBox(width: GwdSpace.sm),
+                trailing,
+              ],
+            );
+          }),
         ],
       ),
     );

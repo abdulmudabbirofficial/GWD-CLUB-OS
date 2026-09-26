@@ -524,58 +524,63 @@ class _DateRail extends StatelessWidget {
                             width: isToday && !isSelected ? 1.4 : 1,
                           ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _weekdays[day.weekday - 1],
-                              style: GwdType.micro.copyWith(
-                                color: isSelected
-                                    ? GwdColors.surfaceOf(context).withValues(alpha: 0.7)
-                                    : GwdColors.inkTertiaryOf(context),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              '${day.day}',
-                              style: GwdType.title3.merge(GwdType.numeric).copyWith(
-                                    fontSize: 17,
-                                    color: isSelected
-                                        ? GwdColors.surfaceOf(context)
-                                        : GwdColors.inkOf(context),
-                                  ),
-                            ),
-                            // Show the month on the 1st so a long scroll never
-                            // loses its place.
-                            if (isFirstOfMonth)
+                        // The rail is a fixed height; with large text the
+                        // three lines scale down inside it rather than spill.
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               Text(
-                                _monthsShort[day.month - 1].toUpperCase(),
+                                _weekdays[day.weekday - 1],
                                 style: GwdType.micro.copyWith(
                                   color: isSelected
-                                      ? GwdColors.surfaceOf(context)
-                                      : GwdColors.primaryRed,
-                                ),
-                              )
-                            else
-                              SizedBox(
-                                height: 6,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    for (final tint in dots)
-                                      Container(
-                                        width: 3.5,
-                                        height: 3.5,
-                                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? Colors.white : tint,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                  ],
+                                      ? GwdColors.surfaceOf(context).withValues(alpha: 0.7)
+                                      : GwdColors.inkTertiaryOf(context),
                                 ),
                               ),
-                          ],
+                              const SizedBox(height: 1),
+                              Text(
+                                '${day.day}',
+                                style: GwdType.title3.merge(GwdType.numeric).copyWith(
+                                      fontSize: 17,
+                                      color: isSelected
+                                          ? GwdColors.surfaceOf(context)
+                                          : GwdColors.inkOf(context),
+                                    ),
+                              ),
+                              // Show the month on the 1st so a long scroll never
+                              // loses its place.
+                              if (isFirstOfMonth)
+                                Text(
+                                  _monthsShort[day.month - 1].toUpperCase(),
+                                  style: GwdType.micro.copyWith(
+                                    color: isSelected
+                                        ? GwdColors.surfaceOf(context)
+                                        : GwdColors.primaryRed,
+                                  ),
+                                )
+                              else
+                                SizedBox(
+                                  height: 6,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      for (final tint in dots)
+                                        Container(
+                                          width: 3.5,
+                                          height: 3.5,
+                                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? Colors.white : tint,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

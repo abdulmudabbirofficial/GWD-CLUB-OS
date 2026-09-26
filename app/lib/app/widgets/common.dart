@@ -201,31 +201,40 @@ class _SkeletonListState extends State<SkeletonList> with SingleTickerProviderSt
     super.dispose();
   }
 
+  late final Animation<double> _opacity =
+      Tween<double>(begin: 0.45, end: 0.8).animate(_controller);
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = 0.45 + (_controller.value * 0.35);
-        return Column(
-          children: [
-            for (var i = 0; i < widget.count; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: GwdSpace.md),
-                child: Opacity(
-                  opacity: t,
-                  child: Container(
-                    height: widget.height,
-                    decoration: BoxDecoration(
-                      color: GwdColors.sunkenOf(context),
-                      borderRadius: BorderRadius.circular(GwdRadius.xl),
+    // One fade over the whole block, on its own layer, instead of rebuilding
+    // every row and fading each separately on every frame. And clipped rather
+    // than overflowing: on a phone held sideways there is not room for five
+    // placeholder rows, and a placeholder that spills is worse than none.
+    return RepaintBoundary(
+      child: ClipRect(
+        child: SingleChildScrollView(
+          primary: false,
+          physics: const NeverScrollableScrollPhysics(),
+          child: FadeTransition(
+            opacity: _opacity,
+            child: Column(
+              children: [
+                for (var i = 0; i < widget.count; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: GwdSpace.md),
+                    child: Container(
+                      height: widget.height,
+                      decoration: BoxDecoration(
+                        color: GwdColors.sunkenOf(context),
+                        borderRadius: BorderRadius.circular(GwdRadius.xl),
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ],
-        );
-      },
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -580,10 +589,19 @@ class LiveDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Still, not breathing. "Connected" is the normal state and says nothing
+    // new each second; a dot that pulsed forever kept Home redrawing every
+    // frame for as long as it was open - battery and smoothness spent on a
+    // status nobody needs animated. Amber when not live is the part that
+    // carries information.
     if (connected) {
       return Semantics(
         label: 'Live updates connected',
-        child: const BreathingDot(color: GwdColors.success, size: 6),
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(color: GwdColors.success, shape: BoxShape.circle),
+        ),
       );
     }
     return Semantics(

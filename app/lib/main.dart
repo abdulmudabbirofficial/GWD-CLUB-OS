@@ -25,16 +25,20 @@ Future<void> main() async {
 }
 
 class GwdClubApp extends StatefulWidget {
-  const GwdClubApp({super.key, required this.session});
+  const GwdClubApp({super.key, required this.session, this.store});
 
   final Session session;
+
+  /// Only for tests, which render the whole app against recorded data - the
+  /// running app always builds its own.
+  final ClubStore? store;
 
   @override
   State<GwdClubApp> createState() => _GwdClubAppState();
 }
 
 class _GwdClubAppState extends State<GwdClubApp> {
-  late final ClubStore _store = ClubStore(session: widget.session);
+  late final ClubStore _store = widget.store ?? ClubStore(session: widget.session);
   SessionState? _lastState;
 
   @override

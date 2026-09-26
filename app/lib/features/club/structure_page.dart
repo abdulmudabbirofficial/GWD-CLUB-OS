@@ -305,9 +305,14 @@ class _DepartmentCard extends StatelessWidget {
                   style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
                 ),
               ),
-              Text(
-                '$completed of $assigned · $memberCount ${memberCount == 1 ? 'member' : 'members'}',
-                style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+              Flexible(
+                child: Text(
+                  '$completed of $assigned · $memberCount ${memberCount == 1 ? 'member' : 'members'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: GwdType.footnote.copyWith(color: GwdColors.inkTertiaryOf(context)),
+                ),
               ),
             ],
           ),

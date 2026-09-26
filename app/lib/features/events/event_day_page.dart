@@ -281,11 +281,15 @@ class _Header extends StatelessWidget {
                         LiveStatus.connected),
                 const SizedBox(width: GwdSpace.sm),
               ],
-              Text(
-                today ? 'TODAY' : event.whenLabel.toUpperCase(),
-                style: GwdType.eyebrow.copyWith(color: accent),
+              Expanded(
+                child: Text(
+                  today ? 'TODAY' : event.whenLabel.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GwdType.eyebrow.copyWith(color: accent),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: GwdSpace.sm),
               Text(_clock(now), style: GwdType.numeric.copyWith(color: accent)),
             ],
           ),

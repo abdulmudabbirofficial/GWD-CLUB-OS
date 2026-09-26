@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -776,26 +775,30 @@ class _BreathingDotState extends State<BreathingDot> with SingleTickerProviderSt
       );
     }
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = Curves.easeInOutSine.transform(_controller.value);
-        return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            color: widget.color,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.18 + (t * 0.28)),
-                blurRadius: 4 + (t * 6),
-                spreadRadius: t * 2.2,
-              ),
-            ],
-          ),
-        );
-      },
+    // Its own layer: without the boundary every frame of the breath repainted
+    // whatever card it sits in - the event banner, the toast - not just the dot.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final t = Curves.easeInOutSine.transform(_controller.value);
+          return Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: BoxDecoration(
+              color: widget.color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withValues(alpha: 0.18 + (t * 0.28)),
+                  blurRadius: 4 + (t * 6),
+                  spreadRadius: t * 2.2,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -935,56 +938,6 @@ class FluidMeter extends StatelessWidget {
   }
 }
 
-/// Gentle ambient float. Kept for the hero constellation and landing page.
-class AppleFloat extends StatefulWidget {
-  const AppleFloat({
-    super.key,
-    required this.child,
-    this.offsetY = 4.0,
-    this.duration = const Duration(milliseconds: 3600),
-  });
-
-  final Widget child;
-  final double offsetY;
-  final Duration duration;
-
-  @override
-  State<AppleFloat> createState() => _AppleFloatState();
-}
-
-class _AppleFloatState extends State<AppleFloat> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: widget.duration);
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (prefersReducedMotion(context)) return widget.child;
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = Curves.easeInOutSine.transform(_controller.value);
-        return Transform.translate(
-          offset: Offset(0, lerpDouble(-widget.offsetY, widget.offsetY, t)!),
-          child: child,
-        );
-      },
-      child: widget.child,
-    );
-  }
-}
-
 /// Pulsing ring for a single genuinely-live avatar. Never apply to a list.
 class ApplePulseRing extends StatefulWidget {
   const ApplePulseRing({
@@ -1046,116 +999,4 @@ class _ApplePulseRingState extends State<ApplePulseRing> with SingleTickerProvid
       child: widget.child,
     );
   }
-}
-
-/// Waveform meter used on the flagship radar. One shared ticker, no per-bar
-/// implicit animations — the previous version rebuilt 34 AnimatedContainers
-/// every frame, which is what made the dashboard stutter on mid-range phones.
-class AppleDynamicEqualizer extends StatefulWidget {
-  const AppleDynamicEqualizer({
-    super.key,
-    required this.progress,
-    this.barCount = 32,
-    this.height = 36.0,
-    this.color,
-  });
-
-  final double progress;
-  final int barCount;
-  final double height;
-  final Color? color;
-
-  @override
-  State<AppleDynamicEqualizer> createState() => _AppleDynamicEqualizerState();
-}
-
-class _AppleDynamicEqualizerState extends State<AppleDynamicEqualizer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.color ?? GwdColors.primaryRed;
-    final track = GwdColors.inkTertiaryOf(context).withValues(alpha: 0.20);
-    final still = prefersReducedMotion(context);
-
-    return SizedBox(
-      height: widget.height,
-      width: double.infinity,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => CustomPaint(
-          painter: _EqualizerPainter(
-            phase: still ? 0 : _controller.value * math.pi * 2,
-            progress: widget.progress.clamp(0.0, 1.0),
-            barCount: widget.barCount,
-            color: color,
-            trackColor: track,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EqualizerPainter extends CustomPainter {
-  _EqualizerPainter({
-    required this.phase,
-    required this.progress,
-    required this.barCount,
-    required this.color,
-    required this.trackColor,
-  });
-
-  final double phase;
-  final double progress;
-  final int barCount;
-  final Color color;
-  final Color trackColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const gap = 3.0;
-    final barWidth = math.max(2.0, (size.width - (gap * (barCount - 1))) / barCount);
-    final activeCount = (progress * barCount).round();
-    final paint = Paint()..style = PaintingStyle.fill;
-
-    for (var i = 0; i < barCount; i++) {
-      final ratio = barCount == 1 ? 0.0 : i / (barCount - 1);
-      // Envelope peaks in the middle so the meter reads as a waveform.
-      final envelope = (1.0 - (ratio - 0.5).abs() * 1.5).clamp(0.34, 1.0);
-      final wave = 0.12 * math.sin(phase + (i * 0.42));
-      final h =
-          ((size.height * envelope) + (size.height * wave)).clamp(size.height * 0.22, size.height);
-
-      paint.color = i < activeCount ? color : trackColor;
-      final x = i * (barWidth + gap);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, size.height - h, barWidth, h),
-          Radius.circular(barWidth / 2),
-        ),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _EqualizerPainter old) =>
-      old.phase != phase || old.progress != progress || old.color != color;
 }

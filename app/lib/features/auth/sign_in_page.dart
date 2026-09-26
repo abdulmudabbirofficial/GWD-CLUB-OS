@@ -146,8 +146,11 @@ class _SignInPageState extends State<SignInPage> {
                       const SizedBox(height: GwdSpace.md),
                       AppleStaggerItem(
                         index: 5,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        // Wraps onto two lines on a narrow phone or with
+                        // large text, rather than running off the edge.
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text('New to the club?',
                                 style: GwdType.callout

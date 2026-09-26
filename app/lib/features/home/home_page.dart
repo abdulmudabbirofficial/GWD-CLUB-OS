@@ -1084,16 +1084,23 @@ class _NextTaskCardState extends State<_NextTaskCard> {
         children: [
           Row(
             children: [
-              GwdChip(
-                  label: task.status.label.toUpperCase(),
-                  color: task.status.tint,
-                  icon: task.status.icon),
-              const Spacer(),
+              Flexible(
+                child: GwdChip(
+                    label: task.status.label.toUpperCase(),
+                    color: task.status.tint,
+                    icon: task.status.icon),
+              ),
+              const SizedBox(width: GwdSpace.sm),
               if (task.dueLabel != null)
-                Text(
-                  task.dueLabel!,
-                  style: GwdType.caption.copyWith(
-                    color: overdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
+                Expanded(
+                  child: Text(
+                    task.dueLabel!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: GwdType.caption.copyWith(
+                      color: overdue ? GwdColors.critical : GwdColors.inkTertiaryOf(context),
+                    ),
                   ),
                 ),
             ],

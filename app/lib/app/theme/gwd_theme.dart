@@ -869,24 +869,3 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
-
-/// Equalizer bar kept for source compatibility with existing widgets.
-class SpectrumFrequencyBar extends StatelessWidget {
-  const SpectrumFrequencyBar({
-    super.key,
-    required this.progress,
-    this.barCount = 34,
-    this.height = 36,
-  });
-
-  final double progress;
-  final int barCount;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) => AppleDynamicEqualizer(
-        progress: progress,
-        barCount: barCount,
-        height: height,
-      );
-}

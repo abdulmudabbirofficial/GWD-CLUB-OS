@@ -400,10 +400,16 @@ class _Tag extends StatelessWidget {
             Icon(selected ? Icons.groups_rounded : Icons.groups_outlined,
                 size: 14, color: selected ? Colors.white : GwdColors.inkTertiaryOf(context)),
             const SizedBox(width: 5),
-            Text(label,
-                style: GwdType.footnote.copyWith(
-                  color: selected ? Colors.white : GwdColors.inkSecondaryOf(context),
-                )),
+            // A department called something long ran the chip straight off
+            // the sheet; it ends in an ellipsis instead.
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GwdType.footnote.copyWith(
+                    color: selected ? Colors.white : GwdColors.inkSecondaryOf(context),
+                  )),
+            ),
           ],
         ),
       ),

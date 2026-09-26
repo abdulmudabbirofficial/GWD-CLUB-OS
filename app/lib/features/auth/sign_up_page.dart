@@ -253,11 +253,15 @@ class _RolePicker extends StatelessWidget {
                           size: 14,
                           color: role == value ? Colors.white : GwdColors.inkSecondaryOf(context)),
                       const SizedBox(width: 6),
-                      Text(
-                        role.title,
-                        style: GwdType.callout.copyWith(
-                          color: role == value ? Colors.white : GwdColors.inkOf(context),
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          role.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GwdType.callout.copyWith(
+                            color: role == value ? Colors.white : GwdColors.inkOf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],

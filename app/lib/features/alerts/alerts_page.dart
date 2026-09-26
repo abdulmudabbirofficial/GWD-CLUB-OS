@@ -256,33 +256,37 @@ class _Segments extends StatelessWidget {
                 ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: GwdType.callout.copyWith(
-                  color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: accent
-                        ? GwdColors.primaryRed
-                        : GwdColors.inkTertiaryOf(context).withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(GwdRadius.pill),
+          // Shrinks rather than overflowing at large text sizes.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GwdType.callout.copyWith(
+                    color: selected ? GwdColors.inkOf(context) : GwdColors.inkTertiaryOf(context),
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
-                  child: Text('$count',
-                      style: GwdType.micro.copyWith(
-                        color: accent ? Colors.white : GwdColors.inkSecondaryOf(context),
-                      )),
                 ),
+                if (count > 0) ...[
+                  const SizedBox(width: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: accent
+                          ? GwdColors.primaryRed
+                          : GwdColors.inkTertiaryOf(context).withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(GwdRadius.pill),
+                    ),
+                    child: Text('$count',
+                        style: GwdType.micro.copyWith(
+                          color: accent ? Colors.white : GwdColors.inkSecondaryOf(context),
+                        )),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

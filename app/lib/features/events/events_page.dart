@@ -247,30 +247,35 @@ class _GroupSwitcher extends StatelessWidget {
                         ? GwdShadow.resting(Theme.of(context).brightness == Brightness.dark)
                         : null,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        _labels[i],
-                        style: GwdType.footnote.copyWith(
-                          color: i == index
-                              ? GwdColors.inkOf(context)
-                              : GwdColors.inkTertiaryOf(context),
-                          fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                      if (counts[i] > 0) ...[
-                        const SizedBox(width: 5),
+                  // Shrinks rather than overflowing: a third of a 320-wide
+                  // phone, or larger text, has no room for "Upcoming 12".
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          '${counts[i]}',
-                          style: GwdType.micro.copyWith(
+                          _labels[i],
+                          style: GwdType.footnote.copyWith(
                             color: i == index
-                                ? GwdColors.primaryRed
+                                ? GwdColors.inkOf(context)
                                 : GwdColors.inkTertiaryOf(context),
+                            fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
                           ),
                         ),
+                        if (counts[i] > 0) ...[
+                          const SizedBox(width: 5),
+                          Text(
+                            '${counts[i]}',
+                            style: GwdType.micro.copyWith(
+                              color: i == index
+                                  ? GwdColors.primaryRed
+                                  : GwdColors.inkTertiaryOf(context),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
