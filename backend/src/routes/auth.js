@@ -57,8 +57,11 @@ router.post('/signup', signupLimiter, async (request, response, next) => {
     if (!PHONE.test(phone)) fail('Enter a valid phone number.');
     if (password.length < 8) fail('Use a password with at least 8 characters.');
     if (!isRole(requestedRole)) fail('Choose a valid role.');
-    if (requestedRole === ROLES.clubDirector) {
-      fail('Director accounts are set up by the club, not through signup.', 403);
+    // Supervisors are appointed, never self-selected. Only Directors were
+    // refused here, so a vacant Faculty Coordinator seat could be requested
+    // through signup - and then sat in a queue nobody can decide.
+    if (requestedRole === ROLES.clubDirector || requestedRole === ROLES.facultyCoordinator) {
+      fail('That post is appointed by the club, not taken through signup.', 403);
     }
 
     // Departments are required for everyone who sits inside one.
@@ -102,7 +105,13 @@ router.post('/signup', signupLimiter, async (request, response, next) => {
       createdAt: now,
       lastLoginAt: now,
     };
-    const inserted = await col(C.users).insertOne(user);
+    // The unique index is the real guard; the lookup above only makes the
+    // common case readable. Two signups racing on one address used to answer
+    // "Something went wrong" to whichever lost.
+    const inserted = await col(C.users).insertOne(user).catch((error) => {
+      if (error.code === 11000) fail('An account with this email already exists.', 409);
+      throw error;
+    });
     user._id = inserted.insertedId;
 
     const route = approvalRouteFor(requestedRole);
@@ -223,6 +232,10 @@ router.post('/password', authenticate, async (request, response, next) => {
     );
     await audit(request.user._id, 'password.change', {});
 
+    // Any other device still connected on an old token is cut off too; this
+    // one's app reconnects with the replacement below.
+    await require('../realtime').disconnectUser(request.user._id, { staleOnly: true });
+
     // Hand back a fresh token, or the caller has just invalidated its own
     // session by succeeding.
     response.json({ ok: true, token: signToken(updated), user: publicUser(updated) });
@@ -293,7 +306,10 @@ router.post('/device', authenticate, async (request, response, next) => {
 
 router.delete('/device', authenticate, async (request, response, next) => {
   try {
-    await fcm.unregisterDevice(request.body?.token);
+    // Only your own device: knowing somebody else's token must not let you
+    // switch their notifications off.
+    const token = typeof request.body?.token === 'string' ? request.body.token : null;
+    await fcm.unregisterDevice(token, request.user._id);
     response.json({ ok: true });
   } catch (error) {
     next(error);

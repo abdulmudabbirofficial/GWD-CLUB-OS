@@ -2,7 +2,7 @@
 
 const { Server } = require('socket.io');
 const config = require('./config');
-const { readToken, loadUser } = require('./auth');
+const { readToken, loadUser, passwordStamp } = require('./auth');
 const { col, C, database } = require('./db');
 const { ROLES, rankOf, RANK } = require('./permissions');
 
@@ -47,7 +47,14 @@ function attach(httpServer) {
       if (user.approvalStatus !== 'approved') {
         return next(new Error('Account awaiting approval.'));
       }
+      // The same check the REST API makes. Without it a token from before a
+      // password change - the lost-phone case - could still open a socket and
+      // listen to the club's live traffic for the rest of its thirty days.
+      if ((claims.pwd ?? 0) !== passwordStamp(user)) {
+        return next(new Error('Authentication required.'));
+      }
       socket.data.user = user;
+      socket.data.pwd = claims.pwd ?? 0;
       return next();
     } catch {
       return next(new Error('Authentication required.'));
@@ -57,9 +64,7 @@ function attach(httpServer) {
   io.on('connection', (socket) => {
     const user = socket.data.user;
     socket.join(room.user(String(user._id)));
-    socket.join(room.club);
-    if (user.departmentId) socket.join(room.dept(String(user.departmentId)));
-    if (rankOf(user.role) >= RANK.vicePresident) socket.join(room.leadership);
+    joinScopedRooms(socket, user);
 
     socket.emit('ready', {
       userId: String(user._id),
@@ -74,6 +79,54 @@ function attach(httpServer) {
   });
 
   return io;
+}
+
+/** The rooms that depend on who somebody is: their department and rank. */
+function joinScopedRooms(socket, user) {
+  socket.join(room.club);
+  if (user.departmentId) socket.join(room.dept(String(user.departmentId)));
+  if (rankOf(user.role) >= RANK.vicePresident) socket.join(room.leadership);
+}
+
+/**
+ * Re-seat somebody's open sockets after their role or department changed.
+ *
+ * Rooms are chosen at connect time, so without this a demoted officer kept
+ * receiving the leadership room - and a moved member their old department's -
+ * until they happened to reconnect. Kept connected rather than dropped: a
+ * socket the server closes does not retry, and they did nothing wrong.
+ */
+async function refreshRooms(userId) {
+  if (!io) return;
+  const user = await loadUser(String(userId));
+  const sockets = await io.in(room.user(String(userId))).fetchSockets();
+  for (const socket of sockets) {
+    if (!user || user.approvalStatus !== 'approved') {
+      socket.disconnect(true);
+      continue;
+    }
+    for (const name of socket.rooms) {
+      if (name === room.leadership || name.startsWith('dept:')) socket.leave(name);
+    }
+    joinScopedRooms(socket, user);
+    socket.data.user = user;
+  }
+}
+
+/**
+ * Close somebody's open sockets: all of them when they are removed or had
+ * their password reset, or only those still holding a token from before a
+ * password change they made themselves (their own app reconnects with the
+ * replacement it was just handed).
+ */
+async function disconnectUser(userId, { staleOnly = false } = {}) {
+  if (!io) return;
+  const sockets = await io.in(room.user(String(userId))).fetchSockets();
+  if (sockets.length === 0) return;
+  const current = staleOnly ? passwordStamp(await loadUser(String(userId))) : null;
+  for (const socket of sockets) {
+    if (!staleOnly || socket.data.pwd !== current) socket.disconnect(true);
+  }
 }
 
 function emitTo(rooms, event, payload) {
@@ -486,12 +539,16 @@ function startOne(spec, resumeAfter = undefined) {
     return;
   }
 
+  // Some handlers are async (they look something up before choosing who to
+  // tell). A try/catch around the call only catches the synchronous ones: a
+  // rejected promise escaped it, and Node ends the whole process on an
+  // unhandled rejection - one database hiccup would take the club offline.
   stream.on('change', (change) => {
-    try {
-      spec.handler(change);
-    } catch (error) {
-      console.error(`[realtime] handler error on ${spec.name}:`, error.message);
-    }
+    Promise.resolve()
+      .then(() => spec.handler(change))
+      .catch((error) => {
+        console.error(`[realtime] handler error on ${spec.name}:`, error.message);
+      });
   });
 
   stream.on('error', (error) => {
@@ -534,6 +591,8 @@ module.exports = {
   stopWatchers,
   emitTo,
   emitFallback,
+  refreshRooms,
+  disconnectUser,
   room,
   serialiseTask,
   serialiseNotification,

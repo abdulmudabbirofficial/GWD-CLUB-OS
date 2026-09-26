@@ -61,9 +61,9 @@ async function registerDevice(userId, token, platform) {
   );
 }
 
-async function unregisterDevice(token) {
+async function unregisterDevice(token, userId) {
   if (!token) return;
-  await col(C.devices).deleteOne({ token });
+  await col(C.devices).deleteOne(userId ? { token, userId } : { token });
 }
 
 async function tokensFor(userIds) {

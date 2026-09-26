@@ -534,6 +534,12 @@ router.put('/:id/lead', requireManage, async (request, response, next) => {
       { _id: id }, { $set: { leadUserId: userId } }, { returnDocument: 'after' },
     );
     await audit(request.user._id, 'department.setLead', { id: String(id), userId: userId ? String(userId) : null });
+    // Both the new Lead and whoever stepped down now belong in different rooms.
+    const { refreshRooms } = require('../realtime');
+    if (userId) await refreshRooms(userId);
+    if (department.leadUserId && String(department.leadUserId) !== String(userId ?? '')) {
+      await refreshRooms(department.leadUserId);
+    }
     response.json({ department: serialise(updated) });
   } catch (error) {
     next(error);

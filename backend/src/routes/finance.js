@@ -52,7 +52,11 @@ const upload = multer({
   limits: { fileSize: config.maxUploadBytes, files: 1 },
 });
 
-router.use(authenticate, requireApproved);
+// Only this router's own paths. It is mounted at /api, so a bare
+// `router.use(authenticate)` ran for every request that passed through on
+// its way to a later router - meetings, help, alerts, Home - loading the
+// user from the database again each time.
+router.use(['/events/:eventId/bills', '/bills'], authenticate, requireApproved);
 
 const oid = (value, name) => {
   if (!ObjectId.isValid(value)) fail(`${name} is not valid.`);
@@ -379,7 +383,9 @@ router.get('/bills/:id/receipt', async (request, response, next) => {
     response.setHeader('Content-Type', contentType);
     response.setHeader('Content-Disposition', disposition);
     response.setHeader('X-Content-Type-Options', 'nosniff');
-    fs.createReadStream(absolute).pipe(response);
+    fs.createReadStream(absolute)
+      .on('error', () => response.destroy())
+      .pipe(response);
   } catch (error) {
     next(error);
   }

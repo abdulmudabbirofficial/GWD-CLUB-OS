@@ -48,7 +48,8 @@ function signToken(user) {
 }
 
 function readToken(token) {
-  return jwt.verify(token, config.jwtSecret);
+  // Pinned, so a token can never pick its own algorithm.
+  return jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
 }
 
 /**
@@ -168,6 +169,7 @@ function requireRank(minimumRole) {
 module.exports = {
   hashPassword,
   verifyPassword,
+  passwordStamp,
   signToken,
   readToken,
   loadUser,

@@ -7,7 +7,7 @@ const { authenticate, requireApproved, fail } = require('../auth');
 const config = require('../config');
 const {
   canScheduleMeeting, canMarkAttendance, ROLES, isSupervisor, rankOf, RANK,
-  canAssign, canAssignToDepartment, canAssignTo, isValidTaskPoints,
+  canAssign, canAssignToDepartment, canAssignTo, isValidTaskPoints, canViewMemberDetail,
 } = require('../permissions');
 const { displayNameOf } = require('../people');
 const { notify, audit } = require('../services/notify');
@@ -152,10 +152,36 @@ router.get('/', async (request, response, next) => {
   }
 });
 
+/**
+ * The same rule as the list: the officers and supervisors see every meeting,
+ * everybody else the ones they were invited to or called. Opening one by id
+ * used to skip it, so its notes and attendance were readable by anybody who
+ * had the id - which every invitee's notification carries.
+ */
+function canSeeMeeting(actor, meeting) {
+  if (isSupervisor(actor.role) || rankOf(actor.role) >= RANK.secretaryGeneral) return true;
+  if (String(meeting.createdBy) === String(actor._id)) return true;
+  return (meeting.participants ?? []).some((p) => String(p.userId) === String(actor._id));
+}
+
+/**
+ * ...and one more reason to open it: having been given work out of it, or
+ * running the department an action item was sent to. That person was not in
+ * the room, but "where did this come from?" is exactly what they need to read.
+ */
+async function mayOpenMeeting(actor, meeting) {
+  if (canSeeMeeting(actor, meeting)) return true;
+  const or = [{ assignedTo: actor._id }];
+  if (actor.role === ROLES.clubLead && actor.departmentId) or.push({ departmentId: actor.departmentId });
+  return Boolean(await col(C.tasks).findOne(
+    { meetingId: meeting._id, $or: or }, { projection: { _id: 1 } },
+  ));
+}
+
 router.get('/:id', async (request, response, next) => {
   try {
     const meeting = await col(C.meetings).findOne({ _id: oid(request.params.id, 'Meeting id') });
-    if (!meeting) fail('That meeting no longer exists.', 404);
+    if (!meeting || !(await mayOpenMeeting(request.user, meeting))) fail('That meeting no longer exists.', 404);
     const { userName, deptName } = await labels([meeting]);
     response.json({
       meeting: serialise(meeting, { userName, deptName, actorId: request.user._id }),
@@ -462,6 +488,8 @@ router.post('/:id/actions', async (request, response, next) => {
 router.get('/:id/actions', async (request, response, next) => {
   try {
     const id = oid(request.params.id, 'Meeting id');
+    const meeting = await col(C.meetings).findOne({ _id: id }, { projection: { createdBy: 1, participants: 1 } });
+    if (!meeting || !(await mayOpenMeeting(request.user, meeting))) fail('That meeting no longer exists.', 404);
     const tasks = await col(C.tasks)
       .find({ meetingId: id, status: { $ne: 'cancelled' } })
       .sort({ createdAt: 1 })
@@ -616,6 +644,10 @@ async function attendanceFor(userId) {
 router.get('/attendance/:userId', async (request, response, next) => {
   try {
     const userId = oid(request.params.userId, 'User id');
+    // Somebody's attendance record is part of their record: the same people
+    // who may open that may read this, and nobody else.
+    const target = await col(C.users).findOne({ _id: userId });
+    if (!target || !canViewMemberDetail(request.user, target)) fail('Member not found.', 404);
     response.json({ attendance: await attendanceFor(userId) });
   } catch (error) {
     next(error);

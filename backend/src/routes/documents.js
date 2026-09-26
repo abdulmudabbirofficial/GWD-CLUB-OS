@@ -80,7 +80,11 @@ const upload = multer({
   limits: { fileSize: config.maxUploadBytes, files: 1 },
 });
 
-router.use(authenticate, requireApproved);
+// Only this router's own paths. It is mounted at /api, so a bare
+// `router.use(authenticate)` ran for every request that passed through on
+// its way to a later router - meetings, help, alerts, Home - loading the
+// user from the database again each time.
+router.use(['/events/:eventId/documents', '/documents'], authenticate, requireApproved);
 
 const oid = (value, name) => {
   if (!ObjectId.isValid(value)) fail(`${name} is not valid.`);
@@ -464,7 +468,12 @@ router.get('/documents/:id/file', async (request, response, next) => {
     response.setHeader('Content-Type', contentType);
     response.setHeader('Content-Disposition', disposition);
     response.setHeader('X-Content-Type-Options', 'nosniff');
-    return fs.createReadStream(absolute).pipe(response);
+    // A read error mid-stream (a file removed underneath, a disk fault) must
+    // end this one response, not the process: an unheard stream error is an
+    // uncaught exception.
+    return fs.createReadStream(absolute)
+      .on('error', () => response.destroy())
+      .pipe(response);
   } catch (error) {
     return next(error);
   }

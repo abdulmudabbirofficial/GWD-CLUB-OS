@@ -21,6 +21,16 @@ const server = http.createServer(app);
 
 app.disable('x-powered-by');
 
+// Behind a hosting proxy (Render sets RENDER), every request arrives from the
+// proxy's address unless Express is told to read the forwarded one. Every
+// IP-keyed limit then treated the whole club as one visitor: sixty sign-ups an
+// hour, for everybody. Only trusted when there really is a proxy - on the
+// laptop there is none, and trusting the header would let anybody pick their
+// own address and step round the limits.
+if (process.env.TRUST_PROXY || process.env.RENDER) {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+}
+
 // gzip every response worth compressing.
 //
 // This backend serves a roomful of phones over one Wi-Fi hotspot, and its
@@ -55,7 +65,7 @@ app.use(security.sanitize);
 // A ceiling on any one client. Mounted on /api only: the web build's own
 // assets are static files and a member loading the app pulls dozens of them at
 // once, which would burn a request budget meant for API calls.
-app.use('/api', security.apiLimiter);
+app.use('/api', security.apiCeiling, security.apiLimiter);
 
 // The Flutter web build, when one has been produced.
 const webBuild = path.join(__dirname, '../../app/build/web');
@@ -169,12 +179,15 @@ async function start() {
   if (report.leads.length > 0) {
     console.log('');
     console.log('🔑 Department Lead accounts created — awaiting approval');
-    console.log('   Hand these out. Each must be approved by a Director or the');
-    console.log('   President before it can sign in, and the holder is asked to');
-    console.log('   choose their own password the first time.');
+    console.log('   Their passwords are not printed. Once the President approves');
+    console.log('   one, the Club Director sets a temporary password from the');
+    console.log('   member page (Reset their password) and hands it over; the');
+    console.log('   holder chooses their own the first time they sign in.');
     console.log('');
     for (const lead of report.leads) {
-      console.log(`   ${lead.department.padEnd(26)} ${lead.email.padEnd(32)} ${lead.password}`);
+      // Never the password itself: this output lands in server.log and in the
+      // host's log viewer, where anybody who can read logs could sign in.
+      console.log(`   ${lead.department.padEnd(26)} ${lead.email}`);
     }
     console.log('');
   }
@@ -216,6 +229,12 @@ async function shutdown() {
   await db.close();
   process.exit(0);
 }
+
+// A stray rejected promise must not take the whole club offline. Logged, and
+// the server keeps serving; every route already answers its own errors.
+process.on('unhandledRejection', (error) => {
+  console.error('[unhandled rejection]', error instanceof Error ? error.message : error);
+});
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

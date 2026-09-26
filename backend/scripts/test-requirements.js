@@ -465,7 +465,12 @@ const login = async (email, password) => {
   ok('M2', 'carrying the meeting it came out of, so there is a way back',
     (inWork.find((t) => t.id === actionId) || {}).meetingId === meetingId);
 
-  const actionsBefore = await api(`/api/meetings/${meetingId}/actions`, { token: who.tech.token });
+  // Read by the Production Lead: not in the room, but running the department
+  // the action item went to. An uninvolved Lead gets nothing at all.
+  const meetingOutsider = await api(`/api/meetings/${meetingId}`, { token: who.tech.token });
+  ok('M2', 'A Lead with no part in the meeting cannot open it', meetingOutsider.status === 404,
+    `got ${meetingOutsider.status}`);
+  const actionsBefore = await api(`/api/meetings/${meetingId}/actions`, { token: who.production.token });
   ok('M2', 'The meeting lists what came out of it',
     actionsBefore.status === 200 && (actionsBefore.body.actions || []).length === 1
     && actionsBefore.body.done === 0,
@@ -486,7 +491,7 @@ const login = async (email, password) => {
   });
   ok('M2', 'The person it landed on can finish it', finished.status === 200,
     finished.txt.slice(0, 140));
-  const after = await api(`/api/meetings/${meetingId}/actions`, { token: who.tech.token });
+  const after = await api(`/api/meetings/${meetingId}/actions`, { token: who.production.token });
   ok('M2', 'and finishing it on the Work tab shows as done on the meeting',
     after.body.done === 1,
     `done ${after.body.done} of ${(after.body.actions || []).length}`);
@@ -1319,6 +1324,79 @@ const login = async (email, password) => {
   }
   if (joinerId) {
     await api(`/api/users/${joinerId}`, { method: 'DELETE', token: who.cmo.token });
+  }
+
+  // ------------------------------------------------------ pre-launch security
+  console.log('\npre-launch security');
+
+  // Supervisors' contact details and private password flags stay private.
+  const memberRoster = (await api('/api/users', { token: mate.token })).body.users || [];
+  const supervisorRows = memberRoster.filter((u) => ['clubDirector', 'facultyCoordinator'].includes(u.role));
+  ok('SEC', 'A member is not handed the Directors\u2019 or Faculty Coordinator\u2019s email and phone',
+    supervisorRows.length > 0 && supervisorRows.every((u) => !u.email && !u.phone),
+    `${supervisorRows.length} supervisors listed`);
+  ok('SEC', 'nor whether anybody else asked for a password reset',
+    memberRoster.filter((u) => u.id !== mateId).every((u) => u.passwordResetRequested === false
+      && u.mustChangePassword === false));
+  const superRoster = (await api('/api/users', { token: who.cmo.token })).body.users || [];
+  ok('SEC', 'while the Club Director still sees contact details',
+    superRoster.filter((u) => u.role === 'clubDirector').every((u) => Boolean(u.email)));
+
+  const fcSignup = await api('/api/auth/signup', {
+    method: 'POST',
+    body: {
+      name: 'Would Be Coordinator', email: `fc.${Date.now()}@gwd.club`, phone: '9000000555',
+      password: 'Coordinator1', role: 'facultyCoordinator',
+    },
+  });
+  ok('SEC', 'Nobody can sign up as the Faculty Coordinator', fcSignup.status === 403,
+    `got ${fcSignup.status}`);
+
+  // A Director's record opens only for other supervisors, so their
+  // attendance does too.
+  const othersAttendance = await api(`/api/meetings/attendance/${who.ceo.user.id}`, { token: mate.token });
+  ok('SEC', 'A member cannot read somebody else\u2019s attendance record',
+    othersAttendance.status === 404, `got ${othersAttendance.status}`);
+
+  // A token from before a password reset opens no socket.
+  {
+    const { io } = require('socket.io-client');
+    const secStamp = Date.now();
+    const victim = await api('/api/auth/signup', {
+      method: 'POST',
+      body: {
+        name: `Lost Phone ${secStamp}`, email: `lostphone.${secStamp}@gwd.club`, phone: '9000000666',
+        password: 'LostPhone1', role: 'clubMember', departmentId: tech.id,
+      },
+    });
+    const victimId = victim.body.user && victim.body.user.id;
+    const victimRow = ((await api('/api/access/pending', { token: who.tech.token })).body.requests || [])
+      .find((r) => r.userId === victimId);
+    if (victimRow) await api(`/api/access/${victimRow.id}/approve`, { method: 'POST', token: who.tech.token });
+    const oldSession = await login(`lostphone.${secStamp}@gwd.club`, 'LostPhone1');
+
+    const connectWith = async (token) => {
+      const socket = io(BASE, { auth: { token }, transports: ['websocket'], reconnection: false });
+      const connected = await new Promise((resolve) => {
+        socket.on('connect', () => resolve(true));
+        socket.on('connect_error', () => resolve(false));
+        setTimeout(() => resolve(false), 5000);
+      });
+      return { socket, connected };
+    };
+    const before = oldSession ? await connectWith(oldSession.token) : { connected: false };
+    let droppedOnReset = false;
+    if (before.socket) before.socket.on('disconnect', () => { droppedOnReset = true; });
+
+    await api(`/api/users/${victimId}/reset-password`, { method: 'POST', token: who.cmo.token });
+    await new Promise((r) => setTimeout(r, 500));
+    const after = oldSession ? await connectWith(oldSession.token) : { connected: true };
+    ok('SEC', 'A password reset drops the old session\u2019s live connection',
+      before.connected && droppedOnReset, `connected ${before.connected}, dropped ${droppedOnReset}`);
+    ok('SEC', 'and the old token cannot open a new one', after.connected === false);
+    if (before.socket) before.socket.close();
+    if (after.socket) after.socket.close();
+    if (victimId) await api(`/api/users/${victimId}`, { method: 'DELETE', token: who.cmo.token });
   }
 
   const fourth = await api(`/api/users/${who.gensec.user.id}/role`, {

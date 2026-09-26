@@ -29,6 +29,33 @@ const oid = (value, name) => {
   return new ObjectId(value);
 };
 
+/**
+ * A person as `viewer` may see them.
+ *
+ * The directory used to hand every member the Directors' and the Faculty
+ * Coordinator's email and phone, although their records open only for other
+ * supervisors - the app hid it, the API did not, and "never trust the client"
+ * is the rule. It also told everybody who had asked for a password reset and
+ * who had not yet chosen their own password, which is the Club Director's
+ * business (they act on it) and the person's own, nobody else's.
+ */
+function publicUserFor(viewer) {
+  return (user) => {
+    const view = publicUser(user);
+    if (!view) return view;
+    const self = String(viewer._id) === String(user._id);
+    if (!self && !isSuperAdmin(viewer)) {
+      view.passwordResetRequested = false;
+      view.mustChangePassword = false;
+    }
+    if (!self && isSupervisor(user.role) && !isSupervisor(viewer.role)) {
+      view.email = '';
+      view.phone = null;
+    }
+    return view;
+  };
+}
+
 /** Member directory, scoped to what this role may see. */
 router.get('/', async (request, response, next) => {
   try {
@@ -42,7 +69,7 @@ router.get('/', async (request, response, next) => {
     if (isRole(request.query.role)) filter.$and.push({ role: request.query.role });
 
     const users = await col(C.users).find(filter).sort({ name: 1 }).limit(500).toArray();
-    response.json({ users: users.map(publicUser) });
+    response.json({ users: users.map(publicUserFor(request.user)) });
   } catch (error) {
     next(error);
   }
@@ -73,7 +100,7 @@ router.get('/assignable', async (request, response, next) => {
         : [];
       return response.json({
         assignable: [],
-        requestable: askable.filter((c) => canRequestTo(actor, c)).map(publicUser),
+        requestable: askable.filter((c) => canRequestTo(actor, c)).map(publicUserFor(actor)),
         departments: [],
         canAssignToDepartment: false,
         pointValues: TASK_POINT_VALUES,
@@ -111,8 +138,8 @@ router.get('/assignable', async (request, response, next) => {
       // yourself through the API still works.
       assignable: candidates
         .filter((c) => canAssignTo(actor, c) && String(c._id) !== String(actor._id))
-        .map(publicUser),
-      requestable: candidates.filter((c) => canRequestTo(actor, c)).map(publicUser),
+        .map(publicUserFor(actor)),
+      requestable: candidates.filter((c) => canRequestTo(actor, c)).map(publicUserFor(actor)),
       departments: departments.map((d) => ({
         id: String(d._id),
         name: d.name,
@@ -564,7 +591,7 @@ router.get('/:id', async (request, response, next) => {
       $and: [{ _id: oid(request.params.id, 'User id') }, userVisibilityFilter(request.user)],
     });
     if (!user) fail('Member not found.', 404);
-    response.json({ user: publicUser(user) });
+    response.json({ user: publicUserFor(request.user)(user) });
   } catch (error) {
     next(error);
   }
@@ -739,6 +766,8 @@ router.post('/:id/reset-password', async (request, response, next) => {
 
     await notify(id, 'passwordReset', { byName: displayNameOf(actor) });
     await audit(actor._id, 'password.reset', { userId: String(id), name: target.name });
+    // Every session they had is now dead; so are their live connections.
+    await require('../realtime').disconnectUser(id);
 
     response.json({
       temporaryPassword: temporary,
@@ -824,6 +853,7 @@ router.delete('/:id', async (request, response, next) => {
       }
     }
 
+    await require('../realtime').disconnectUser(id);
     response.json({ ok: true, removed: { id: String(id), name: target.name } });
   } catch (error) {
     next(error);
@@ -908,6 +938,7 @@ router.patch('/:id/role', async (request, response, next) => {
 
     const updated = await col(C.users).findOneAndUpdate({ _id: id }, { $set: update }, { returnDocument: 'after' });
     await audit(request.user._id, 'user.roleChange', { userId: String(id), ...update });
+    await require('../realtime').refreshRooms(id);
     response.json({ user: publicUser(updated) });
   } catch (error) {
     next(error);

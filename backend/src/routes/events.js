@@ -555,6 +555,13 @@ router.post('/:id/tasks/:taskId/claim', async (request, response, next) => {
     if (!claimingForSelf && !canManageEventDepartment(request.user, event, task.departmentId)) {
       fail('You can only take on work yourself, not hand it to someone else.', 403);
     }
+    // Handing it to somebody else needs somebody real on the other end: an id
+    // that matched nobody, or an account still waiting to be let in, left the
+    // task "taken" by nobody who could ever see it.
+    if (!claimingForSelf
+      && !(await col(C.users).findOne({ _id: target, approvalStatus: 'approved' }, { projection: { _id: 1 } }))) {
+      fail('That person is not available.', 404);
+    }
     if (claimingForSelf
       && task.departmentId
       && String(request.user.departmentId ?? '') !== String(task.departmentId)

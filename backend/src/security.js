@@ -198,6 +198,20 @@ const apiLimiter = rateLimit({
   keyOn: (request) => request.headers.authorization || '',
 });
 
+/**
+ * A ceiling per address, whatever the Authorization header says.
+ *
+ * `apiLimiter` is keyed on the header so a hundred phones behind one hotspot
+ * are a hundred budgets - but that also made a fresh budget out of every made-up
+ * header, so it limited nobody who wanted to flood it. This caps the address as
+ * a whole, high enough for a full room arriving at once (16 requests each).
+ */
+const apiCeiling = rateLimit({
+  windowMs: 60_000,
+  max: 6000,
+  name: 'api-ip',
+});
+
 /** The email a request is about, lowercased — never an object. */
 const emailKey = (request) =>
   typeof request.body?.email === 'string'
@@ -208,9 +222,24 @@ const emailKey = (request) =>
  * Signing in. Ten tries per account per ten minutes is generous for somebody
  * who genuinely forgot, and useless for guessing an eight-character password.
  */
-const loginLimiter = rateLimit({
+const loginPerAccount = rateLimit({
   windowMs: 10 * 60 * 1000, max: 10, name: 'login', keyOn: emailKey,
 });
+
+/**
+ * And a ceiling per address across every account, so one machine cannot try a
+ * common password against the whole club's email list ten at a time. Generous
+ * enough for a room signing in together behind one hotspot.
+ */
+const loginPerAddress = rateLimit({
+  windowMs: 10 * 60 * 1000, max: 200, name: 'login-ip',
+});
+
+const loginLimiter = (request, response, next) =>
+  loginPerAddress(request, response, (error) => {
+    if (error) return next(error);
+    return loginPerAccount(request, response, next);
+  });
 
 /**
  * Creating accounts.
@@ -265,6 +294,7 @@ function dispositionFor(mimeType, filename) {
 }
 
 module.exports = {
+  apiCeiling,
   apiLimiter,
   sanitize,
   headers,
