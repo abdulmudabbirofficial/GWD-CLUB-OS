@@ -489,6 +489,81 @@ changes — one request after a burst, and only for people whose Home shows them
 because refetching the heaviest endpoint on every task update would be a flood
 during a busy sprint.
 
+## Pre-launch audit (V8.2) — what was found, and the rules it left
+
+Each of these was live before launch. Keep them closed.
+
+- **The socket checks the password stamp too.** `authenticate` compared a
+  token's `pwd` claim with the account; the Socket.IO handshake did not, so a
+  token from before a password change or reset - the lost-phone case - could
+  still open a socket and hear the club's live traffic for thirty days. Now:
+  a stale token is refused at the handshake, `disconnectUser` drops open
+  sockets on a reset, a removal, or (stale ones only) your own password change,
+  and `refreshRooms` re-seats somebody's sockets after a role or department
+  change, since rooms are otherwise chosen once, at connect.
+- **Async change-stream handlers are awaited inside a catch.** A try/catch
+  around `handler(change)` misses a rejected promise, and Node ends the process
+  on an unhandled rejection. There is also a process-level
+  `unhandledRejection` logger, and download streams carry an error handler.
+- **What the API hands out is per viewer** (`publicUserFor` in
+  `routes/users.js`): supervisors' email and phone only to supervisors, and the
+  password-reset / must-change flags only to the person and the Super Admin.
+  The app hid these; the API did not, and "never trust the client" is the rule.
+- **Meetings:** opening one by id follows the list's rule (leadership, the
+  caller, invitees) plus anyone given an action item from it or running the
+  department one went to (`mayOpenMeeting`). It used to return any meeting to
+  anybody. `/meetings/attendance/:userId` follows `canViewMemberDetail`.
+- **Behind a proxy, trust it; otherwise, do not.** `trust proxy` is set only
+  when `RENDER` or `TRUST_PROXY` is present. Without it every Render request
+  came from one address and the club shared sixty sign-ups an hour; with it on
+  the laptop, anybody could choose their own address and dodge the limits.
+- **Rate limits have a per-address floor.** `apiLimiter` is keyed on the
+  Authorization header (a hundred phones behind one hotspot are a hundred
+  budgets), which let a made-up header per request escape it entirely.
+  `apiCeiling` (6000/min per address) and `loginPerAddress` (200 per 10 min)
+  close that.
+- **Routers mounted at `/api` guard only their own paths.** Documents and
+  finance used a bare `router.use(authenticate)`, so every later `/api` request
+  (meetings, alerts, Home) was authenticated three times on its way through.
+- **Nothing prints a password into a log.** The startup banner used to list
+  the seeded Leads' passwords, which lands in `server.log` and the host's log
+  viewer. Temporary passwords reach people through the Club Director's
+  "Reset their password" or `seed-club.js`, whose output is read once and not
+  redirected.
+- Signup refuses the Faculty Coordinator post as well as Director; a duplicate
+  email race answers 409; removing a push token needs it to be yours; handing
+  event board work to somebody checks they exist and are approved.
+
+### Responsive, and proven so
+
+`app/test/responsive_test.dart` renders every tab for the Club Director, a Lead
+and a member at eleven sizes (320x568 to 1920x1080, landscape, 1.5x and 2x
+text), and every detail page and sheet at six, against API responses recorded
+from a real server and stuffed with long names and titles on purpose. Any
+overflow fails it. Its first run found overflows on sign-in, the event board,
+the meeting invite chips, Home, the Work / Events / Alerts switches and more;
+all are fixed and it passes.
+
+- When an API shape changes, re-record the fixtures:
+  `node scripts/record-fixtures.js` against the throwaway QA server (port 4700,
+  database `gwd_club_os_qa`, seeded with `seed-club.js --demo`).
+- Sheets open on the root navigator, so a test host (like the app) must put
+  `AppScope` **above** `MaterialApp`, not inside `home`.
+- A "springy" curve (`AppleCurves.overshoot`) must never drive a size or scale
+  toward zero: it overshoots past it. The tab underline went to -0.7px wide;
+  check marks flipped as they vanished. Clamp, or use it on the way in only.
+- Fixed-height chrome (the tab bar, the rail, the schedule's date strip) caps
+  text scaling or scales its content down; everything else wraps or ellipsizes.
+
+### Launch and first frame
+
+`Session.restore` no longer awaits the server before the first frame. `main`
+awaits `restore`, so waiting on `/api/auth/me` there held the splash screen for
+up to the 20-second timeout whenever the server was asleep or had moved. The
+saved identity draws the app; the refresh corrects it when it lands. The saved
+identity is the server's whole account JSON (`_meJson`), not a hand-picked
+subset - the subset dropped "Club Director", custom titles and the unnamed flag.
+
 ## Security (v4)
 
 `src/security.js` holds the cross-cutting protections so they cannot be
