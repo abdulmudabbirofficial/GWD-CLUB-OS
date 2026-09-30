@@ -47,9 +47,9 @@ const { ACCENTS, accentFor } = require('../src/palette');
 const APPLY = process.argv.includes('--apply');
 
 const DIRECTORS = [
-  { email: 'cmo@gwd.global', name: 'Abdul Mudabbir', knownAs: 'Mudabbir', superAdmin: true },
-  { email: 'ceo@gwd.global', name: 'Rehman Pasha', knownAs: 'Rehman', superAdmin: false },
-  { email: 'director3@gwd.global', name: 'Mohammed Moin', knownAs: 'Moin', superAdmin: false },
+  { email: 'clubdirector@gwd.global', name: 'Abdul Mudabbir', knownAs: 'Mudabbir', superAdmin: true },
+  { email: 'director1@gwd.global', name: 'Rehman Pasha', knownAs: 'Rehman', superAdmin: false },
+  { email: 'director2@gwd.global', name: 'Mohammed Moin', knownAs: 'Moin', superAdmin: false },
 ];
 
 function where() {

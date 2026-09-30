@@ -58,9 +58,26 @@ const { planPlaceholderRetirement, retireAccounts } = require('../src/placeholde
  * Readable on purpose. These get read aloud and typed into a chat, so the
  * characters people confuse (O/0, l/1/I) are left out entirely.
  */
+const WORDS = [
+  'Amber', 'Anchor', 'Arrow', 'Aspen', 'Aurora', 'Banyan', 'Beacon', 'Birch',
+  'Blaze', 'Breeze', 'Brook', 'Canyon', 'Cedar', 'Cobalt', 'Comet', 'Coral',
+  'Crimson', 'Crystal', 'Delta', 'Ember', 'Falcon', 'Fern', 'Forest', 'Galaxy',
+  'Garnet', 'Glacier', 'Harbor', 'Hawk', 'Horizon', 'Indigo', 'Island', 'Jasmine',
+  'Jungle', 'Lagoon', 'Lotus', 'Maple', 'Meadow', 'Meteor', 'Monsoon', 'Nebula',
+  'Oasis', 'Orbit', 'Orchid', 'Pebble', 'Phoenix', 'Pine', 'Planet', 'Prism',
+  'Quartz', 'Rain', 'Raven', 'River', 'Saffron', 'Sierra', 'Summit', 'Sunrise',
+  'Thunder', 'Tiger', 'Topaz', 'Valley', 'Violet', 'Willow', 'Winter', 'Zephyr',
+];
+
+/**
+ * Two words and four digits - "Maple-Falcon-4821". Readable aloud and easy to
+ * type on a phone, which is how a first password actually gets handed over,
+ * and generated fresh every run: never written into the code, which is on
+ * GitHub. It survives exactly one sign-in (`mustChangePassword`).
+ */
 function temporaryPassword() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return 'gwd-' + Array.from(crypto.randomBytes(8), (b) => alphabet[b % alphabet.length]).join('');
+  const word = () => WORDS[crypto.randomInt(WORDS.length)];
+  return `${word()}-${word()}-${crypto.randomInt(1000, 10000)}`;
 }
 
 // The one palette (src/palette.js). This script used to carry its own list —
@@ -82,21 +99,29 @@ const ROSTER = [
   // the full name. Exactly one seat is the Super Admin (see permissions.js).
   {
     post: 'Club Director', name: 'Abdul Mudabbir', knownAs: 'Mudabbir',
-    superAdmin: true, email: 'cmo@gwd.global', role: ROLES.clubDirector,
+    superAdmin: true, email: 'clubdirector@gwd.global', role: ROLES.clubDirector,
   },
   {
     post: 'Director', name: 'Rehman Pasha', knownAs: 'Rehman',
-    email: 'ceo@gwd.global', role: ROLES.clubDirector,
+    email: 'director1@gwd.global', role: ROLES.clubDirector,
   },
   {
     post: 'Director', name: 'Mohammed Moin', knownAs: 'Moin',
-    email: 'director3@gwd.global', role: ROLES.clubDirector,
+    email: 'director2@gwd.global', role: ROLES.clubDirector,
+  },
+
+  // --- the college's representative -------------------------------------
+  // Her name is hers to give, so the account says so and she is asked on
+  // first sign-in rather than seeded as a job title.
+  {
+    post: 'Faculty Coordinator', name: 'Faculty Coordinator', mustSetName: true,
+    email: 'facultycoordinator@gwd.global', role: ROLES.facultyCoordinator,
   },
 
   // --- the executive tier ----------------------------------------------
   { post: 'President', name: 'Aldrin Paul', email: 'president@gwd.global', role: ROLES.president },
-  { post: 'Vice President', name: 'Mohd Ismail', email: 'vp@gwd.global', role: ROLES.vicePresident },
-  { post: 'General Secretary', name: 'Sravya', email: 'gensec@gwd.global', role: ROLES.secretaryGeneral },
+  { post: 'Vice President', name: 'Mohd Ismail', email: 'vicepresident@gwd.global', role: ROLES.vicePresident },
+  { post: 'General Secretary', name: 'Sravya', email: 'generalsecretary@gwd.global', role: ROLES.secretaryGeneral },
 
   // --- department Leads -------------------------------------------------
   // Two departments to start with; the rest are created in the app by the
@@ -128,13 +153,15 @@ async function seedPeople() {
 
     if (existing) {
       // Correct who they are and where they sit; never touch their password.
+      // A seat seeded without a real name keeps whatever name its holder has
+      // since given; the placeholder never overwrites it.
+      const naming = person.mustSetName ? {} : { name: person.name, mustSetName: false };
       await col(C.users).updateOne({ _id: existing._id }, {
         $set: {
-          name: person.name,
+          ...naming,
           role: person.role,
           departmentId,
           approvalStatus: 'approved',
-          mustSetName: false,
           knownAs: person.knownAs ?? null,
           superAdmin: person.superAdmin === true,
         },
@@ -154,8 +181,8 @@ async function seedPeople() {
       points: 0,
       approvalStatus: 'approved',
       passwordHash: await hashPassword(password),
-      // A real name, given by the club. Nobody needs to be asked for it.
-      mustSetName: false,
+      // A real name, given by the club - except where the club gave none.
+      mustSetName: person.mustSetName === true,
       knownAs: person.knownAs ?? null,
       // Set here and by scripts/v8-hierarchy.js, and by no route: the API has
       // no way to mint a Super Admin.
@@ -243,8 +270,8 @@ async function seedDemo() {
   const byEmail = new Map(people.map((u) => [u.email, u]));
 
   const president = byEmail.get('president@gwd.global');
-  const vp = byEmail.get('vp@gwd.global');
-  const gensec = byEmail.get('gensec@gwd.global');
+  const vp = byEmail.get('vicepresident@gwd.global');
+  const gensec = byEmail.get('generalsecretary@gwd.global');
   if (!president) throw new Error('President missing — run without --demo first.');
 
   const lead = (name) => {
@@ -461,7 +488,7 @@ async function main() {
 
   if (updated.length) {
     console.log('  Already existed (name/role/department corrected, password untouched):');
-    for (const p of updated) console.log(`    ${p.email.padEnd(26)} ${p.name}`);
+    for (const p of updated) console.log(`    ${p.email.padEnd(34)} ${p.name}`);
     console.log('');
   }
 
@@ -474,11 +501,11 @@ function printCredentials(list) {
   console.log('  Everyone is asked to choose their own on first sign-in.');
   console.log('  ' + '='.repeat(76));
   console.log('');
-  console.log('  ' + 'POST'.padEnd(26) + 'NAME'.padEnd(32) + 'EMAIL'.padEnd(26) + 'PASSWORD');
+  console.log('  ' + 'POST'.padEnd(26) + 'NAME'.padEnd(32) + 'EMAIL'.padEnd(34) + 'PASSWORD');
   console.log('  ' + '-'.repeat(96));
   for (const p of list) {
     console.log('  ' + String(p.post).padEnd(26) + String(p.name).padEnd(32)
-      + String(p.email).padEnd(26) + p.password);
+      + String(p.email).padEnd(33) + ' ' + p.password);
   }
   console.log('');
 }

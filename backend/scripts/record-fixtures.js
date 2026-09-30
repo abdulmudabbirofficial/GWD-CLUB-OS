@@ -38,7 +38,7 @@ async function call(method, p, token, body) {
   const production = await col(C.departments).findOne({ name: 'Production' });
   let lead = await mint('tech@gwd.global');
   const president = await mint('president@gwd.global');
-  const superAdmin = await mint('cmo@gwd.global');
+  const superAdmin = await mint('clubdirector@gwd.global');
 
   // A member with a very long name, through the real signup + approval.
   const memberEmail = 'member.qa@gwd.club';

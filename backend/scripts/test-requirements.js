@@ -65,17 +65,18 @@ const login = async (email, password) => {
 
   const who = {};
   const accounts = {
-    cmo: 'cmo@gwd.global',
-    ceo: 'ceo@gwd.global',
-    director3: 'director3@gwd.global',
+    cmo: 'clubdirector@gwd.global',
+    ceo: 'director1@gwd.global',
+    director3: 'director2@gwd.global',
     president: 'president@gwd.global',
-    vp: 'vp@gwd.global',
-    gensec: 'gensec@gwd.global',
+    vp: 'vicepresident@gwd.global',
+    gensec: 'generalsecretary@gwd.global',
     tech: 'tech@gwd.global',
     production: 'production@gwd.global',
   };
   for (const [key, email] of Object.entries(accounts)) {
-    who[key] = await login(email, CREDS[key]);
+    // Keyed by the address's local part, as the runner reads them off the seed.
+    who[key] = await login(email, CREDS[email.split('@')[0]]);
     if (!who[key]) {
       console.error(`  could not sign in as ${email}`);
       process.exit(1);
@@ -752,13 +753,13 @@ const login = async (email, password) => {
   const roster = (await api('/api/users', { token: who.cmo.token })).body.users || [];
   const byEmail = (e) => roster.find((u) => u.email === e) || {};
   ok('V8-H', 'Director Mudabbir is the Super Admin',
-    byEmail('cmo@gwd.global').superAdmin === true
-    && byEmail('cmo@gwd.global').knownAs === 'Mudabbir',
-    JSON.stringify({ s: byEmail('cmo@gwd.global').superAdmin, k: byEmail('cmo@gwd.global').knownAs }));
+    byEmail('clubdirector@gwd.global').superAdmin === true
+    && byEmail('clubdirector@gwd.global').knownAs === 'Mudabbir',
+    JSON.stringify({ s: byEmail('clubdirector@gwd.global').superAdmin, k: byEmail('clubdirector@gwd.global').knownAs }));
   ok('V8-H', 'and Director Rehman and Director Moin are Directors, not Super Admins',
-    byEmail('ceo@gwd.global').superAdmin === false && byEmail('ceo@gwd.global').knownAs === 'Rehman'
-    && byEmail('director3@gwd.global').superAdmin === false
-    && byEmail('director3@gwd.global').knownAs === 'Moin');
+    byEmail('director1@gwd.global').superAdmin === false && byEmail('director1@gwd.global').knownAs === 'Rehman'
+    && byEmail('director2@gwd.global').superAdmin === false
+    && byEmail('director2@gwd.global').knownAs === 'Moin');
   ok('V8-H', 'Nobody is called "Club Director Three" any more',
     !roster.some((u) => /Director (One|Two|Three|\d)/i.test(u.name || '')),
     roster.filter((u) => /Director/i.test(u.name || '')).map((u) => u.name).join(', '));
@@ -1100,7 +1101,7 @@ const login = async (email, password) => {
   ok('V8.1', 'A throwaway member to act on', Boolean(spareId && sparePending));
 
   const rosterNow = (await api('/api/users', { token: who.cmo.token })).body.users || [];
-  const mudabbir = rosterNow.find((u) => u.email === 'cmo@gwd.global') || {};
+  const mudabbir = rosterNow.find((u) => u.email === 'clubdirector@gwd.global') || {};
   ok('V8.1', 'He is "Club Director Mudabbir"; the others are Directors',
     mudabbir.superAdmin === true && mudabbir.knownAs === 'Mudabbir');
 

@@ -159,7 +159,7 @@ if ($Only -in @('all', 'meetings')) {
 
         $creds = @{}
         foreach ($line in ($seedOut -split "`r?`n")) {
-            if ($line -match '(\S+)@gwd\.global\s+(gwd-\S+)') {
+            if ($line -match '(\S+)@gwd\.global\s+([A-Z][a-z]+-[A-Z][a-z]+-\d{4})') {
                 $creds[$Matches[1]] = $Matches[2]
             }
         }
@@ -234,7 +234,7 @@ if ($Only -in @('all', 'requirements')) {
         # in the environment, never written down.
         $creds = @{}
         foreach ($line in ($seedOut -split "`r?`n")) {
-            if ($line -match '(\S+)@gwd\.global\s+(gwd-\S+)') { $creds[$Matches[1]] = $Matches[2] }
+            if ($line -match '(\S+)@gwd\.global\s+([A-Z][a-z]+-[A-Z][a-z]+-\d{4})') { $creds[$Matches[1]] = $Matches[2] }
         }
         if ($creds.Count -lt 8) {
             Write-Host $seedOut
